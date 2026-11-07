@@ -1,0 +1,16 @@
+{
+  "sourceLanguage" : "pt-BR",
+  "strings" : {
+    "popover.title" : {
+      "localizations" : {
+        "pt-BR" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
