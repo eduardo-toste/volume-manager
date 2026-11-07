@@ -1,7 +1,7 @@
 # Volume Manager — regras do projeto
 
 Mixer de volume por app para macOS (barra de menus, SwiftUI, Core Audio process taps).
-Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário → funcionar bem → fluidez/facilidade de uso → visual nativo.**
+Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário → qualidade de áudio idêntica à nativa (SPEC §4.7) → funcionar bem → fluidez/facilidade de uso → visual nativo.**
 
 ## Fontes da verdade (ler antes de qualquer tarefa)
 - `docs/SPEC.md` — o que o app faz e as regras técnicas (§12) e de segurança (§12.9). **A SPEC manda.**
@@ -26,6 +26,8 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 11. **Sistema**: não usar `sudo`, não rodar `tccutil`, não matar `coreaudiod`, não alterar preferências do sistema fora dos testes previstos, não instalar nada globalmente (brew, gems, pip).
 12. **Segredos**: nenhum certificado, chave, `.p12`, token ou senha no repositório.
 13. **Não enfraquecer verificações**: não desligar testes, não relaxar `security-check.sh`, não baixar cobertura mínima, não adicionar exceções ao lint para “passar”.
+14. **Nenhum som audível** em testes ou experimentos: o usuário trabalha nesta máquina. Usar silêncio digital / `afplay -v 0`, ou sinais só dentro de tap `mutedWhenTapped` com aggregate sem saída física (SPEC §12.8.1). Não alterar volume geral, mudo ou dispositivo padrão. Encerrar todo processo de áudio iniciado.
+15. **Não degradar o áudio**: o processamento é só `amostra × ganho` em Float32; sem efeitos, sem conversão de formato, sem reamostragem desnecessária (SPEC §4.7).
 
 ## SEMPRE
 - Código e identificadores em inglês; textos de UI em pt-BR via `Localizable.xcstrings`.

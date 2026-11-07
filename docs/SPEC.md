@@ -121,6 +121,17 @@ O pior resultado aceitável de qualquer falha é **“o app volta ao som normal�
 - **Modo seguro**: se o app encerrar de forma anormal 2 vezes seguidas em menos de 1 minuto após iniciar, a próxima inicialização **não reaplica** volumes/rotas lembrados e mostra um aviso discreto no popover. Volta ao normal após uma sessão estável.
 - Falha ao criar tap ou aggregate device → não tenta de novo em laço; deixa o app no som original.
 
+### 4.7 Qualidade de áudio (requisito central)
+O áudio de um app controlado pelo Volume deve soar **exatamente como soaria sem o Volume**, só que no volume escolhido. Nenhuma perda de qualidade é aceitável.
+- **Transparência**: o processamento é **apenas** multiplicar cada amostra pelo ganho, em Float32. Proibido: compressão, limitador, equalização, dither, normalização, mixagem de canais, qualquer efeito.
+- **Em ganho 1.0 a saída é idêntica bit a bit à entrada** (e, na saída padrão sem mudo, nem há tap — §4.2).
+- **Formato preservado**: mesma taxa de amostragem, mesmo número e ordem de canais (estéreo, 5.1, espacial quando o dispositivo suportar), sem conversão para formatos de menor resolução.
+- **Sem reamostragem** quando a saída é o mesmo dispositivo que o app usaria. Quando o app é roteado para outro dispositivo com taxa diferente, a conversão é feita **uma única vez**, pelo conversor de alta qualidade do próprio Core Audio (qualidade máxima), com compensação de drift ativada no subdispositivo de saída do aggregate.
+- **Sem cortes, estalos ou falhas**: zero *overloads*/buffers perdidos em uso normal; mudanças de ganho com rampa (§4.2); trocar de saída sem estalo audível (rampa para 0 → troca → rampa de volta).
+- **Sem clipping introduzido**: ganho ≤ 1.0 nunca aumenta o nível.
+- **Latência**: dentro do orçamento do §12.4 (≤ 20 ms), imperceptível para vídeo e chamadas.
+- Mudanças de formato do dispositivo (ex.: usuário troca a taxa no Configuração de Áudio e MIDI, fone Bluetooth muda de perfil) → o tap/aggregate é reconstruído no novo formato, nunca toca no formato errado.
+
 ### 4.3 Saída por app
 - Escolher um dispositivo para um app recria o aggregate device daquele app com a nova saída.
 - Se o dispositivo some (AirPods desconectou): o app volta para a **saída padrão** e a preferência fica guardada; quando o dispositivo reaparecer, a rota salva é restaurada.
@@ -285,6 +296,23 @@ volume-manager/
 - **Roteiro manual** (`docs/MANUAL_TESTS.md`, escrito pelo agente de testes) cobrindo os critérios do §14 que exigem hardware.
 - Casos obrigatórios do §4.6: vigia destrói tap parado, “Restaurar áudio original” limpa tudo, modo seguro após 2 encerramentos anormais.
 
+#### 12.8.1 Testes isolados — nenhum som audível
+Testes automáticos **nunca** podem produzir som audível nem alterar o estado de áudio da máquina do usuário.
+- Processos de teste tocam **silêncio digital** ou sinal com ganho 0 (ex.: utilitário de teste próprio `test-tone` em `Tests/Support`, ou `afplay -v 0`). Proibido tocar sons do sistema/arquivos em volume audível.
+- Sinais de teste não-silenciosos só podem existir **dentro** de um tap com `mutedWhenTapped` cujo aggregate **não tem saída física** (aggregate só com o tap) — o sinal é analisado em memória e nunca chega aos alto-falantes. O processo de teste começa em silêncio e só gera o sinal depois que o tap está ativo.
+- Proibido nos testes: alterar volume geral, mudo geral ou dispositivo padrão do sistema; criar dispositivos que permaneçam após o teste.
+- Testes que dependem de hardware de áudio ficam marcados (tag `.audioHardware`) e são pulados por padrão em `check.sh`; rodam com `scripts/check.sh --audio`.
+
+#### 12.8.2 Testes de qualidade de áudio (§4.7)
+Com o arranjo isolado acima (sinal conhecido → tap → nosso processamento → buffer em memória):
+- **Teste nulo**: em ganho 1.0, saída − entrada = 0 exatamente (bit a bit) para seno, ruído branco e silêncio.
+- **Ganho exato**: em ganho g, cada amostra = entrada × g (tolerância de 1 ULP de Float32 após a rampa).
+- **Formato**: taxa, canais e ordem de canais da saída iguais aos da entrada (testar 44.1/48/96 kHz e mono/estéreo quando disponíveis).
+- **Continuidade**: 10 minutos de sinal sem buffer perdido, sem descontinuidade de fase e sem *overload* reportado.
+- **Rampa**: mudança de ganho sem degraus (derivada limitada) — sem estalo.
+- **Latência**: medida pelo atraso entre sinal gerado e sinal recebido, ≤ 20 ms.
+- Essas análises de sinal existem **somente** no código de teste; o app nunca analisa áudio (§12.9.3).
+
 ### 12.9 Segurança e privacidade
 
 O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança é **requisito bloqueante**: nenhuma etapa é aprovada com item de segurança pendente.
@@ -389,4 +417,6 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 15. Princípio “falhar abrindo” (§4.6): vigia, “Restaurar áudio original” e modo seguro funcionam; Forçar Encerramento do Volume devolve o áudio original de todos os apps.
 16. `scripts/security-check.sh` passa sem nenhum item (§12.9.7).
 17. Auditoria independente de segurança (§12.9.8) sem achados Críticos ou Altos em aberto.
+19. Qualidade de áudio (§4.7): testes de §12.8.2 passam (teste nulo bit a bit, ganho exato, formato preservado, 10 min sem falhas, latência ≤ 20 ms), e na escuta do usuário não há diferença perceptível em relação a não ter o app.
+20. Nenhum teste automático produz som audível nem altera o áudio do sistema (§12.8.1).
 18. Matriz de apps do §4.1 (Safari, Chrome, Spotify, Discord, Zoom, Música, YouTube): cada um aparece **uma vez**, com nome e ícone corretos, e responde ao volume.
