@@ -67,8 +67,8 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M0 — Fundação do projeto
 **Dev**
-- `Package.swift` com os módulos da SPEC §12.1: `VolumeCore`, `VolumeAudio`, `VolumeSystem`, `VolumeUI`, executável `VolumeManager`, executável de desenvolvimento `vmctl` (ver M2), e alvos de teste. `platforms: [.macOS("14.2")]`, Swift 6, concorrência estrita, dependência `KeyboardShortcuts`.
-- `Resources/`: `Info.plist` (`LSUIElement`, `LSMinimumSystemVersion 14.2`, bundle ID `com.volumemanager.app`, `NSAudioCaptureUsageDescription`), entitlements, `Localizable.xcstrings`, `Version` (versão em um só lugar).
+- `Package.swift` com os módulos da SPEC §12.1: `VolumeCore`, `VolumeAudio`, `VolumeSystem`, `VolumeUI`, executável `VolumeManager`, executável de desenvolvimento `vmctl` (ver M2), e alvos de teste. `platforms: [.macOS(.v15)]`, Swift 6, concorrência estrita, dependência `KeyboardShortcuts`.
+- `Resources/`: `Info.plist` (`LSUIElement`, `LSMinimumSystemVersion 15.0`, bundle ID `com.volumemanager.app`, `NSAudioCaptureUsageDescription`), entitlements, `Localizable.xcstrings`, `Version` (versão em um só lugar).
 - `.swift-format`, `.gitignore`.
 - `scripts/check.sh` (lint de formatação + build sem avisos + `swift test` + `security-check.sh`), `scripts/build-app.sh` (release build → monta `Volume.app` sem `vmctl` → Hardened Runtime → assina com `VOLUME_SIGN_IDENTITY` ou ad-hoc).
 - `scripts/security-check.sh` com todas as verificações da SPEC §12.9.7 desde o primeiro dia.
@@ -165,7 +165,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M5 — Ajustes e Boas-vindas
 **Dev**
-- Janela de Ajustes (uma instância, ⌘,): Geral (todas as opções + atalhos com gravador), Aplicativos (lembrados, esquecer), Dispositivos (lista, definir padrão), Atalhos, Sobre (versão/build, link de Releases). Barra lateral de vidro no 26+, `NavigationSplitView` padrão no 14/15.
+- Janela de Ajustes (uma instância, ⌘,): Geral (todas as opções + atalhos com gravador), Aplicativos (lembrados, esquecer), Dispositivos (lista, definir padrão), Atalhos, Sobre (versão/build, link de Releases). Barra lateral de vidro no 26+, `NavigationSplitView` padrão no 15.
 - Boas-vindas na primeira execução: destaques, toggle “Abrir ao iniciar sessão” ligado, “Permitir…” → ✓, “Começar” registra login item e abre o popover.
 - Reabrir o app já em execução → abre Ajustes. Confirmação ao desligar “Mostrar na barra de menus”.
 
@@ -237,7 +237,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 | Permissão de áudio para agentes no terminal | Primeira aprovação feita por você no ⏸0. |
 | Vulnerabilidades de segurança | `security-check.sh` bloqueante em toda etapa, revisão de segurança na M2, auditoria independente na M7.5. |
 | Sem Xcode: sem Instruments/UI tests | Medições com `ps`/`top`/`footprint`; snapshots via `ImageRenderer`; verificação visual no ⏸2. **Recomendado instalar o Xcode (gratuito) antes da M4.** |
-| Teste em macOS 14 | Fica no roteiro manual (VM gratuita com UTM/VirtualBuddy ou outro Mac); a camada `Styling` isola as diferenças. |
+| Teste em macOS 15 | Fica no roteiro manual (VM gratuita com UTM/VirtualBuddy ou outro Mac); a camada `Styling` isola as diferenças. |
 
 ## 4. Estimativa de tamanho
 | Etapa | Tamanho relativo |

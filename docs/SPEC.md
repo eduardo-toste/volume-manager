@@ -22,8 +22,8 @@
 
 | Item | Decisão |
 |---|---|
-| Sistema mínimo | **macOS 14.2 (Sonoma)** — a menor versão que tem Core Audio process taps (base do volume por app) e `@Observable`. Cobre Sonoma, Sequoia, Tahoe e posteriores. |
-| Liquid Glass | Usado no **macOS 26+** (`glassEffect`, materiais novos). No 14.2–15.x, cai automaticamente para os materiais translúcidos nativos da época (`.regularMaterial`/`NSVisualEffectView`), de modo que o app parece nativo **em cada versão**. Ver §12.6. |
+| Sistema mínimo | **macOS 15 (Sequoia)** — tem Core Audio process taps (base do volume por app), `@Observable` e `Synchronization.Atomic` (atômicos nativos do Swift para o thread de áudio, sem código C). Cobre Sequoia, Tahoe e posteriores. Decisão do usuário (M0.5). |
+| Liquid Glass | Usado no **macOS 26+** (`glassEffect`, materiais novos). No 15.x, cai automaticamente para os materiais translúcidos nativos da época (`.regularMaterial`/`NSVisualEffectView`), de modo que o app parece nativo **em cada versão**. Ver §12.6. |
 | Linguagem / UI | Swift 6 (modo de linguagem 6, concorrência estrita), **SwiftUI** (AppKit só onde o SwiftUI não alcança). |
 | Barra de menus | `MenuBarExtra` com `.menuBarExtraStyle(.window)`. |
 | Áudio | **Core Audio**: Process Taps (`CATapDescription`, `AudioHardwareCreateProcessTap`) + Aggregate Devices + IOProc. |
@@ -33,7 +33,7 @@
 | Build | **Swift Package Manager** (`Package.swift`) + script `scripts/build-app.sh` que monta e assina o `.app`. Compila e testa só com as Command Line Tools; o Xcode abre o `Package.swift` diretamente quando instalado. Ver §12.7. |
 | Testes | **Swift Testing** (`swift test`). |
 | Identificação | Nome exibido **Volume** · bundle ID **`com.volumemanager.app`** · produto `VolumeManager`. |
-| Info.plist | `LSUIElement = YES`, `LSMinimumSystemVersion = 14.2`, `NSAudioCaptureUsageDescription` com texto em pt-BR. |
+| Info.plist | `LSUIElement = YES`, `LSMinimumSystemVersion = 15.0`, `NSAudioCaptureUsageDescription` com texto em pt-BR. |
 | Assinatura | Hardened Runtime ligado; App Sandbox **desligado** na v1 (ver §10). **Sem Apple Developer Program**: assinatura com certificado próprio estável (§13.2). |
 
 ## 3. Telas
@@ -101,7 +101,7 @@ Janela 480×600, só botão fechar ativo. Aparece **apenas na primeira execuçã
 - Ouvir mudanças (`AudioObjectAddPropertyListenerBlock`) da lista de processos e de `IsRunningOutput` — **sem polling**.
 - **Agrupar por app**: processos auxiliares (ex.: `com.apple.WebKit.GPU`, “Google Chrome Helper”, “Discord Helper”) devem aparecer sob o app dono. Estratégia, em ordem:
   1. **Caminho do executável** (`proc_pidpath`, API pública): se o executável está dentro de `…/X.app/Contents/…`, o dono é o `.app` mais externo (resolve Chrome, Edge, Brave e todos os apps Electron).
-  2. **Processo responsável** registrado pelo sistema (o mesmo que o Monitor de Atividade usa) — resolve serviços compartilhados como o WebKit do Safari.
+  2. **Processo responsável** registrado pelo sistema (o mesmo que o Monitor de Atividade usa) — resolve serviços compartilhados como o WebKit do Safari. Usa a função não documentada `responsibility_get_pid_responsible_for_pid`, **somente** via o alvo C `CSystemShims` com declaração `__attribute__((weak_import))` e checagem de ponteiro nulo antes de chamar. Se a função não existir no macOS em uso, o passo é pulado (o app abre e funciona normalmente). Decisão do usuário (M0.5).
   3. Fallback: prefixo do bundle ID.
   Uma linha = um app, sempre com **nome e ícone do app real** (nunca “Helper”); o tap cobre **todos** os processos do grupo. Matriz de validação obrigatória: Safari, Chrome, Spotify, Discord, Zoom, Música, vídeo no YouTube.
 - Excluir: o próprio Volume e processos de sistema sem app visível (ex.: `coreaudiod`, sons do sistema) — sons do sistema seguem só o volume geral.
@@ -181,7 +181,7 @@ O áudio de um app controlado pelo Volume deve soar **exatamente como soaria sem
 2. **Agrupamento de processos auxiliares** (Safari/Chrome/Electron) é a parte mais frágil; precisa de testes manuais com esses apps.
 3. **Dispositivos sem volume por software**: volume geral desabilitado; o volume por app continua funcionando (é feito no nosso ganho).
 4. **Apps que já usam saída exclusiva/hog mode** (ex.: alguns players de áudio “bit-perfect”) podem não ser controláveis — mostrar a linha desabilitada com dica.
-5. **macOS 14.2–14.3**: process taps existem, mas o pedido de permissão de áudio foi refinado em versões seguintes; validar manualmente no Sonoma o fluxo de permissão.
+5. **API privada de processo responsável**: usada só para agrupar serviços compartilhados (WebKit), com ligação fraca e fallback (§4.1, §12.9.2). Se um macOS futuro remover a função, o app continua funcionando e só esse agrupamento cai para heurística.
 
 ## 11. Glossário
 - **Process tap**: objeto do Core Audio que captura (e opcionalmente silencia) a saída de um ou mais processos.
@@ -261,15 +261,15 @@ Regras que garantem os orçamentos:
 - Encerramento (normal ou sinal) destrói taps; se o processo morrer, o macOS restaura o áudio original (comportamento do sistema).
 - Nenhuma ação do usuário pode deixar um app **sem som de forma permanente** (ex.: mudo preso). Ao iniciar, o app só aplica mudo lembrado se “Lembrar o volume” estiver ligado.
 
-### 12.6 Compatibilidade de versões (macOS 14.2+)
+### 12.6 Compatibilidade de versões (macOS 15+)
 - Uma camada de estilos (`VolumeUI/Styling`) centraliza as diferenças: `GlassBackground`, `CardBackground`, `RowHighlight`. Dentro deles, `if #available(macOS 26, *)` escolhe Liquid Glass; senão, materiais nativos (`.regularMaterial`, `.thinMaterial`). **Nenhum `#available` espalhado pelas views.**
-- Ajustes: no 26+ usam a barra lateral de vidro; no 14/15 usam `NavigationSplitView` padrão — em ambos, `Form(.grouped)`.
-- Testar visualmente em pelo menos **macOS 14 e 26** (máquina virtual serve) antes de cada release.
+- Ajustes: no 26+ usam a barra lateral de vidro; no 15 usam `NavigationSplitView` padrão — em ambos, `Form(.grouped)`.
+- Testar visualmente em pelo menos **macOS 15 e 26** (máquina virtual serve) antes de cada release.
 
 ### 12.7 Estrutura do repositório e build
 ```
 volume-manager/
-├── Package.swift                 # módulos do §12.1 + testes; platforms: .macOS("14.2")
+├── Package.swift                 # módulos do §12.1 + testes; platforms: .macOS(.v15)
 ├── Sources/
 │   ├── VolumeCore/  VolumeAudio/  VolumeSystem/  VolumeUI/
 │   └── VolumeManager/            # @main, composition root
@@ -332,6 +332,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 - Hardened Runtime **ligado**.
 - Entitlements de release: **nenhuma exceção** de runtime. Proibidos: `com.apple.security.cs.disable-library-validation`, `com.apple.security.cs.allow-dyld-environment-variables`, `com.apple.security.cs.allow-unsigned-executable-memory`, `com.apple.security.cs.allow-jit`, `com.apple.security.get-task-allow`, `com.apple.security.cs.debugger`.
 - Nenhum framework/dylib carregado de fora do bundle (exceto do sistema); nenhum carregamento dinâmico de código (`dlopen` de caminho variável, plugins, scripts).
+- **Única API privada permitida**: `responsibility_get_pid_responsible_for_pid` (consulta somente-leitura sobre PIDs), declarada `weak_import` no alvo C `CSystemShims` (um único header, sem lógica). Proibido: `@_silgen_name`, `dlsym`, qualquer outra API privada. `CSystemShims` é o **único** código C permitido no projeto.
 - Sem `NSAppleScript`/`Process` executando comandos externos a partir de dados variáveis. Abrir Ajustes do Sistema apenas por URLs fixas no código.
 - Símbolos de depuração fora do binário de release; nenhuma flag/variável de ambiente que altere comportamento em release.
 
@@ -365,7 +366,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 Script `scripts/security-check.sh`, chamado pelo `check.sh` (as verificações de binário rodam no `.app` gerado):
 1. Entitlements do `.app` de release não contêm nenhuma chave proibida (§12.9.2) — `codesign -d --entitlements -`.
 2. Hardened Runtime ativo (`codesign -dv` mostra `flags=0x10000(runtime)`); assinatura válida (`codesign --verify --strict --deep`).
-3. Busca estática em `Sources/` por APIs proibidas: `URLSession`, `NWConnection`, `socket(`, `CFSocket`, `dlopen`, `NSAppleScript`, `Process(`, `system(`, `popen`, `AudioFileCreate`, `ExtAudioFile`, `AVAudioRecorder`, `AVAudioFile`, `print(`, `try!`, `as!` (única exceção: `print(` permitido em `Sources/vmctl`, que é ferramenta de terminal e não vai no app).
+3. Busca estática em `Sources/` por APIs proibidas: `URLSession`, `NWConnection`, `socket(`, `CFSocket`, `dlopen`, `NSAppleScript`, `Process(`, `system(`, `popen`, `AudioFileCreate`, `ExtAudioFile`, `AVAudioRecorder`, `AVAudioFile`, `print(`, `try!`, `as!`, `@_silgen_name`, `dlsym`; e qualquer arquivo `.c`/`.h`/`.m` fora de `Sources/CSystemShims` (única exceção de `print(`: `Sources/vmctl`, que é ferramenta de terminal e não vai no app).
 4. Busca por segredos no repositório (chaves privadas, `.p12`, tokens).
 5. `vmctl` ausente do bundle; nenhum dylib/framework de terceiros fora do esperado em `Contents/`.
 6. `Info.plist` contém só a descrição de uso de áudio (nenhuma outra `NS*UsageDescription`).
@@ -391,7 +392,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 ### 13.3 Instalação para quem baixa (README)
 - Passo a passo com imagens: abrir o DMG → arrastar para Aplicativos → primeira abertura bloqueada → Ajustes do Sistema › Privacidade e Segurança › **Abrir Mesmo Assim** (só na primeira vez).
 - Alternativa no Terminal: `xattr -dr com.apple.quarantine /Applications/Volume.app`.
-- Requisitos: macOS 14.2+, permissão de áudio do sistema no primeiro uso.
+- Requisitos: macOS 15+, permissão de áudio do sistema no primeiro uso.
 - Para atualizar: baixar o novo DMG e substituir o app (permissões são mantidas graças ao §13.2).
 
 ### 13.4 Preparação para atualizações automáticas (futuro)
@@ -412,7 +413,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 10. Sair do Volume → todos os apps voltam ao áudio original.
 11. Testes unitários cobrem `MixerStore`, `PreferencesStore`, agrupamento de processos e a lógica de fallback de rota, usando mocks (cobertura ≥ 85% em `VolumeCore`).
 12. `scripts/check.sh` passa: formatação, build sem avisos (concorrência estrita) e todos os testes.
-13. App roda no **macOS 14.2+** com materiais nativos e no **macOS 26+** com Liquid Glass.
+13. App roda no **macOS 15+** com materiais nativos e no **macOS 26+** com Liquid Glass.
 14. Orçamentos de performance do §12.4 verificados com Instruments/Activity Monitor (registrar números no roteiro manual).
 15. Princípio “falhar abrindo” (§4.6): vigia, “Restaurar áudio original” e modo seguro funcionam; Forçar Encerramento do Volume devolve o áudio original de todos os apps.
 16. `scripts/security-check.sh` passa sem nenhum item (§12.9.7).
