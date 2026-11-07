@@ -1,0 +1,50 @@
+@testable import VolumeCore
+
+/// Wires a `MixerStore` to the test doubles.
+@MainActor
+struct MixerHarness {
+  let clock = FakeClock()
+  let system = FakeAudioSystem()
+  let controller = SpyAppAudioController()
+  let info = FakeAppInfoProvider()
+  let preferences: InMemoryPreferencesStore
+  let settings: SettingsModel
+  let safety: SafetyPolicy
+  let store: MixerStore
+
+  static let speakers = OutputDevice(id: 1, uid: "speakers", name: "Alto-falantes", kind: .builtIn)
+  static let airpods = OutputDevice(id: 2, uid: "airpods", name: "AirPods Pro", kind: .bluetooth)
+
+  init(preferences initial: [String: Any] = [:], beginSafety: Bool = false) {
+    preferences = InMemoryPreferencesStore(initial)
+    settings = SettingsModel(store: preferences, clock: clock)
+    safety = SafetyPolicy(store: preferences, clock: clock)
+    if beginSafety { safety.beginSession() }
+    store = MixerStore(
+      audioSystem: system, controller: controller, appInfo: info, settings: settings,
+      safety: safety, clock: clock)
+    for (name, bundleID) in [
+      ("Spotify", "com.spotify.client"), ("Safari", "com.apple.Safari"),
+      ("Música", "com.apple.Music"), ("Zoom", "us.zoom.xos"),
+    ] {
+      info.setApp("/Applications/\(name).app", name: name, bundleID: bundleID)
+    }
+  }
+
+  /// Process of the app called `name` (one of the four registered above).
+  func process(_ name: String, pid: Int32, playing: Bool) -> AudioProcessInfo {
+    AudioProcessInfo(
+      pid: pid, executablePath: "/Applications/\(name).app/Contents/MacOS/\(name)",
+      isRunningOutput: playing)
+  }
+
+  /// Starts with both devices, speakers as default, and the given processes.
+  func start(_ processes: [AudioProcessInfo]) {
+    store.handle(.devices([Self.speakers, Self.airpods]))
+    store.handle(.defaultOutput(uid: "speakers"))
+    store.handle(.processes(processes))
+  }
+
+  /// Waits for queued calls to services.
+  func settle() async { await store.settle() }
+}
