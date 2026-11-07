@@ -1,0 +1,54 @@
+# Volume Manager — regras do projeto
+
+Mixer de volume por app para macOS (barra de menus, SwiftUI, Core Audio process taps).
+Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário → funcionar bem → fluidez/facilidade de uso → visual nativo.**
+
+## Fontes da verdade (ler antes de qualquer tarefa)
+- `docs/SPEC.md` — o que o app faz e as regras técnicas (§12) e de segurança (§12.9). **A SPEC manda.**
+- `docs/PLAN.md` — etapas, papéis e critérios de cada etapa.
+- `design/VolumeManager.figcraft` — referência visual (não é para recriar pixel a pixel; usar controles nativos).
+
+## Ambiente
+- macOS 27, Swift 6.4 via Command Line Tools. **Sem Xcode** (sem `xcodebuild`, sem XCTest). Testes com **Swift Testing**.
+- Comandos: `swift build`, `swift test`, `swift format lint -r .`, `scripts/check.sh` (portão de qualidade), `scripts/build-app.sh`.
+
+## NUNCA (regras absolutas — violar = etapa reprovada)
+1. **Não mudar requisitos.** Nada de recursos, telas, opções ou dependências fora da SPEC. Desvio necessário → parar e relatar ao orquestrador.
+2. **Não adicionar dependências** além de `KeyboardShortcuts` (versão exata).
+3. **Nada de rede** em `Sources/`: `URLSession`, `Network.framework`, sockets, analytics, telemetria, “verificar atualização”.
+4. **Áudio nunca persiste**: proibido gravar/copiar amostras para arquivo, histórico, análise ou transcrição.
+5. **Nenhuma permissão extra**: só áudio do sistema. Proibido pedir Acessibilidade, Monitoramento de Entrada, Microfone, Gravação de Tela, etc.
+6. **Nenhuma exceção de Hardened Runtime** nos entitlements de release (lista em SPEC §12.9.2).
+7. **Thread de áudio (IOProc)**: sem alocação, locks, `async`, logs, Objective-C dinâmico ou chamadas bloqueantes.
+8. **Proibido em `Sources/`**: `try!`, `as!`, force unwrap, `print(` (exceto `Sources/vmctl`), `dlopen`, `Process(`, `system(`, `popen`, `NSAppleScript`, código comentado, `TODO` sem justificativa.
+9. **Nunca deixar um app mudo/sem som** por falha: na dúvida, destruir o tap (som original volta). Ver SPEC §4.6.
+10. **Git**: não fazer `push`, não trocar de branch, não fazer merge/rebase/reset, não reescrever histórico. Commits só no branch da etapa atual, e só se o orquestrador pedir.
+11. **Sistema**: não usar `sudo`, não rodar `tccutil`, não matar `coreaudiod`, não alterar preferências do sistema fora dos testes previstos, não instalar nada globalmente (brew, gems, pip).
+12. **Segredos**: nenhum certificado, chave, `.p12`, token ou senha no repositório.
+13. **Não enfraquecer verificações**: não desligar testes, não relaxar `security-check.sh`, não baixar cobertura mínima, não adicionar exceções ao lint para “passar”.
+
+## SEMPRE
+- Código e identificadores em inglês; textos de UI em pt-BR via `Localizable.xcstrings`.
+- Dependências por protocolo + injeção por inicializador; `VolumeCore` sem CoreAudio/AppKit/SwiftUI.
+- Swift 6 com concorrência estrita e zero avisos.
+- Dados de outros processos (nome, bundle ID, caminho, PID) são **não confiáveis**: texto puro, tamanho limitado, PID revalidado.
+- `scripts/check.sh` verde antes de entregar.
+- Relatório de entrega no formato abaixo.
+
+## Papéis (detalhes em `.claude/agents/`)
+| Papel | Pode alterar | Não pode |
+|---|---|---|
+| Dev | `Sources/`, `Tests/` (testes do que criou), `Package.swift`, `Resources/`, `scripts/`, `spike/` | mudar SPEC/PLAN, enfraquecer verificações |
+| QA | `Tests/`, `docs/MANUAL_TESTS.md`, relatórios em `docs/reports/` | `Sources/`, scripts de verificação para relaxar regras |
+| Segurança | `docs/SECURITY_AUDIT.md`, `docs/reports/` | qualquer código de produção |
+
+## Formato do relatório de entrega (Dev, QA e Segurança)
+```
+## Etapa <id> — <papel>
+Resultado: PASS | FAIL | ENTREGUE
+O que foi feito: …
+Como verificar: comandos exatos
+Verificações: check.sh ✓/✗ · security-check ✓/✗ · cobertura X%
+Problemas / desvios da SPEC: … (numerados, com arquivo:linha)
+Precisa do usuário: … (ex.: aprovar permissão, ouvir áudio)
+```

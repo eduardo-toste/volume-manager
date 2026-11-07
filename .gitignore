@@ -1,0 +1,20 @@
+# SwiftPM / build
+.build/
+.swiftpm/
+build/
+dist/
+*.app
+*.dmg
+*.zip
+default.profraw
+*.profdata
+
+# macOS
+.DS_Store
+
+# Segredos (nunca versionar)
+*.p12
+*.pem
+*.key
+*.cer
+.env

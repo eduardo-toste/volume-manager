@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git push)",
+      "Bash(git rebase:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git filter-branch:*)",
+      "Bash(sudo:*)",
+      "Bash(tccutil:*)",
+      "Bash(killall coreaudiod:*)",
+      "Bash(brew install:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install -g:*)",
+      "Bash(defaults delete:*)",
+      "Read(**/*.p12)",
+      "Read(**/*.pem)",
+      "Read(~/.ssh/**)"
+    ]
+  }
+}
