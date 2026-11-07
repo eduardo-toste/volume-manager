@@ -9,18 +9,25 @@ import SpikeCore
 final class RTState: @unchecked Sendable {
     private let targetBits = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
     private let framesCounter = UnsafeMutablePointer<UInt64>.allocate(capacity: 1)
+    private let peakBits = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
     var currentGain: Float = 1
     var rampStep: Float = 0.001
 
     init() {
         targetBits.initialize(to: Float(1).bitPattern)
         framesCounter.initialize(to: 0)
+        peakBits.initialize(to: 0)
     }
 
     deinit {
         targetBits.deallocate()
         framesCounter.deallocate()
+        peakBits.deallocate()
     }
+
+    /// DIAGNOSTIC (spike only): largest absolute input sample seen since start.
+    var inputPeak: Float { Float(bitPattern: vm_load_u32(peakBits)) }
+    func notePeak(_ v: Float) { if v > inputPeak { vm_store_u32(peakBits, v.bitPattern) } }
 
     /// Frames processed so far (atomic read; any thread).
     var frames: UInt64 { vm_load_u64(framesCounter) }
@@ -62,6 +69,9 @@ private let tapIOProc: AudioDeviceIOProc = { _, _, inData, _, outData, _, client
         let s = src.assumingMemoryBound(to: Float.self)
         let d = dst.assumingMemoryBound(to: Float.self)
         var g = start
+        var peak: Float = 0
+        for k in 0..<(frameCount * ch) { let a = abs(s[k]); if a > peak { peak = a } }
+        state.notePeak(peak)
         for f in 0..<frameCount {
             g = Gain.next(current: g, target: target, step: step)
             let base = f * ch

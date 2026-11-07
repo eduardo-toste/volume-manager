@@ -128,7 +128,7 @@ func runSet(_ args: [String]) throws {
         if now.timeIntervalSince(lastReport) >= 5 {
             let cpu = cpuSeconds()
             let pct = (cpu - lastCPU) / now.timeIntervalSince(lastReport) * 100
-            print(String(format: "frames=%llu  cpu=%.2f%%", frames, pct))
+            print(String(format: "frames=%llu  cpu=%.2f%%  input-peak=%.6f", frames, pct, session.state.inputPeak))
             lastCPU = cpu
             lastReport = now
         }

@@ -120,6 +120,10 @@ O pior resultado aceitável de qualquer falha é **“o app volta ao som normal�
 - **Restaurar áudio original** (menu `•••`, §3.2): destrói todos os taps imediatamente.
 - **Modo seguro**: se o app encerrar de forma anormal 2 vezes seguidas em menos de 1 minuto após iniciar, a próxima inicialização **não reaplica** volumes/rotas lembrados e mostra um aviso discreto no popover. Volta ao normal após uma sessão estável.
 - Falha ao criar tap ou aggregate device → não tenta de novo em laço; deixa o app no som original.
+- **Tap silencioso por falta de permissão (descoberto no ⏸0)**: sem a permissão “Gravação de Áudio do Sistema”, o macOS **não retorna erro** — o tap é criado, o app original é silenciado e o tap entrega **somente zeros**. O vigia de frames não detecta isso. Regras:
+  - **Antes** de criar qualquer tap de usuário, a permissão precisa ter sido confirmada por uma verificação de sinal (tap de teste sobre um processo que esteja tocando: se só chegar silêncio digital absoluto por ~500 ms enquanto o processo reporta `IsRunningOutput`, considerar **negada**).
+  - **Durante** o uso, um **vigia de silêncio**: o IOProc registra (atômico, sem alocação) se recebeu alguma amostra ≠ 0. Se por **2 s seguidos** só chegar zero absoluto enquanto o app reporta `IsRunningOutput = true`, o tap é destruído (som original volta), e o app passa ao estado “sem permissão” (§3.2/§5). Isso é uma checagem de segurança binária (zero ou não), não análise de conteúdo: nada é guardado (§12.9.3).
+  - Ferramentas sem `Info.plist` (CLI) nunca recebem o pedido de permissão; testes com áudio real usam um bundle `.app` com `NSAudioCaptureUsageDescription`.
 
 ### 4.7 Qualidade de áudio (requisito central)
 O áudio de um app controlado pelo Volume deve soar **exatamente como soaria sem o Volume**, só que no volume escolhido. Nenhuma perda de qualidade é aceitável.
