@@ -18,7 +18,9 @@ enum PreferenceValidation {
   }
 
   static func string(_ value: Any?) -> String? {
-    guard let text = value as? String, text.count <= maxUIDLength else { return nil }
+    guard let text = value as? String, text.utf8.count <= maxUIDLength * 4,
+      text.count <= maxUIDLength
+    else { return nil }
     return text
   }
 

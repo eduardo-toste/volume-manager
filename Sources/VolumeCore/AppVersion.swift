@@ -21,7 +21,7 @@ public struct AppVersion: Sendable, Hashable, Comparable, CustomStringConvertibl
     guard parts.count == 3 else { return nil }
     var numbers: [Int] = []
     for part in parts {
-      guard !part.isEmpty, part.count <= 9, part.allSatisfy({ $0.isASCII && $0.isNumber }),
+      guard !part.isEmpty, part.utf8.count <= 9, part.allSatisfy({ $0.isASCII && $0.isNumber }),
         let value = Int(part)
       else { return nil }
       numbers.append(value)

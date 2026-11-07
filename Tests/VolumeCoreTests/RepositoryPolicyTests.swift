@@ -143,6 +143,20 @@ struct RepositoryPolicyTests {
     }
   }
 
+  /// Real `UserDefaults` makes the system create files in ~/Library/Preferences, which tests must
+  /// never do. The QA file only reads `.standard` to prove nothing was written there.
+  @Test func testsNeverUseRealUserDefaults() throws {
+    let suite = "UserDefaults(" + "suiteName"
+    let standard = "UserDefaults." + "standard"
+    for (path, body) in try swiftFiles(under: "Tests") {
+      if path.hasSuffix("RepositoryPolicyTests.swift") { continue }
+      #expect(!body.contains(suite), "\(path) creates a real UserDefaults suite")
+      if !path.hasSuffix("QAM3Tests.swift") {
+        #expect(!body.contains(standard), "\(path) uses the standard UserDefaults")
+      }
+    }
+  }
+
   @Test func sourcesContainNoLiveNetworkOrCommentedOutCode() throws {
     for (path, body) in try swiftFiles(under: "Sources") {
       #expect(!body.contains("import Network"), "\(path) imports Network")

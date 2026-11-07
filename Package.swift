@@ -52,7 +52,8 @@ let package = Package(
         ),
         .testTarget(name: "VolumeCoreTests", dependencies: ["VolumeCore"]),
         .testTarget(name: "VolumeAudioTests", dependencies: ["VolumeAudio", "VolumeCore"]),
-        .testTarget(name: "VolumeSystemTests", dependencies: ["VolumeSystem", "VolumeCore"]),
+        .testTarget(
+            name: "VolumeSystemTests", dependencies: ["VolumeSystem", "VolumeAudio", "VolumeCore"]),
     ],
     swiftLanguageModes: [.v6]
 )
