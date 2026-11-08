@@ -23,7 +23,8 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 8. **Proibido em `Sources/`**: `try!`, `as!`, force unwrap, `print(` (exceto `Sources/vmctl`), `dlopen`, `Process(`, `system(`, `popen`, `NSAppleScript`, código comentado, `TODO` sem justificativa.
 9. **Nunca deixar um app mudo/sem som** por falha: na dúvida, destruir o tap (som original volta). Ver SPEC §4.6.
 10. **Git**: não fazer `push`, não trocar de branch, não fazer merge/rebase/reset, não reescrever histórico. Commits só no branch da etapa atual, e só se o orquestrador pedir.
-11. **Sistema**: não usar `sudo`, não rodar `tccutil`, não matar `coreaudiod`, não alterar preferências do sistema fora dos testes previstos, não instalar nada globalmente (brew, gems, pip).
+11. **Sistema**: não usar `sudo`, não rodar `tccutil`, não matar `coreaudiod`, não alterar preferências do sistema fora dos testes previstos.
+16. **Nada de instalar ou baixar** (decisão do usuário): proibido instalar programas, ferramentas, runtimes ou pacotes (brew, pip, npm, gem, cargo, mas, softwareupdate, instaladores .pkg/.dmg) e proibido baixar qualquer coisa da internet (curl, wget, git clone, `swift package resolve/update` ou adicionar dependências que façam o SwiftPM baixar código). Se algo precisar ser instalado ou baixado, **pare e peça ao orquestrador**, que pede ao usuário — **o usuário instala, sempre**.
 12. **Segredos**: nenhum certificado, chave, `.p12`, token ou senha no repositório.
 13. **Não enfraquecer verificações**: não desligar testes, não relaxar `security-check.sh`, não baixar cobertura mínima, não adicionar exceções ao lint para “passar”.
 14. **Nenhum som audível** em testes ou experimentos: o usuário trabalha nesta máquina. Usar silêncio digital / `afplay -v 0`, ou sinais só dentro de tap `mutedWhenTapped` com aggregate sem saída física (SPEC §12.8.1). Não alterar volume geral, mudo ou dispositivo padrão. Encerrar todo processo de áudio iniciado.
