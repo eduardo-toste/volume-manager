@@ -83,3 +83,73 @@ struct QAM41Tests {
     #expect(h.controller.neverTapped)
   }
 }
+
+/// QA M4.1 round 5: "always controlled" must not hide an app without a tap behind an empty
+/// "unchanged" check, and the panic / revoked paths stay off.
+@MainActor
+@Suite("QA M4.1: always controlled")
+struct QAM41AlwaysControlledTests {
+  private let spotify = "com.spotify.client"
+
+  @Test func routeBackToDefaultAndDeviceRemovalKeepExactlyOneUnchangedEntry() async {
+    let h = MixerHarness()
+    h.start([h.process("Spotify", pid: 10, playing: true)])
+    h.store.route(spotify, to: "airpods")
+    h.store.route(spotify, to: nil)
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 1)
+    #expect(SpyAppAudioController.isUnchanged(h.controller.reconcileCalls.last ?? []))
+    h.store.route(spotify, to: "airpods")
+    h.store.handle(.devices([MixerHarness.speakers]))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 1)
+    #expect(SpyAppAudioController.isUnchanged(h.controller.reconcileCalls.last ?? []))
+  }
+
+  @Test func restoreDuringTheLingerPeriodIsNotUndoneWhenTheTimerExpires() async {
+    let h = MixerHarness()
+    h.settings.showInactiveApps = true
+    h.start([h.process("Spotify", pid: 10, playing: true)])
+    await h.settle()
+    h.store.handle(.processes([h.process("Spotify", pid: 10, playing: false)]))
+    #expect(await eventually { h.clock.sleeperCount >= 2 })
+    h.store.restoreOriginalAudio()
+    await h.settle()
+    let calls = h.controller.calls.count
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    h.clock.advance(by: MixerStore.tapLingerPeriod)
+    await h.settle()
+    h.store.handle(.processes([h.process("Spotify", pid: 10, playing: true)]))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true, "still suspended")
+    #expect(h.controller.restoreAllCount == 1)
+    #expect(h.controller.calls.count >= calls)
+  }
+
+  @Test func afterADeniedSilenceCheckNewPlayingAppsGetNoTap() async {
+    let h = MixerHarness(permission: .granted)
+    h.start([h.process("Spotify", pid: 10, playing: true)])
+    await h.settle()
+    h.access.answer = .denied
+    #expect(await h.store.checkSilentTap())
+    h.store.handle(
+      .processes([
+        h.process("Spotify", pid: 10, playing: true), h.process("Zoom", pid: 11, playing: true),
+      ]))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+  }
+
+  @Test func repeatedInconclusiveChecksNeverChangeTheTaps() async {
+    let h = MixerHarness(permission: .granted)
+    h.start([h.process("Spotify", pid: 10, playing: true)])
+    await h.settle()
+    h.access.answer = .granted
+    h.access.conclusive = false
+    let before = h.controller.reconcileCalls.count
+    for _ in 0..<5 { #expect(await h.store.checkSilentTap() == false) }
+    await h.settle()
+    #expect(h.controller.reconcileCalls.count == before)
+    #expect(h.permission.status == .granted)
+  }
+}

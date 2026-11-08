@@ -57,40 +57,55 @@ struct QAFailOpenTests {
     #expect(tap.isStopped)
   }
 
-  @Test func silenceGuardFiresExactlyAtTwoSecondsAndSignalResetsIt() async {
+  /// Round 5b: a browser keeping a silent stream open, with the permission granted, asks for
+  /// exactly one check during the whole silent period; the tap is never destroyed or rebuilt.
+  @Test func continuousSilenceAsksForExactlyOneCheck() async {
     let rig = QARig()
+    let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [qaDesired()])
     let tap = rig.engine.created[0]
-    for _ in 0..<3 {
+    for _ in 0..<40 {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
+      await rig.controller.reconcile(desired: [qaDesired()])
     }
     #expect(tap.isStopped == false)
-    tap.deliver(frames: 100, signal: true)
-    await rig.tick(1)
-    for _ in 0..<3 {
-      tap.deliver(frames: 100, signal: false)
-      await rig.tick(1)
-    }
-    #expect(tap.isStopped == false)  // the real signal restarted the count
-    tap.deliver(frames: 100, signal: false)
-    await rig.tick(1)
-    #expect(tap.isStopped)
+    #expect(rig.engine.created.count == 1)
+    await rig.controller.restoreAll()
+    let events = await Self.collect(failures)
+    #expect(events == [AppAudioFailure(appID: "qa.one", reason: .onlySilence)])
   }
 
-  @Test func silenceFailureIsLatchedAndNeverRetriedInALoop() async {
+  @Test func inconclusiveCheckIsRetriedNoMoreThanEveryThirtySeconds() async {
     let rig = QARig()
+    let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [qaDesired()])
     let tap = rig.engine.created[0]
     for _ in 0..<4 {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
     }
-    #expect(tap.isStopped)
-    for _ in 0..<20 { await rig.controller.reconcile(desired: [qaDesired()]) }
-    await rig.tick(5)
-    #expect(rig.engine.created.count == 1)
-    #expect(rig.engine.live.isEmpty)
+    await rig.controller.silenceCheckWasInconclusive(appID: "qa.one")
+    for _ in 0..<59 {
+      tap.deliver(frames: 100, signal: false)
+      await rig.tick(1)
+    }
+    await rig.controller.restoreAll()
+    #expect(await Self.collect(failures).count == 1, "nothing more before 30 s")
+  }
+
+  /// Events already emitted, without waiting for more.
+  private static func collect(_ stream: AsyncStream<AppAudioFailure>) async -> [AppAudioFailure] {
+    var events: [AppAudioFailure] = []
+    let task = Task {
+      var collected: [AppAudioFailure] = []
+      for await event in stream { collected.append(event) }
+      return collected
+    }
+    try? await Task.sleep(for: .milliseconds(50))
+    task.cancel()
+    events = await task.value
+    return events
   }
 
   @Test func killSwitchActsOnTheNextTick() async {

@@ -237,20 +237,30 @@ struct ControllerWatchdogTests {
     #expect(rig.engine.created.count == 1)
   }
 
-  @Test func silenceWhileTheAppPlaysDestroysTheTapAsLikelyDenied() async {
+  /// Round 5b: 2 s of zeros while the app plays asks for a permission check (once) and keeps
+  /// the tap; the decision is the domain's (SPEC 4.6).
+  @Test func silenceWhileTheAppPlaysAsksForOneCheckAndKeepsTheTap() async {
     let rig = Rig()
     let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [desired()])
     let handle = rig.engine.created[0]
-    for _ in 0..<4 {
+    for _ in 0..<12 {
       handle.deliver(frames: 24_000, signal: false)
       await rig.tick()
     }
-    #expect(await eventually { handle.isStopped })
+    #expect(handle.isStopped == false)
     var iterator = failures.makeAsyncIterator()
-    #expect(
-      await iterator.next() == AppAudioFailure(appID: "app.one", reason: .permissionLikelyDenied))
-    #expect(rig.engine.live.isEmpty)
+    #expect(await iterator.next() == AppAudioFailure(appID: "app.one", reason: .onlySilence))
+    // Signal, then silence again: one more check for the new silent period.
+    handle.deliver(frames: 24_000, signal: true)
+    await rig.tick()
+    for _ in 0..<12 {
+      handle.deliver(frames: 24_000, signal: false)
+      await rig.tick()
+    }
+    #expect(await iterator.next() == AppAudioFailure(appID: "app.one", reason: .onlySilence))
+    #expect(handle.isStopped == false)
+    #expect(rig.engine.created.count == 1)
   }
 
   @Test func healthyTapSurvivesAndSilenceWhileIdleIsFine() async {

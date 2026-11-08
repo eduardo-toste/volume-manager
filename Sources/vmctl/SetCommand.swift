@@ -68,8 +68,6 @@ enum TapCommands {
       "RESULT: frames \(final?.framesProcessed ?? lastFrames), CPU \(String(format: "%.2f", cpu)) % of one core"
     )
     print("        signal ever seen: \(final?.hasSeenSignal ?? false)")
-    let silence = log.all.contains { $0.reason == .permissionLikelyDenied }
-    print("        silence guard fired (permission probably denied): \(silence)")
     print("        failures: \(describe(log.all))")
     print("tap destroyed; the app plays normally again")
   }

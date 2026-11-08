@@ -4,8 +4,8 @@ public enum AudioAccessVerdict: Sendable, Hashable {
   case granted
   /// A process was playing but the test tap received only digital silence: denied.
   case denied
-  /// Nothing was playing, so nothing can be concluded. This does not block anything: the
-  /// silence guard of each tap (SPEC 4.6) covers the case.
+  /// Nothing was playing, so nothing can be concluded. No tap is created until a later check
+  /// says `.granted` (SPEC 4.6).
   case indeterminate
 }
 

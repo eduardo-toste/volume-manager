@@ -15,7 +15,6 @@ final class Composition {
 
   private let safety: SafetyPolicy
   private let controller: CoreAudioAppController
-  private let permission: PermissionMonitor
   private var lifecycle: SessionLifecycleObserver?
   private var tasks: [Task<Void, Never>] = []
 
@@ -41,7 +40,6 @@ final class Composition {
     self.settings = settings
     self.safety = safety
     self.store = store
-    self.permission = permission
     context = PopoverContext(
       store: store, settings: settings, permission: permission,
       icon: { provider.icon(forBundleID: $0) },
@@ -60,15 +58,15 @@ final class Composition {
     }
     tasks = [
       Task { [store] in await store.run() },
-      Task { [store, permission] in
+      Task { [store, controller] in
+        // One event at a time, so at most one permission check runs because of silence.
         for await failure in failures {
-          store.controlFailed(failure.appID)
-          if failure.reason == .permissionLikelyDenied {
-            // A tap created before the user allowed the permission delivers only zeros. If
-            // the check now says granted, try again; if it was already granted, do not loop.
-            let wasGranted = permission.status == .granted
-            await permission.refresh(onlyIfDenied: false)
-            if !wasGranted, permission.status == .granted { store.retryAll() }
+          guard failure.reason == .onlySilence else {
+            store.controlFailed(failure.appID)
+            continue
+          }
+          if await !store.checkSilentTap() {
+            await controller.silenceCheckWasInconclusive(appID: failure.appID)
           }
         }
       },

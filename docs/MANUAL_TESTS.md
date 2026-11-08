@@ -114,3 +114,13 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
     `/usr/bin/log show --last 10m --info --predicate 'subsystem == "com.volumemanager.app"'`
     No log, ao mexer só no volume de um app já controlado, **não** devem aparecer várias linhas "tap and aggregate created" / "destroyed" seguidas. Anote o horário aproximado de cada estalo para comparar.
 21. **Restaurar e Sair com o app em 100%**: baixe um app, volte a 100% e, antes de passar 2 segundos, use "Restaurar áudio original" ou "Sair": o som continua normal e nada fica mudo.
+22. **Sempre controlado (Rodada 5)**: agora todo app que está tocando é controlado, mesmo em 100%. Confira, ouvindo com atenção:
+    a. Mudanças de volume (arrastar, passar por 100%, silenciar e voltar, trocar a saída do app): **zero estalos**. Esse é o objetivo.
+    b. Pode haver um estalinho **só no instante em que um app começa a tocar** (quando o Volume passa a controlá-lo). Anote se ouvir, e com quais apps.
+    c. Pausar e dar play dentro de ~15 segundos não deve causar nada. Depois de ~15 s parado, o app deixa de ser controlado sozinho.
+    d. **Som idêntico em 100%**: com o app em 100%, o som não deve mudar de timbre nem de volume em relação a antes de abrir o Volume.
+    e. **Vídeo**: veja um vídeo (YouTube/Safari) com fones Bluetooth e com o alto-falante: a imagem e a fala continuam sincronizadas (sem atraso perceptível) e o som não falha.
+    f. **Navegador silencioso**: abra uma aba com vídeo pausado/mudo (ou um site que mantém áudio aberto em silêncio) como único áudio e abra o painel. O painel **não** deve passar a dizer "sem permissão". Se disser, anote (limitação conhecida); tocar música de verdade e reabrir o painel deve resolver.
+    g. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora, nenhum app fica mudo, e nenhum app é controlado de novo até você mexer em um volume.
+    h. **Revogar permissão com o Volume aberto** (opcional): com 2 apps tocando, desligue o "Volume" em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema. Em poucos segundos os apps devem voltar a tocar normalmente (nunca ficar mudos) e o painel mostrar "sem permissão".
+    i. **Apps com saída especial** (HDMI/monitor, interface multicanal): se aparecer "Não foi possível controlar este app" num app que você nem mexeu, anote — o som deve continuar normal.

@@ -86,8 +86,8 @@ final class FakeTapEngine: TapEngine {
         id: id, uid: uid, rawUID: uid, layout: StreamLayout(sampleRate: rate, channels: channels))
     }
   }
-  func removeDevice(_ uid: String) { state.withLock { _ = $0.devices.removeValue(forKey: uid) } }
   func setRunning(_ value: Bool) { state.withLock { $0.running = value } }
+  func removeDevice(_ uid: String) { state.withLock { _ = $0.devices.removeValue(forKey: uid) } }
   func failNext(_ error: TapError?) { state.withLock { $0.failure = error } }
   func setConfirm(_ closure: @escaping @Sendable (ControlledApp) -> [Int32]) {
     state.withLock { $0.confirm = closure }

@@ -13,11 +13,12 @@ public struct AppAudioFailure: Sendable, Hashable {
     case deviceUnavailable
     /// The IOProc stopped delivering frames while the tap was active (SPEC 4.6).
     case noAudioFrames
-    /// Only digital silence arrived while the app reported output: the system audio
-    /// permission is probably denied (SPEC 4.6). Verify with the access probe.
-    case permissionLikelyDenied
     /// The audio thread found buffers it could not process safely.
     case ioFault
+    /// Not a failure: the tap carried only digital silence for 2 s while the app reports
+    /// output. The tap is kept; the permission must be checked once (SPEC 4.6), because a
+    /// revoked permission also delivers only zeros.
+    case onlySilence
   }
 
   /// The app's stable key (`ControlledApp.id`).

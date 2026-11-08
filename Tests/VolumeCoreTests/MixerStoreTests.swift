@@ -85,7 +85,8 @@ struct MixerStoreTests {
   @Test func appThatResumesCancelsTheRemoval() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    // The 5 s list timer and the tap linger timer (SPEC 4.1, 4.2).
+    #expect(await eventually { h.clock.sleeperCount == 2 })
     h.clock.advance(by: .seconds(3))
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
     #expect(await eventually { h.clock.sleeperCount == 0 })
@@ -98,7 +99,7 @@ struct MixerStoreTests {
     h.settings.showInactiveApps = true
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 2 })
+    #expect(await eventually { h.clock.sleeperCount == 3 })
     h.clock.advance(by: .seconds(6))
     await Task.yield()
     await Task.yield()
@@ -108,18 +109,22 @@ struct MixerStoreTests {
   @Test func appThatLeavesTheProcessListLeavesImmediatelyAndItsTimerStops() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount == 2 })
     h.store.handle(.processes([]))
     #expect(h.store.rows.isEmpty)
     #expect(await eventually { h.clock.sleeperCount == 0 })
   }
 
-  // MARK: No tap at 100%
+  // MARK: Always controlled while playing (SPEC 4.2)
 
-  @Test func untouchedAppsGetNoTap() async {
-    h.start([h.process("Spotify", pid: 1, playing: true)])
+  @Test func untouchedPlayingAppsGetAnUnchangedTap() async {
+    h.start([
+      h.process("Spotify", pid: 1, playing: true), h.process("Safari", pid: 2, playing: false),
+    ])
     await h.settle()
-    #expect(h.controller.neverTapped)
+    let sent = h.controller.reconcileCalls.last ?? []
+    #expect(sent.map(\.app.id) == [spotify], "only the app that plays")
+    #expect(SpyAppAudioController.isUnchanged(sent))
   }
 
   @Test func changingVolumeCreatesDesiredStateWithCurveGain() async {
@@ -134,16 +139,123 @@ struct MixerStoreTests {
     #expect(desired?.first?.app.pids == [1])
   }
 
-  @Test func backTo100PercentRemovesTheEntryAfterTheReleaseDelay() async {
+  @Test func fullVolumeKeepsTheTapAtUnityGain() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.5, for: spotify)
     h.store.setVolume(1.0, for: spotify)
     await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 1)
     #expect(h.controller.reconcileCalls.last?.first?.gain == 1)
-    // The release timer, beside the debounce that saves the remembered volume.
-    #expect(await eventually { h.clock.sleeperCount == 2 })
-    h.clock.advance(by: MixerStore.tapReleaseDelay)
+    #expect(h.controller.reconcileCalls.last?.first?.muted == false)
+  }
+
+  // MARK: Round 5: always controlled while playing (SPEC 4.2)
+
+  @Test func appThatStartsPlayingGetsOneUnchangedTap() async {
+    h.start([h.process("Spotify", pid: 1, playing: false)])
+    await h.settle()
+    #expect(h.controller.neverTapped, "no IO for an app that is not playing")
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
+    await h.settle()
+    let sent = h.controller.reconcileCalls.last ?? []
+    #expect(sent.count == 1)
+    #expect(sent.first?.gain == 1)
+    #expect(SpyAppAudioController.isUnchanged(sent))
+  }
+
+  @Test func tapStaysThroughAShortPauseAndGoesAfterTheLingerPeriod() async {
+    h.settings.showInactiveApps = true
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    h.store.setVolume(0.4, for: spotify)
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
+    #expect(await eventually { h.clock.sleeperCount == 3 })  // list, linger, saved volume
+    h.clock.advance(by: .seconds(10))
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.allSatisfy { $0.count == 1 }, "the same tap all along")
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // list and linger timers
+    h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 1)
+    h.clock.advance(by: .milliseconds(1))
     #expect(await eventually { h.controller.reconcileCalls.last?.isEmpty == true })
+    #expect(h.store.rows.first?.state.volume == 0.4, "the volume is kept for the next play")
+  }
+
+  @Test func withoutTheConfirmedPermissionNoAppIsTapped() async {
+    let waiting = MixerHarness(permission: .notDetermined)
+    waiting.start([
+      waiting.process("Spotify", pid: 1, playing: true),
+      waiting.process("Safari", pid: 2, playing: true),
+    ])
+    await waiting.settle()
+    #expect(waiting.controller.neverTapped)
+    #expect(waiting.access.requests == 0, "the system prompt only after a user action")
+  }
+
+  @Test func restoreRemovesEveryTapAtOnceAndKeepsThemOffUntilTheUserActs() async {
+    h.start([
+      h.process("Spotify", pid: 1, playing: true), h.process("Safari", pid: 2, playing: true),
+    ])
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 2)
+    h.store.restoreOriginalAudio()
+    h.store.handle(
+      .processes([
+        h.process("Spotify", pid: 1, playing: true), h.process("Safari", pid: 2, playing: true),
+        h.process("Zoom", pid: 3, playing: true),
+      ]))
+    await h.settle()
+    #expect(h.controller.restoreAllCount == 1)
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    h.store.setVolume(0.5, for: spotify)
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 3)
+  }
+
+  // MARK: Round 5b: silent taps (SPEC 4.6)
+
+  private func twoTappedApps() async -> MixerHarness {
+    let tapped = MixerHarness(permission: .granted)
+    tapped.start([
+      tapped.process("Spotify", pid: 1, playing: true),
+      tapped.process("Safari", pid: 2, playing: true),
+    ])
+    await tapped.settle()
+    #expect(tapped.controller.reconcileCalls.last?.count == 2)
+    return tapped
+  }
+
+  @Test func silenceWithTheRevokedPermissionRemovesEveryTapAtOnce() async {
+    let h = await twoTappedApps()
+    h.access.answer = .denied
+    #expect(await h.store.checkSilentTap())
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true, "original sound for every app")
+    #expect(h.permission.isDenied, "the popover shows the no-permission state")
+    #expect(h.settings.audioPermissionConfirmed == false)
+    #expect(h.access.requests == 1)
+  }
+
+  @Test func legitimateSilenceKeepsEveryTap() async {
+    let h = await twoTappedApps()
+    h.access.answer = .granted
+    let sent = h.controller.reconcileCalls.count
+    #expect(await h.store.checkSilentTap())
+    await h.settle()
+    #expect(h.controller.reconcileCalls.count == sent, "nothing changes")
+    #expect(h.permission.status == .granted)
+    #expect(h.access.requests == 1)
+  }
+
+  @Test func inconclusiveCheckKeepsTheTapsAndAsksToRetryLater() async {
+    let h = await twoTappedApps()
+    h.access.answer = .granted
+    h.access.conclusive = false
+    #expect(await h.store.checkSilentTap() == false)
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 2)
   }
 
   /// Round 4 (clicks): dragging through 100% never removes the tap. Every value of the drag
@@ -204,14 +316,14 @@ struct MixerStoreTests {
     #expect(h.store.rows.first?.device?.name == "AirPods Pro")
     h.store.route(spotify, to: nil)
     await h.settle()
-    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    #expect(SpyAppAudioController.isUnchanged(h.controller.reconcileCalls.last ?? []))
   }
 
-  @Test func routingToTheDefaultDeviceNeedsNoTap() async {
+  @Test func routingToTheDefaultDeviceChangesNothing() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.route(spotify, to: "speakers")
     await h.settle()
-    #expect(h.controller.neverTapped)
+    #expect(h.controller.onlyUnchangedAudio)
   }
 
   @Test func routingToUnknownDevicesIsIgnored() {
@@ -236,7 +348,8 @@ struct MixerStoreTests {
     h.store.toggleMute("com.ghost.App")
     h.store.route("com.ghost.App", to: "airpods")
     await h.settle()
-    #expect(h.controller.neverTapped)
+    #expect(h.controller.onlyUnchangedAudio)
+    #expect(h.controller.reconcileCalls.allSatisfy { $0.allSatisfy { $0.app.id == spotify } })
   }
 
   // MARK: Idempotence
@@ -298,7 +411,7 @@ struct MixerStoreTests {
     h.store.route(spotify, to: "airpods")
     h.store.handle(.devices([MixerHarness.speakers]))
     await h.settle()
-    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    #expect(SpyAppAudioController.isUnchanged(h.controller.reconcileCalls.last ?? []))
     #expect(h.store.rows.first?.savedDeviceMissing == true)
     #expect(h.store.rows.first?.device?.uid == "speakers")
     #expect(h.store.rows.first?.state.preferredOutputUID == "airpods")
@@ -373,7 +486,7 @@ struct MixerStoreTests {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     await h.settle()
     #expect(h.store.rows.first?.state == .default)
-    #expect(h.controller.neverTapped)
+    #expect(h.controller.onlyUnchangedAudio)
     #expect(h.settings.remembered(for: "com.spotify.client") != nil)
   }
 

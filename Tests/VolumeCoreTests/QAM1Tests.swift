@@ -599,43 +599,33 @@ struct QAMixerStoreTests {
     return h.controller.reconcileCalls.last ?? []
   }
 
-  /// Back at 100% a tapped app keeps its tap at gain exactly 1 (sound unchanged, no click
-  /// while dragging through 100%) and loses it after `tapReleaseDelay` (round 4).
-  private func expectTapReleasedAfterDelay(_ h: MixerHarness) async {
-    let kept = await lastDesired(h)
-    #expect(kept.count == 1)
-    #expect(kept.first?.gain == 1)
-    #expect(kept.first?.muted == false)
-    #expect(kept.first?.targetDeviceUID == "speakers")
-    // The release timer, beside the debounce that saves the remembered volume.
-    #expect(await eventually { h.clock.sleeperCount == 2 })
-    h.clock.advance(by: MixerStore.tapReleaseDelay)
-    #expect(await eventually { h.controller.reconcileCalls.last?.isEmpty == true })
-  }
-
   // MARK: Rule "no tap"
 
-  @Test func noTapExactlyWhenFullVolumeUnmutedOnTheDefaultOutput() async {
+  /// SPEC 4.2 "sempre controlar": a playing app keeps one entry through every change; at
+  /// 100%, not muted, on the default output it is exactly the original sound (gain 1).
+  @Test func playingAppKeepsOneEntryAndIsUnchangedAtFullVolumeOnTheDefaultOutput() async {
     let h = MixerHarness()
     h.start([h.process("Spotify", pid: 1, playing: true)])
-    #expect(await lastDesired(h).isEmpty)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
+    #expect(await lastDesired(h).count == 1)
 
     h.store.setVolume(0.99, for: "com.spotify.client")
-    #expect(await lastDesired(h).count == 1)
+    #expect(await lastDesired(h).first.map { $0.gain < 1 } == true)
     h.store.setVolume(1, for: "com.spotify.client")
-    await expectTapReleasedAfterDelay(h)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
 
     h.store.toggleMute("com.spotify.client")
     #expect(await lastDesired(h).first?.muted == true)
     h.store.toggleMute("com.spotify.client")
-    await expectTapReleasedAfterDelay(h)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
 
     h.store.route("com.spotify.client", to: "airpods")
     #expect(await lastDesired(h).first?.targetDeviceUID == "airpods")
     h.store.route("com.spotify.client", to: nil)
-    #expect(await lastDesired(h).isEmpty)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
     h.store.route("com.spotify.client", to: "speakers")
-    #expect(await lastDesired(h).isEmpty)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
+    #expect(h.controller.reconcileCalls.allSatisfy { $0.count == 1 }, "never without its tap")
   }
 
   @Test func tinyVolumeBelowOneStillNeedsATapAndNeverBecomesMute() async {
@@ -733,13 +723,13 @@ struct QAMixerStoreTests {
     #expect(desired.first?.targetDeviceUID == "airpods")
   }
 
-  @Test func deviceRemovedAtFullVolumeLeavesNoTapAtAll() async {
+  @Test func deviceRemovedAtFullVolumeFallsBackToTheUnchangedDefault() async {
     let h = MixerHarness()
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.route("com.spotify.client", to: "airpods")
-    #expect(await lastDesired(h).count == 1)
+    #expect(await lastDesired(h).first?.targetDeviceUID == "airpods")
     h.store.handle(.devices([MixerHarness.speakers]))
-    #expect(await lastDesired(h).isEmpty)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
   }
 
   @Test func corruptedRememberedStateNeverSilencesTheApp() async {
@@ -754,8 +744,8 @@ struct QAMixerStoreTests {
       h.process("Spotify", pid: 1, playing: true), h.process("Zoom", pid: 2, playing: true),
       h.process("Safari", pid: 3, playing: true),
     ])
-    #expect(await lastDesired(h).isEmpty)
-    #expect(h.controller.neverTapped)
+    #expect(await lastDesired(h).count == 3)
+    #expect(h.controller.onlyUnchangedAudio)
     for row in h.store.rows { #expect(row.state == .default) }
   }
 
@@ -768,7 +758,8 @@ struct QAMixerStoreTests {
       ], beginSafety: true)
     #expect(h.store.isSafeMode)
     h.start([h.process("Spotify", pid: 1, playing: true)])
-    #expect(await lastDesired(h).isEmpty)
+    #expect(SpyAppAudioController.isUnchanged(await lastDesired(h)))
+    #expect(h.controller.onlyUnchangedAudio)
     #expect(h.settings.remembered(for: "com.spotify.client")?.muted == true)
     #expect(h.store.rows.first?.state == .default)
   }
@@ -862,7 +853,7 @@ struct QAMixerStoreTests {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.4, for: "com.spotify.client")
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // list timer + tap linger
     h.clock.advance(by: .seconds(4))
     #expect(h.store.rows.count == 1)
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
@@ -878,12 +869,12 @@ struct QAMixerStoreTests {
     let h = MixerHarness()
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // list timer + tap linger
     h.clock.advance(by: .seconds(4))
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
     #expect(await eventually { h.clock.sleeperCount == 0 })
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount == 2 })
     h.clock.advance(by: .seconds(1))
     await Task.yield()
     #expect(h.store.rows.count == 1)
@@ -899,7 +890,9 @@ struct QAMixerStoreTests {
     h.store.handle(.processes([h.process("Zoom", pid: 100, playing: true)]))
     #expect(h.store.rows.map(\.id) == ["us.zoom.xos"])
     #expect(h.store.rows[0].state == .default)
-    #expect(await lastDesired(h).isEmpty)
+    let zoom = await lastDesired(h)
+    #expect(zoom.map(\.app.id) == ["us.zoom.xos"])
+    #expect(SpyAppAudioController.isUnchanged(zoom), "Zoom does not inherit Spotify's state")
   }
 
   @Test func reusedPIDOfTheSameAppInOneEventKeepsOnlyTheNewGroupPIDs() async {
@@ -913,9 +906,11 @@ struct QAMixerStoreTests {
         h.process("Zoom", pid: 100, playing: true), h.process("Spotify", pid: 300, playing: true),
       ]))
     let desired = await lastDesired(h)
-    #expect(desired.count == 1)
-    #expect(desired[0].app.id == "com.spotify.client")
-    #expect(desired[0].app.pids == [300])
+    let spotify = desired.first { $0.app.id == "com.spotify.client" }
+    #expect(desired.count == 2)
+    #expect(spotify?.app.pids == [300])
+    #expect(spotify?.gain ?? 1 < 1)
+    #expect(SpyAppAudioController.isUnchanged(desired.filter { $0.app.id == "us.zoom.xos" }))
   }
 
   @Test func twoAppsWithTheSameDisplayNameAreSeparateRowsWithIndependentState() async {
@@ -930,7 +925,8 @@ struct QAMixerStoreTests {
     #expect(h.store.rows.count == 2)
     h.store.toggleMute("com.other.zoom")
     let desired = await lastDesired(h)
-    #expect(desired.map(\.app.id) == ["com.other.zoom"])
+    #expect(desired.filter(\.muted).map(\.app.id) == ["com.other.zoom"])
+    #expect(desired.count == 2)
     #expect(h.store.rows.first { $0.id == "us.zoom.xos" }?.state.muted == false)
   }
 

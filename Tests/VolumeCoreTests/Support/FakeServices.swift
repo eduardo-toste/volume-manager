@@ -60,13 +60,20 @@ final class FakePermissionService: PermissionService, Sendable {
 
 /// Permission double whose answer the test chooses.
 final class ScriptedPermissionService: PermissionService, Sendable {
-  private let state = Mutex((answer: AudioPermissionStatus.notDetermined, requests: 0, opened: 0))
+  private let state = Mutex(
+    (answer: AudioPermissionStatus.notDetermined, requests: 0, opened: 0, conclusive: true))
 
   var answer: AudioPermissionStatus {
     get { state.withLock { $0.answer } }
     set { state.withLock { $0.answer = newValue } }
   }
   var requests: Int { state.withLock { $0.requests } }
+  /// False makes the checks inconclusive (nothing was playing).
+  var conclusive: Bool {
+    get { state.withLock { $0.conclusive } }
+    set { state.withLock { $0.conclusive = newValue } }
+  }
+  var lastCheckWasConclusive: Bool { get async { conclusive } }
   var opened: Int { state.withLock { $0.opened } }
 
   func request() async -> AudioPermissionStatus {

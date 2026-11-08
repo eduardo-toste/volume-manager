@@ -24,10 +24,10 @@ public final class MixerStore {
 
   /// How long an app that stopped playing stays in the list (SPEC 4.1).
   public static let gracePeriod: Duration = .seconds(5)
-  /// How long a tapped app must stay at 100%, not muted, on the default output before its tap
-  /// is removed. Removing or creating a tap switches between the original sound and the tap,
-  /// which can click: while the user drags through 100% the tap stays, at gain exactly 1.
-  public static let tapReleaseDelay: Duration = .seconds(2)
+  /// How long an app keeps its tap after it stops playing, so pauses and track changes do not
+  /// switch between the original sound and the tap (SPEC 4.2). After that the tap goes away
+  /// and nothing keeps the output device running for an idle app.
+  public static let tapLingerPeriod: Duration = .seconds(15)
 
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
@@ -49,10 +49,10 @@ public final class MixerStore {
   @ObservationIgnored private var graceTimers: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var previouslyPlaying: Set<String> = []
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
-  /// Tapped apps back at 100% whose tap is kept until `tapReleaseDelay` passes.
-  @ObservationIgnored private var releaseTimers: [String: Task<Void, Never>] = [:]
-  /// Apps whose kept tap expired: no new delay until the user changes them again.
-  @ObservationIgnored private var releasedIDs: Set<String> = []
+  /// Apps that stopped playing and keep their tap until `tapLingerPeriod` passes.
+  @ObservationIgnored private var lingerTimers: [String: Task<Void, Never>] = [:]
+  /// After "Restaurar áudio original" no app is tapped until the user changes one again.
+  @ObservationIgnored private var tapsSuspended = false
   /// Master volume not yet written to the system, and whether a writer is queued. Dragging
   /// the slider produces many values; only the newest one is written.
   @ObservationIgnored private var pendingMasterVolume: Double?
@@ -130,6 +130,21 @@ public final class MixerStore {
       masterMuted = state.isMuted
     }
     rebuild()
+  }
+
+  /// A tap carried only digital silence for 2 s while its app plays (SPEC 4.6): a browser with
+  /// a silent stream, or a permission revoked while the Volume runs (which would leave every
+  /// tapped app mute). Checks the permission by signal (a test tap that does not change the
+  /// sound). Denied: every tap is removed at once, the original sound returns and the popover
+  /// shows the "no permission" state. Returns false when the check could not conclude, so the
+  /// caller asks again later. At most one check runs at a time (`PermissionMonitor`).
+  public func checkSilentTap() async -> Bool {
+    await permission.refresh(onlyIfDenied: false)
+    if permission.status == .denied {
+      settings.audioPermissionConfirmed = false
+      rebuild()
+    }
+    return permission.lastCheckWasConclusive
   }
 
   /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6).
@@ -217,14 +232,16 @@ public final class MixerStore {
 
   /// Panic button (SPEC 4.6), a clean slate: every app, listed or not, goes back to 100%, not
   /// muted, system default output; everything remembered is forgotten; and `restoreAll` is
-  /// called at once, not queued behind pending `reconcile` calls, which are discarded.
+  /// called at once, not queued behind pending `reconcile` calls, which are discarded. No app is
+  /// tapped again until the user changes one (otherwise "always controlled" would put every tap
+  /// back at once).
   public func restoreOriginalAudio() {
     states = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, AppAudioState.default) })
     failedAppIDs = []
-    // Panic never keeps a tap, not even for the release delay.
-    for timer in releaseTimers.values { timer.cancel() }
-    releaseTimers = [:]
-    releasedIDs = Set(groups.map(\.id))
+    // Panic removes every tap now and keeps them off until the user acts again.
+    for timer in lingerTimers.values { timer.cancel() }
+    lingerTimers = [:]
+    tapsSuspended = true
     settings.forgetAll()
     settings.audioPermissionConfirmed = false
     lastDesired = nil
@@ -252,8 +269,7 @@ public final class MixerStore {
     }
     change(&state)
     states[appID] = state
-    releaseTimers.removeValue(forKey: appID)?.cancel()
-    releasedIDs.remove(appID)
+    tapsSuspended = false
     defer { confirmAccessIfNeeded() }
     if settings.rememberVolumes, let bundleID = groups.first(where: { $0.id == appID })?.bundleID {
       if state == .default {
@@ -309,6 +325,16 @@ public final class MixerStore {
     for id in graceTimers.keys where playing.contains(id) || !present.contains(id) {
       graceTimers.removeValue(forKey: id)?.cancel()
     }
+    for id in lingerTimers.keys where playing.contains(id) || !present.contains(id) {
+      lingerTimers.removeValue(forKey: id)?.cancel()
+    }
+    for id in previouslyPlaying.subtracting(playing)
+    where present.contains(id) && lingerTimers[id] == nil {
+      lingerTimers[id] = Task { [weak self, clock] in
+        do { try await clock.sleep(for: MixerStore.tapLingerPeriod) } catch { return }
+        self?.lingerExpired(id)
+      }
+    }
     for id in previouslyPlaying.subtracting(playing)
     where present.contains(id) && graceTimers[id] == nil {
       graceTimers[id] = Task { [weak self, clock] in
@@ -317,6 +343,11 @@ public final class MixerStore {
       }
     }
     previouslyPlaying = playing
+  }
+
+  private func lingerExpired(_ id: String) {
+    guard lingerTimers.removeValue(forKey: id) != nil else { return }
+    rebuild()
   }
 
   private func graceExpired(_ id: String) {
@@ -357,8 +388,9 @@ public final class MixerStore {
     }
   }
 
-  /// Computes the desired audio and sends it to the controller only if it changed. Apps at
-  /// 100%, not muted and on the default output get no entry, hence no tap (SPEC 4.2).
+  /// Computes the desired audio and sends it to the controller only if it changed. Every app
+  /// that plays, or stopped less than `tapLingerPeriod` ago, has an entry, also at 100% (gain
+  /// exactly 1); none while taps are suspended by a restore (SPEC 4.2).
   private func reconcile() {
     var desired: [DesiredAppAudio] = []
     for app in groups where !app.pids.isEmpty {
@@ -368,18 +400,13 @@ public final class MixerStore {
           preferredUID: state.preferredOutputUID, devices: devices, defaultUID: defaultOutputUID)
       else { continue }
       let gain = VolumeCurve.gain(forVolume: state.volume)
-      guard
-        gain < 1 || state.muted || !route.usesSystemDefault || keepsTap(app.id, on: route.deviceUID)
-      else {
-        continue
-      }
+      // Always controlled while playing, even at 100% (gain exactly 1): a volume change then
+      // only moves the gain and never switches between the original sound and the tap.
+      guard !tapsSuspended, app.isPlaying || lingerTimers[app.id] != nil else { continue }
       desired.append(
         DesiredAppAudio(
           app: ControlledApp(app), gain: gain, muted: state.muted, targetDeviceUID: route.deviceUID)
       )
-    }
-    for id in releaseTimers.keys where !groups.contains(where: { $0.id == id }) {
-      releaseTimers.removeValue(forKey: id)?.cancel()
     }
     wantsTaps = !desired.isEmpty
     if settings.audioPermissionConfirmed, desired.contains(where: { isPlaying($0.app.id) }) {
@@ -398,27 +425,6 @@ public final class MixerStore {
         await controller.reconcile(desired: next.list)
       }
     }
-  }
-
-  /// True while a tapped app that no longer needs its tap keeps it (gain exactly 1, so the
-  /// sound is unchanged); starts the release timer the first time (`tapReleaseDelay`). Only a
-  /// tap already on `deviceUID` is kept: one on another output would have to be rebuilt anyway.
-  private func keepsTap(_ id: String, on deviceUID: String) -> Bool {
-    if releaseTimers[id] != nil { return true }
-    guard !releasedIDs.contains(id),
-      lastDesired?.contains(where: { $0.app.id == id && $0.targetDeviceUID == deviceUID }) == true
-    else { return false }
-    releaseTimers[id] = Task { [weak self, clock] in
-      do { try await clock.sleep(for: MixerStore.tapReleaseDelay) } catch { return }
-      self?.releaseExpired(id)
-    }
-    return true
-  }
-
-  private func releaseExpired(_ id: String) {
-    guard releaseTimers.removeValue(forKey: id) != nil else { return }
-    releasedIDs.insert(id)
-    rebuild()
   }
 
   private func startNewReconcileSender() {

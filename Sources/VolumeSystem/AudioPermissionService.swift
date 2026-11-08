@@ -7,7 +7,7 @@ import VolumeCore
 /// There is no public API that reads the permission without side effects, so the state comes
 /// from the signal verification of the injected `AudioAccessProbe` (SPEC 4.6): real audio on a
 /// test tap is `.granted`, only silence from a playing process is `.denied`. When nothing is playing the check is
-/// indeterminate and the last known status is kept (the per-tap silence guard covers it).
+/// indeterminate and the last known status is kept (no tap is created while it is not granted).
 /// Re-calling `request()` when the popover opens detects a grant made later in System Settings.
 public actor AudioPermissionService: PermissionService {
   /// Fixed deep link to Privacy & Security > System Audio Recording.
@@ -17,6 +17,8 @@ public actor AudioPermissionService: PermissionService {
   private let probe: any AudioAccessProbe
   private let openURL: @Sendable (URL) -> Void
   private var lastKnown: AudioPermissionStatus = .notDetermined
+  /// See `PermissionService.lastCheckWasConclusive`.
+  public private(set) var lastCheckWasConclusive = true
 
   /// Creates the service with the real probe supplied by the composition root.
   public init(probe: any AudioAccessProbe) {
@@ -30,7 +32,9 @@ public actor AudioPermissionService: PermissionService {
 
   /// Creates a test tap (showing the system prompt if undecided) and returns the new state.
   public func request() async -> AudioPermissionStatus {
-    switch await probe.verify() {
+    let verdict = await probe.verify()
+    lastCheckWasConclusive = verdict != .indeterminate
+    switch verdict {
     case .granted: lastKnown = .granted
     case .denied: lastKnown = .denied
     case .indeterminate: break

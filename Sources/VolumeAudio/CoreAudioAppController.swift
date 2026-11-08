@@ -112,6 +112,12 @@ public actor CoreAudioAppController: AppAudioController {
     failed.removeValue(forKey: appID)
   }
 
+  /// The permission check asked by `.onlySilence` could not conclude: the same silent period
+  /// asks again after `WatchdogPolicy.inconclusiveRetry`.
+  public func silenceCheckWasInconclusive(appID: String) {
+    entries[appID]?.health.retryLater()
+  }
+
   /// Allows a new attempt for every failed app.
   public func retryAll() {
     failed.removeAll()
@@ -320,7 +326,9 @@ public actor CoreAudioAppController: AppAudioController {
       switch verdict {
       case .healthy: break
       case .stalled: fail(id, .noAudioFrames)
-      case .silent: fail(id, .permissionLikelyDenied)
+      case .silent:
+        AudioLog.logger.notice("tap carried only silence: permission check requested")
+        emit(AppAudioFailure(appID: id, reason: .onlySilence))
       case .faulted: fail(id, .ioFault)
       }
     }

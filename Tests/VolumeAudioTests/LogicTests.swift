@@ -94,16 +94,52 @@ struct SessionHealthTests {
     #expect(verdicts == [.healthy, .healthy, .healthy, .stalled])
   }
 
-  @Test func silenceWhileRunningFiresAfterTwoSeconds() {
+  /// Round 5b: silence is reported once after 2 s and then latched until signal returns, so a
+  /// browser with a silent stream asks for one permission check per silent period.
+  @Test func silenceIsReportedOnceAfterTwoSecondsAndLatched() {
     var health = SessionHealth(policy: policy)
     var frames: UInt64 = 0
     var verdicts: [HealthVerdict] = []
-    for _ in 0..<4 {
+    for _ in 0..<200 {
       frames += 24_000
       verdicts.append(
         health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false))
     }
-    #expect(verdicts == [.healthy, .healthy, .healthy, .silent])
+    #expect(verdicts.prefix(4) == [.healthy, .healthy, .healthy, .silent])
+    #expect(verdicts.filter { $0 == .silent }.count == 1)
+  }
+
+  @Test func signalReArmsTheSilenceReport() {
+    var health = SessionHealth(policy: policy)
+    var frames: UInt64 = 0
+    var reports = 0
+    for period in 0..<3 {
+      frames += 24_000
+      _ = health.evaluate(frames: frames, sawSignal: true, appRunning: true, fault: false)
+      for _ in 0..<(10 + period) {
+        frames += 24_000
+        let verdict = health.evaluate(
+          frames: frames, sawSignal: false, appRunning: true, fault: false)
+        if verdict == .silent { reports += 1 }
+      }
+    }
+    #expect(reports == 3, "one per silent period")
+  }
+
+  @Test func inconclusiveCheckAsksAgainOnlyAfterThirtySeconds() {
+    var health = SessionHealth(policy: policy)
+    var frames: UInt64 = 0
+    func tick() -> HealthVerdict {
+      frames += 24_000
+      return health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false)
+    }
+    for _ in 0..<4 { _ = tick() }
+    health.retryLater()
+    let retry = policy.ticks(for: policy.inconclusiveRetry)
+    var verdicts: [HealthVerdict] = []
+    for _ in 0..<(retry + 10) { verdicts.append(tick()) }
+    #expect(verdicts.firstIndex(of: .silent) == retry - 1)
+    #expect(verdicts.filter { $0 == .silent }.count == 1)
   }
 
   @Test func silenceIsForgivenWhenTheAppIsNotRunningOrSignalReturns() {
