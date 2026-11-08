@@ -68,18 +68,18 @@ final class ScriptedPermissionService: PermissionService, Sendable {
     set { state.withLock { $0.answer = newValue } }
   }
   var requests: Int { state.withLock { $0.requests } }
-  /// False makes the checks inconclusive (nothing was playing).
+  /// False makes the checks inconclusive (nothing was playing): `request()` answers
+  /// `.notDetermined`.
   var conclusive: Bool {
     get { state.withLock { $0.conclusive } }
     set { state.withLock { $0.conclusive = newValue } }
   }
-  var lastCheckWasConclusive: Bool { get async { conclusive } }
   var opened: Int { state.withLock { $0.opened } }
 
   func request() async -> AudioPermissionStatus {
     state.withLock {
       $0.requests += 1
-      return $0.answer
+      return $0.conclusive ? $0.answer : .notDetermined
     }
   }
 

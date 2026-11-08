@@ -60,13 +60,18 @@ final class Composition {
       Task { [store] in await store.run() },
       Task { [store, controller] in
         // One event at a time, so at most one permission check runs because of silence.
-        for await failure in failures {
-          guard failure.reason == .onlySilence else {
-            store.controlFailed(failure.appID)
-            continue
-          }
-          if await !store.checkSilentTap() {
-            await controller.silenceCheckWasInconclusive(appID: failure.appID)
+        for await event in failures {
+          switch event.reason {
+          case .onlySilence:
+            await store.checkSilentTap()
+            await controller.silenceChecked(appID: event.appID)
+          case .stoppedPlaying:
+            store.refreshAudioSystem()
+          default:
+            // An unsupported output format on an app the user never adjusted is not shown:
+            // it plays natively, as without the Volume (logged by the controller).
+            store.controlFailed(
+              event.appID, quietIfUntouched: event.reason == .incompatibleFormat)
           }
         }
       },

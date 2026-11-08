@@ -22,10 +22,12 @@ public actor CoreAudioAppController: AppAudioController {
   private struct Entry {
     let handle: any TapHandle
     let token: Int
-    let key: SessionKey
+    var key: SessionKey
     /// The `restoreAll` generation the tap was created under.
     let generation: Int
     var health: SessionHealth
+    /// The app's `IsRunningOutput` at the last watchdog tick.
+    var wasRunning = true
   }
 
   private let engine: any TapEngine
@@ -112,9 +114,9 @@ public actor CoreAudioAppController: AppAudioController {
     failed.removeValue(forKey: appID)
   }
 
-  /// The permission check asked by `.onlySilence` could not conclude: the same silent period
-  /// asks again after `WatchdogPolicy.inconclusiveRetry`.
-  public func silenceCheckWasInconclusive(appID: String) {
+  /// The permission check asked by `.onlySilence` ran (any result): while the silence lasts,
+  /// the tap asks again after `WatchdogPolicy.recheckAfter` at the earliest.
+  public func silenceChecked(appID: String) {
     entries[appID]?.health.retryLater()
   }
 
@@ -173,6 +175,8 @@ public actor CoreAudioAppController: AppAudioController {
     case .none, .destroy:
       destroy(id)
     case .update:
+      // Processes that left are dropped from the key, so one that comes back gets a new tap.
+      entries[id]?.key = key
       entries[id]?.handle.setTarget(gain: gain)
     case .create:
       _ = await start(
@@ -315,17 +319,27 @@ public actor CoreAudioAppController: AppAudioController {
 
   /// Returns false when there is nothing left to watch.
   private func watchdogTick() -> Bool {
+    // Read every tap's signal first: real sound on any tap proves the permission works.
+    let signals = entries.mapValues { $0.handle.consumeSignalFlag() }
     for id in entries.keys.sorted() {
       guard var entry = entries[id] else { continue }
+      let running = engine.isRunningOutput(pids: entry.key.pids)
       let verdict = entry.health.evaluate(
-        frames: entry.handle.framesProcessed,
-        sawSignal: entry.handle.consumeSignalFlag(),
-        appRunning: engine.isRunningOutput(pids: entry.key.pids),
-        fault: entry.handle.hasFault)
+        frames: entry.handle.framesProcessed, sawSignal: signals[id] ?? false,
+        appRunning: running, fault: entry.handle.hasFault)
+      if entry.wasRunning && !running {
+        // Our own aggregate keeps the output device busy, so the device does not report that
+        // the app paused: tell the domain, which re-reads the processes once.
+        emit(AppAudioFailure(appID: id, reason: .stoppedPlaying))
+      }
+      entry.wasRunning = running
       entries[id] = entry
       switch verdict {
       case .healthy: break
       case .stalled: fail(id, .noAudioFrames)
+      case .silent where signals.contains { $0.key != id && $0.value }:
+        // Another tap delivers real sound: the permission works, this is plain silence.
+        entries[id]?.health.retryLater()
       case .silent:
         AudioLog.logger.notice("tap carried only silence: permission check requested")
         emit(AppAudioFailure(appID: id, reason: .onlySilence))

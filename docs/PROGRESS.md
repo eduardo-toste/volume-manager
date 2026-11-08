@@ -35,6 +35,7 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 5. Ainda não verificados de ouvido (reteste interrompido): estalo ao baixar o Spotify de 100% para ~10% (itens 13a/13b de `docs/MANUAL_TESTS.md`; a mudança de `initialGain` para o ganho-alvo é hipótese não confirmada — QA M4.1 rodada 2, observação Média), Spotify obedecendo após a permissão, painel colado à barra, borda azul.
 
 ### Pendências para a M6 (Robustez)
+- **Antes do release (M7)**: rebaixar os logs `.notice` de ciclo de vida de tap (criado/destruído/plano/sondas) para `.debug`/`.info` — hoje persistidos para diagnosticar o reteste (S41-B3, `docs/reports/m4.1-security.md`).
 - S21-B1/S21-B2 (`docs/reports/m2.1-security.md`): conferir a identidade (UID do aggregate, UUID do tap) antes de destruir; cobre também o reinício do coreaudiod no meio de `makeSession`.
 - Marca `audioPermissionConfirmed` velha (permissão zerada no macOS ou app reassinado): auto-verificar só se a marca existir e a última sessão terminou limpa.
 - Opcional (usuário): suíte de hardware (`VOLUME_AUDIO_TESTS=1`) pelo `vmctl-dev.app`.
@@ -54,7 +55,7 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - **M-1 = risco aceito** (decisão do usuário em 2026-11-07): sem checagem de nulo do `weak_import`; o roteiro de release (M7) confirma o símbolo no macOS mínimo e no atual (SPEC §4.1, PLAN M7).
 - **Aceitos sem mudança**: B-3 (bundle ID declarado decide o grupo), B-6 (segundo `stop()` concorrente volta antes do teardown), B-7 (`_withUnsafeGuaranteedRef`), S21-B3 (casamento exato de UID vence o sanitizado), retenção de ~100 B por tap a cada reinício do coreaudiod no `abandon()`.
 - **Sem overengineering** (decisão do usuário em 2026-11-07): regra no `CLAUDE.md` e nos três agentes; Dev lista "Abstrações novas"; QA/Segurança julgam proporcionalidade; o orquestrador revisa o diff antes de commitar.
-- **Permissão (M4, S4-M1)**: nenhum tap de usuário sem `verify()` == granted nesta sessão. Sem a marca persistida `audioPermissionConfirmed`, só ação do usuário dispara a verificação (o pedido do sistema nunca aparece sozinho); com a marca e um app lembrado tocando, verifica sozinho ao iniciar e reaplica os lembrados (§14.7). Negada e "Restaurar áudio original" apagam a marca.
+- **Permissão (M4, S4-M1)**: nenhum tap de usuário sem `verify()` == granted nesta sessão. Sem a marca persistida `audioPermissionConfirmed`, só ação do usuário dispara a verificação (o pedido do sistema nunca aparece sozinho); com a marca e um app lembrado tocando, verifica sozinho ao iniciar e reaplica os lembrados (§14.7). Só um "negada" confirmado por ação do usuário apaga a marca; o "negada" do vigia de silêncio (ambíguo) e "Restaurar áudio original" não a apagam (Restaurar continua zerando estados e esquecendo lembrados, e suspende os taps até a próxima ação do usuário) — M4.1, S41-M1.
 - **Aceitos sem mudança (M4)**: S4-B3 (ícone buscado pelo bundle ID declarado — só visual); monitor de rolagem `NSEvent` local por slider; snapshots de teste mostram chaves em vez de pt-BR (o app real está correto).
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 

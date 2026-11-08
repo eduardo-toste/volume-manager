@@ -56,8 +56,11 @@ struct AccessProbeM21Tests {
   @Test func theVerdictAfterAFailureDependsOnTheStageNotOnTheText() {
     let refused = AudioError(status: 1, context: "anything at all", stage: .createTap)
     let later = AudioError(status: 1, context: "create process tap (misleading text)")
-    #expect(SystemAudioAccessProbe.verdictAfterFailure(refused) == .denied)
-    #expect(SystemAudioAccessProbe.verdictAfterFailure(later) == .indeterminate)
+    #expect(SystemAudioAccessProbe.verdictAfterFailure(refused, targetsExist: true) == .denied)
+    #expect(SystemAudioAccessProbe.verdictAfterFailure(later, targetsExist: true) == .indeterminate)
+    // S41-M1: a process that ended between the reading and the tap is not a refusal.
+    #expect(
+      SystemAudioAccessProbe.verdictAfterFailure(refused, targetsExist: false) == .indeterminate)
     #expect(AudioError(status: 1, context: "x").stage == .other)
   }
 }

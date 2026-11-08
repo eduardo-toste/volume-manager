@@ -140,10 +140,15 @@ struct LaunchVerificationTests {
     #expect(h.controller.reconcileCalls.last?.map(\.app.id) == ["com.spotify.client"])
   }
 
-  @Test func panicClearsTheMark() {
+  /// S41-B4: panic has one lock (taps suspended until the user acts); the permission mark is
+  /// about the permission, so it stays.
+  @Test func panicSuspendsTheTapsAndKeepsTheMark() async {
     let h = MixerHarness(preferences: marked, permission: .granted)
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.restoreOriginalAudio()
-    #expect(!h.settings.audioPermissionConfirmed)
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    #expect(h.settings.audioPermissionConfirmed)
   }
 }

@@ -16,9 +16,6 @@ public actor AudioPermissionService: PermissionService {
 
   private let probe: any AudioAccessProbe
   private let openURL: @Sendable (URL) -> Void
-  private var lastKnown: AudioPermissionStatus = .notDetermined
-  /// See `PermissionService.lastCheckWasConclusive`.
-  public private(set) var lastCheckWasConclusive = true
 
   /// Creates the service with the real probe supplied by the composition root.
   public init(probe: any AudioAccessProbe) {
@@ -30,16 +27,15 @@ public actor AudioPermissionService: PermissionService {
     self.openURL = openURL
   }
 
-  /// Creates a test tap (showing the system prompt if undecided) and returns the new state.
+  /// Creates a test tap (showing the system prompt if undecided) and returns the result of
+  /// this check; `.notDetermined` when it could not conclude. `PermissionMonitor` keeps the last
+  /// known state.
   public func request() async -> AudioPermissionStatus {
-    let verdict = await probe.verify()
-    lastCheckWasConclusive = verdict != .indeterminate
-    switch verdict {
-    case .granted: lastKnown = .granted
-    case .denied: lastKnown = .denied
-    case .indeterminate: break
+    switch await probe.verify() {
+    case .granted: .granted
+    case .denied: .denied
+    case .indeterminate: .notDetermined
     }
-    return lastKnown
   }
 
   /// Opens System Settings at the audio capture privacy pane.

@@ -23,14 +23,19 @@ struct AudioPermissionVerdictTests {
     #expect(await service.request() == .granted)
   }
 
-  @Test func indeterminateKeepsWhatWasKnown() async {
+  /// The service reports each check; the monitor keeps what was known (S41-B4).
+  @Test func indeterminateIsReportedAndTheMonitorKeepsWhatWasKnown() async {
     let probe = VerdictProbe()
     let service = AudioPermissionService(probe: probe)
     #expect(await service.request() == .notDetermined)
-    probe.set(.denied)
-    _ = await service.request()
     probe.set(.indeterminate)
-    #expect(await service.request() == .denied)
+    #expect(await service.request() == .notDetermined)
+    let monitor = await PermissionMonitor(service: service)
+    probe.set(.denied)
+    #expect(await monitor.refresh(onlyIfDenied: false) == .denied)
+    probe.set(.indeterminate)
+    #expect(await monitor.refresh(onlyIfDenied: false) == .notDetermined)
+    #expect(await monitor.status == .denied)
   }
 
   @Test func probesWithoutAVerifyOverrideStillWork() async {

@@ -9,9 +9,6 @@ import Observation
 public final class PermissionMonitor {
   /// The last verified status.
   public private(set) var status = AudioPermissionStatus.notDetermined
-  /// False when the last check could not conclude (nothing was playing); `status` then kept
-  /// its last known value.
-  @ObservationIgnored public private(set) var lastCheckWasConclusive = true
 
   /// True when the popover must show the "no permission" state in place of the app list.
   public var isDenied: Bool { status == .denied }
@@ -36,15 +33,19 @@ public final class PermissionMonitor {
   /// Verifies the permission by signal (SPEC 4.6). With `onlyIfDenied` (the popover just
   /// opened, SPEC 5) it does nothing unless the permission is denied, so opening the popover
   /// never shows the system prompt by itself. Without it (a user action needs taps) it always
-  /// checks. Ignored while a check is running.
-  public func refresh(onlyIfDenied: Bool) async {
-    guard !isRefreshing, !onlyIfDenied || status == .denied else { return }
+  /// checks. Returns the result of this check (`.notDetermined`: it could not conclude, and the
+  /// last known status is kept), or `nil` when no check ran (another one is running, or
+  /// `onlyIfDenied` and not denied).
+  @discardableResult
+  public func refresh(onlyIfDenied: Bool) async -> AudioPermissionStatus? {
+    guard !isRefreshing, !onlyIfDenied || status == .denied else { return nil }
     isRefreshing = true
     defer { isRefreshing = false }
     let previous = status
-    status = await service.request()
-    lastCheckWasConclusive = await service.lastCheckWasConclusive
+    let result = await service.request()
+    if result != .notDetermined { status = result }
     if previous == .denied, status == .granted { onGranted() }
+    return result
   }
 
   /// Opens System Settings at the audio capture privacy pane.

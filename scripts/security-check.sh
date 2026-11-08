@@ -236,7 +236,10 @@ else
   [ -d "$APP/Contents/Frameworks" ] && fail "Contents/Frameworks must not exist"
   bad_libs="$(otool -L "$APP/Contents/MacOS/VolumeManager" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/Library/|/usr/lib/)' || true)"
   [ -n "$bad_libs" ] && fail "binary links libraries from outside the system: $bad_libs"
-  # 7. compiled strings equal the catalog (catches double UTF-8 encoding: "saÃ­da")
+  # 7. compiled strings equal the catalog (catches double UTF-8 encoding: "saÃ­da"); the UI is
+  #    pt-BR, so a bundle without it fails instead of skipping the check
+  [ -f "$APP/Contents/Resources/pt-BR.lproj/Localizable.strings" ] \
+    || fail "missing $APP/Contents/Resources/pt-BR.lproj/Localizable.strings"
   for lproj in "$APP"/Contents/Resources/*.lproj; do
     [ -d "$lproj" ] || continue
     lang="$(basename "$lproj" .lproj)"

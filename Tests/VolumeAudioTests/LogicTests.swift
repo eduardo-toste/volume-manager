@@ -135,7 +135,7 @@ struct SessionHealthTests {
     }
     for _ in 0..<4 { _ = tick() }
     health.retryLater()
-    let retry = policy.ticks(for: policy.inconclusiveRetry)
+    let retry = policy.ticks(for: policy.recheckAfter)
     var verdicts: [HealthVerdict] = []
     for _ in 0..<(retry + 10) { verdicts.append(tick()) }
     #expect(verdicts.firstIndex(of: .silent) == retry - 1)

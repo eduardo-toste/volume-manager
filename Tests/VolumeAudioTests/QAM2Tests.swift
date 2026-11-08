@@ -85,7 +85,7 @@ struct QAFailOpenTests {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
     }
-    await rig.controller.silenceCheckWasInconclusive(appID: "qa.one")
+    await rig.controller.silenceChecked(appID: "qa.one")
     for _ in 0..<59 {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)

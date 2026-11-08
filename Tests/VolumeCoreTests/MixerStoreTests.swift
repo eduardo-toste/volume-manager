@@ -227,35 +227,70 @@ struct MixerStoreTests {
     return tapped
   }
 
+  /// Revoked permission: every tap goes at once (no app stays mute) and the popover says so;
+  /// the denial is ambiguous, so it is not stored, and a later check brings the taps back.
   @Test func silenceWithTheRevokedPermissionRemovesEveryTapAtOnce() async {
     let h = await twoTappedApps()
+    h.settings.audioPermissionConfirmed = true
     h.access.answer = .denied
-    #expect(await h.store.checkSilentTap())
+    await h.store.checkSilentTap()
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "original sound for every app")
     #expect(h.permission.isDenied, "the popover shows the no-permission state")
-    #expect(h.settings.audioPermissionConfirmed == false)
+    #expect(h.settings.audioPermissionConfirmed, "an ambiguous denial is not stored")
     #expect(h.access.requests == 1)
+
+    // Checked again by itself while something plays, at most every 30 s.
+    h.access.answer = .granted
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
+    h.clock.advance(by: MixerStore.permissionRecheckInterval - .milliseconds(1))
+    await h.settle()
+    #expect(h.access.requests == 1)
+    h.clock.advance(by: .milliseconds(1))
+    #expect(await eventually { h.access.requests == 2 })
+    #expect(await eventually { h.permission.status == .granted })
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 2, "the taps are back")
   }
 
-  @Test func legitimateSilenceKeepsEveryTap() async {
+  @Test func legitimateSilenceKeepsEveryTapAndARecentGrantIsReused() async {
     let h = await twoTappedApps()
     h.access.answer = .granted
     let sent = h.controller.reconcileCalls.count
-    #expect(await h.store.checkSilentTap())
+    await h.store.checkSilentTap()
+    await h.store.checkSilentTap()
     await h.settle()
     #expect(h.controller.reconcileCalls.count == sent, "nothing changes")
     #expect(h.permission.status == .granted)
-    #expect(h.access.requests == 1)
+    #expect(h.access.requests == 1, "the second check reused the recent grant")
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
+    h.clock.advance(by: MixerStore.permissionRecheckInterval)
+    for _ in 0..<50 { await Task.yield() }
+    await h.store.checkSilentTap()
+    #expect(h.access.requests == 2, "a grant older than 30 s is checked again")
   }
 
-  @Test func inconclusiveCheckKeepsTheTapsAndAsksToRetryLater() async {
+  @Test func inconclusiveCheckKeepsTheTaps() async {
     let h = await twoTappedApps()
     h.access.answer = .granted
     h.access.conclusive = false
-    #expect(await h.store.checkSilentTap() == false)
+    await h.store.checkSilentTap()
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.count == 2)
+    #expect(h.permission.status == .granted)
+  }
+
+  /// QA-2: with "always controlled", an output format that cannot be controlled must not flag
+  /// an app the user never adjusted; once the user adjusts it, the warning shows.
+  @Test func unsupportedFormatIsQuietUntilTheUserAdjustsTheApp() async {
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    h.store.controlFailed(spotify, quietIfUntouched: true)
+    #expect(h.store.failedAppIDs.isEmpty)
+    h.store.setVolume(0.5, for: spotify)
+    #expect(h.store.failedAppIDs == [spotify])
+    h.store.toggleMute("com.apple.Safari")
+    h.store.controlFailed(spotify, quietIfUntouched: true)
+    #expect(h.store.failedAppIDs == [spotify], "an adjusted app shows the warning")
   }
 
   /// Round 4 (clicks): dragging through 100% never removes the tap. Every value of the drag

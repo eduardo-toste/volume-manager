@@ -89,10 +89,16 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     return true
   }
 
-  /// Creating the tap itself failed: refused. Any later step: cannot conclude. Decided by the
+  /// Creating the tap itself failed while every process it named still exists: refused. A
+  /// process that ended in between, or any later step: cannot conclude. Decided by the
   /// error's stage, never by its text.
-  static func verdictAfterFailure(_ error: AudioError) -> AudioAccessVerdict {
-    error.stage == .createTap ? .denied : .indeterminate
+  static func verdictAfterFailure(_ error: AudioError, targetsExist: Bool) -> AudioAccessVerdict {
+    error.stage == .createTap && targetsExist ? .denied : .indeterminate
+  }
+
+  /// True while every one of `objects` is still an audio process.
+  private func exist(_ objects: [AudioObjectID]) -> Bool {
+    objects.allSatisfy { catalog.pid(of: $0) != nil }
   }
 
   /// Listens to the processes that are playing; see `AudioAccessProbe.verify()`.
@@ -101,7 +107,7 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     guard !playing.isEmpty else {
       // Nobody to test with: nothing can be concluded.
       guard let target = testTarget() else { return .indeterminate }
-      return probe(target: target) ? .indeterminate : .denied
+      return probe(target: target) || !exist([target]) ? .indeterminate : .denied
     }
 
     AudioLog.logger.notice("access check: listening tap, aggregate and IO started")
@@ -127,7 +133,7 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     } catch {
       withExtendedLifetime(state) { pipeline.teardown() }
       // Creating the tap itself failed: refused. Anything later: cannot conclude.
-      return Self.verdictAfterFailure(error)
+      return Self.verdictAfterFailure(error, targetsExist: exist(playing))
     }
     try? await clock.sleep(for: listenDuration)
     withExtendedLifetime(state) { pipeline.teardown() }

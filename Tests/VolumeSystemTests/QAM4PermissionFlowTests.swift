@@ -56,9 +56,11 @@ struct QAM4PermissionFlowTests {
     let monitor = PermissionMonitor(
       service: AudioPermissionService(probe: probe, openURL: { _ in }), onGranted: {})
     probe.set(.denied)
-    async let first: Void = monitor.refresh(onlyIfDenied: false)
-    async let second: Void = monitor.refresh(onlyIfDenied: false)
-    _ = await (first, second)
+    async let first = monitor.refresh(onlyIfDenied: false)
+    async let second = monitor.refresh(onlyIfDenied: false)
+    let results = await [first, second]
     #expect(monitor.isDenied)
+    #expect(results.contains(nil), "the overlapping call ran no check")
+    #expect(results.contains(.denied))
   }
 }

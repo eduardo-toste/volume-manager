@@ -28,6 +28,10 @@ public final class MixerStore {
   /// switch between the original sound and the tap (SPEC 4.2). After that the tap goes away
   /// and nothing keeps the output device running for an idle app.
   public static let tapLingerPeriod: Duration = .seconds(15)
+  /// A "granted" this recent answers a new silence check without a new test tap, and after a
+  /// "denied" from the silence guard the permission is checked again this often while
+  /// something plays (SPEC 4.6).
+  public static let permissionRecheckInterval: Duration = .seconds(30)
 
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
@@ -53,6 +57,13 @@ public final class MixerStore {
   @ObservationIgnored private var lingerTimers: [String: Task<Void, Never>] = [:]
   /// After "Restaurar áudio original" no app is tapped until the user changes one again.
   @ObservationIgnored private var tapsSuspended = false
+  /// Apps whose output format cannot be controlled while the user had not adjusted them: they
+  /// play natively without a warning until the user adjusts them (SPEC 4.2, 4.6).
+  @ObservationIgnored private var quietFailures: Set<String> = []
+  /// Running while a silence check's "granted" can still be reused.
+  @ObservationIgnored private var recentGrant: Task<Void, Never>?
+  /// Running while a "denied" from the silence guard is checked again periodically.
+  @ObservationIgnored private var deniedRechecks: Task<Void, Never>?
   /// Master volume not yet written to the system, and whether a writer is queued. Dragging
   /// the slider produces many values; only the newest one is written.
   @ObservationIgnored private var pendingMasterVolume: Double?
@@ -135,27 +146,59 @@ public final class MixerStore {
   /// A tap carried only digital silence for 2 s while its app plays (SPEC 4.6): a browser with
   /// a silent stream, or a permission revoked while the Volume runs (which would leave every
   /// tapped app mute). Checks the permission by signal (a test tap that does not change the
-  /// sound). Denied: every tap is removed at once, the original sound returns and the popover
-  /// shows the "no permission" state. Returns false when the check could not conclude, so the
-  /// caller asks again later. At most one check runs at a time (`PermissionMonitor`).
-  public func checkSilentTap() async -> Bool {
-    await permission.refresh(onlyIfDenied: false)
-    if permission.status == .denied {
-      settings.audioPermissionConfirmed = false
+  /// sound); a "granted" from the last `permissionRecheckInterval` is reused. Denied: every tap
+  /// is removed at once, the original sound returns and the popover shows the "no permission"
+  /// state; the denial is ambiguous (a silent stream may be the only player), so it is not
+  /// stored and the permission is checked again periodically while something plays. At most
+  /// one check runs at a time (`PermissionMonitor`); the caller checks again later anyway.
+  public func checkSilentTap() async {
+    guard recentGrant == nil else { return }
+    switch await permission.refresh(onlyIfDenied: false) {
+    case .granted: rememberGrant()
+    case .denied:
+      recheckWhileDenied()
       rebuild()
+    case .notDetermined, nil: break
     }
-    return permission.lastCheckWasConclusive
   }
 
-  /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6).
-  public func controlFailed(_ appID: String) {
+  private func rememberGrant() {
+    recentGrant = Task { [weak self, clock] in
+      try? await clock.sleep(for: MixerStore.permissionRecheckInterval)
+      self?.recentGrant = nil
+    }
+  }
+
+  /// After a "denied" from the silence guard: every `permissionRecheckInterval`, while
+  /// something plays, checks again; a "granted" brings the taps back (`onGranted`).
+  private func recheckWhileDenied() {
+    guard deniedRechecks == nil else { return }
+    deniedRechecks = Task { [weak self, clock] in
+      while true {
+        do { try await clock.sleep(for: MixerStore.permissionRecheckInterval) } catch { return }
+        guard let self, permission.status == .denied else { break }
+        if groups.contains(where: \.isPlaying) { await permission.refresh(onlyIfDenied: false) }
+      }
+      self?.deniedRechecks = nil
+    }
+  }
+
+  /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6). With
+  /// `quietIfUntouched`, an app the user has not adjusted shows no warning: it plays natively,
+  /// as it would without the Volume, until the user adjusts it.
+  public func controlFailed(_ appID: String, quietIfUntouched: Bool = false) {
     guard groups.contains(where: { $0.id == appID }) else { return }
-    failedAppIDs.insert(appID)
+    if quietIfUntouched, states[appID] ?? .default == .default {
+      quietFailures.insert(appID)
+    } else {
+      failedAppIDs.insert(appID)
+    }
   }
 
   /// Allows a new attempt for every failed app, for example after the permission was granted.
   public func retryAll() {
     failedAppIDs = []
+    quietFailures = []
     lastDesired = nil
     startNewReconcileSender()
     controllerWork.enqueue { [controller] in await controller.retryAll() }
@@ -238,12 +281,12 @@ public final class MixerStore {
   public func restoreOriginalAudio() {
     states = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, AppAudioState.default) })
     failedAppIDs = []
+    quietFailures = []
     // Panic removes every tap now and keeps them off until the user acts again.
     for timer in lingerTimers.values { timer.cancel() }
     lingerTimers = [:]
     tapsSuspended = true
     settings.forgetAll()
-    settings.audioPermissionConfirmed = false
     lastDesired = nil
     epoch.advance()
     panicTasks.append(Task { [controller] in await controller.restoreAll() })
@@ -269,6 +312,8 @@ public final class MixerStore {
     }
     change(&state)
     states[appID] = state
+    // The control already failed quietly: the adjustment cannot apply, so say so now.
+    if quietFailures.remove(appID) != nil { failedAppIDs.insert(appID) }
     tapsSuspended = false
     defer { confirmAccessIfNeeded() }
     if settings.rememberVolumes, let bundleID = groups.first(where: { $0.id == appID })?.bundleID {
@@ -361,6 +406,7 @@ public final class MixerStore {
     }
     rows = visible.map(makeRow).sorted(by: Self.isOrderedBefore)
     failedAppIDs.formIntersection(groups.map(\.id))
+    quietFailures.formIntersection(groups.map(\.id))
     if let expanded = expandedAppID, !rows.contains(where: { $0.id == expanded }) {
       expandedAppID = nil
     }
@@ -409,7 +455,10 @@ public final class MixerStore {
       )
     }
     wantsTaps = !desired.isEmpty
-    if settings.audioPermissionConfirmed, desired.contains(where: { isPlaying($0.app.id) }) {
+    // After a denial from the silence guard, `recheckWhileDenied` does the checking.
+    if settings.audioPermissionConfirmed, deniedRechecks == nil,
+      desired.contains(where: { isPlaying($0.app.id) })
+    {
       confirmAccessIfNeeded()
     }
     let allowed = permission.status == .granted ? desired : []

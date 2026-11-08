@@ -6,8 +6,9 @@ struct WatchdogPolicy: Sendable, Hashable {
   var stallLimit: Duration = .seconds(2)
   /// Digital silence while the app reports output for this long asks for a permission check.
   var silenceLimit: Duration = .seconds(2)
-  /// After a check that could not conclude, the next one waits at least this long.
-  var inconclusiveRetry: Duration = .seconds(30)
+  /// While a silence lasts, a new permission check is asked at most this often (after any
+  /// result: a "granted" is never trusted forever, SPEC 4.6).
+  var recheckAfter: Duration = .seconds(30)
   /// How long an old tap fades out while its replacement fades in.
   var crossfade: Duration = .milliseconds(40)
 
@@ -34,8 +35,9 @@ enum HealthVerdict: Sendable, Hashable {
 
 /// Per-tap counters of the watchdog. Pure logic: the controller feeds it one sample per tick.
 ///
-/// Silence is reported once and then latched until a non-zero sample arrives, so a silent
-/// stream asks for at most one permission check per silent period, never in a loop.
+/// Silence is reported once and then latched until a non-zero sample arrives or `retryLater`
+/// re-arms it, so a silent stream asks for at most one permission check every
+/// `recheckAfter`, never in a loop and never "trusted" forever.
 struct SessionHealth: Sendable {
   private let stallTicks: Int
   private let silenceTicks: Int
@@ -48,7 +50,7 @@ struct SessionHealth: Sendable {
   init(policy: WatchdogPolicy) {
     stallTicks = policy.ticks(for: policy.stallLimit)
     silenceTicks = policy.ticks(for: policy.silenceLimit)
-    retryTicks = policy.ticks(for: policy.inconclusiveRetry)
+    retryTicks = policy.ticks(for: policy.recheckAfter)
   }
 
   /// Evaluates one tick. `sawSignal` is "a non-zero sample arrived since the last tick";
@@ -77,8 +79,8 @@ struct SessionHealth: Sendable {
     return .silent
   }
 
-  /// The permission check after `.silent` could not conclude: report the same silent period
-  /// again after `inconclusiveRetry`.
+  /// The permission check after `.silent` ran: report the same silent period again after
+  /// `recheckAfter`.
   mutating func retryLater() {
     reported = false
     silent = silenceTicks - retryTicks

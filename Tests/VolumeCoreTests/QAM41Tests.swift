@@ -131,7 +131,7 @@ struct QAM41AlwaysControlledTests {
     h.start([h.process("Spotify", pid: 10, playing: true)])
     await h.settle()
     h.access.answer = .denied
-    #expect(await h.store.checkSilentTap())
+    await h.store.checkSilentTap()
     h.store.handle(
       .processes([
         h.process("Spotify", pid: 10, playing: true), h.process("Zoom", pid: 11, playing: true),
@@ -147,7 +147,7 @@ struct QAM41AlwaysControlledTests {
     h.access.answer = .granted
     h.access.conclusive = false
     let before = h.controller.reconcileCalls.count
-    for _ in 0..<5 { #expect(await h.store.checkSilentTap() == false) }
+    for _ in 0..<5 { await h.store.checkSilentTap() }
     await h.settle()
     #expect(h.controller.reconcileCalls.count == before)
     #expect(h.permission.status == .granted)

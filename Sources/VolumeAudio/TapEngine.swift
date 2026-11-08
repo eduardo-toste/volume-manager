@@ -19,6 +19,9 @@ public struct AppAudioFailure: Sendable, Hashable {
     /// output. The tap is kept; the permission must be checked once (SPEC 4.6), because a
     /// revoked permission also delivers only zeros.
     case onlySilence
+    /// Not a failure: the app stopped reporting output. The domain re-reads the processes so
+    /// the tap goes away after the linger period (SPEC 4.2).
+    case stoppedPlaying
   }
 
   /// The app's stable key (`ControlledApp.id`).
