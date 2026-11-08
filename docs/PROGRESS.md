@@ -14,26 +14,14 @@
 | M1 Domínio (`VolumeCore`) | ✅ | `450ad83` |
 | M3 Serviços (`VolumeSystem`) | ✅ | `3357524` |
 | M2 Áudio real (`VolumeAudio`, `vmctl`) | ✅ QA + Segurança (LIBERA) | `5bcedbf` |
-| **⏸1 Teste de ouvido da M2** | ⏳ pendente (usuário) | — |
+| ⏸1 Teste de ouvido da M2 | ✅ aprovado (2026-11-07): só o app alvo muda, sem estalo, qualidade igual; AirPods ficaram em 48 kHz (sem modo ligação) | — |
 | M4 Popover · M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **⏸1 com o usuário** (teste de ouvido da M2, com música real):
-   ```
-   cd /Users/eduardotoste/Documents/projects/volume-manager
-   scripts/make-vmctl-app.sh
-   OUT=$PWD/build/vmctl-dev.out
-   run() { rm -f "$OUT"; open -W --stdout "$OUT" --stderr "$OUT" build/vmctl-dev.app --args "$@"; cat "$OUT"; }
-   run processes
-   run probe-permission            # o macOS pede a permissão para "vmctl-dev" — permitir
-   run set com.spotify.client --volume 0.7 --duration 20
-   run set com.spotify.client --mute --duration 10
-   run set com.spotify.client --volume 0.7 --device BuiltInSpeakerDevice --duration 15
-   ```
-   Observar: só o app alvo muda, sem estalo, sem atraso, qualidade igual; **se os AirPods mudam para modo chamada/ligam o microfone** ao serem usados no aggregate; calibração da curva (70% soa natural?).
+1. ~~⏸1~~ — aprovado. Opcional: repetir o teste de mudo (`--mute --duration 10`) e perguntar se 70% no controle soa natural (calibração da curva v²).
 2. **M2.1 — correções da revisão de segurança** (`docs/reports/m2-security.md`), Dev → QA:
    - **M-1 (Médio)**: a checagem de nulo do `weak_import` em `WorkspaceAppInfoProvider.swift:74-77` não funciona (cai com SIGSEGV se o símbolo sumir). **Decisão pendente do usuário** — recomendação do orquestrador: permitir em `CSystemShims` uma função `static inline` de uma linha que testa o símbolo (`&responsibility_get_pid_responsible_for_pid != NULL`) e ajustar SPEC §12.9.2 / security-check para aceitar exatamente isso.
    - **M-2 (Médio)**: após reinício do coreaudiod, o teardown pode destruir objetos com IDs reaproveitados — esquecer os recursos antigos sem destruir (ou conferir o UID antes).
@@ -57,7 +45,6 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 
 ## Pendências do usuário
-- ⏸1 (acima).
 - Decidir M-1 (acima).
 - Ao final do projeto: remover em Ajustes › Privacidade › Gravação de Tela e Áudio do Sistema as permissões de `vmctl-test` e `vmctl-dev`.
 
