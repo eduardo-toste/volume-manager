@@ -31,7 +31,7 @@ public struct ControlledApp: Sendable, Hashable {
   public init(id: String, bundleID: String?, pids: [Int32]) {
     self.id = id
     self.bundleID = bundleID
-    self.pids = pids
+    self.pids = pids.sorted()
   }
 
   /// The audio-relevant part of `app`.

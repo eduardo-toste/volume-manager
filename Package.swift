@@ -47,7 +47,7 @@ let package = Package(
         // Development tool; never shipped inside Volume.app (SPEC 12.9.6).
         .executableTarget(
             name: "vmctl",
-            dependencies: ["VolumeCore"],
+            dependencies: ["VolumeCore", "VolumeAudio", "VolumeSystem"],
             swiftSettings: strictSettings
         ),
         .testTarget(name: "VolumeCoreTests", dependencies: ["VolumeCore"]),
