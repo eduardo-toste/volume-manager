@@ -131,7 +131,10 @@ public actor CoreAudioAppController: AppAudioController {
     var wanted: [String: DesiredAppAudio] = [:]
     for item in desired { wanted[item.app.id] = item }
 
-    for id in entries.keys where wanted[id] == nil { destroy(id) }
+    for id in entries.keys where wanted[id] == nil {
+      AudioLog.logger.notice("tap destroyed: no longer wanted")
+      destroy(id)
+    }
     failed = failed.filter { wanted[$0.key] != nil }
 
     var seen: Set<String> = []
@@ -156,7 +159,11 @@ public actor CoreAudioAppController: AppAudioController {
       pids: item.app.pids.sorted(), deviceUID: item.targetDeviceUID, device: device,
       serviceGeneration: serviceGeneration)
     let gain = Self.effectiveGain(item)
-    switch ReconcilePlanner.plan(current: entries[id]?.key, wanted: key) {
+    let plan = ReconcilePlanner.plan(current: entries[id]?.key, wanted: key)
+    if plan != .update, plan != .none {
+      AudioLog.logger.notice("tap plan: \(String(describing: plan), privacy: .public)")
+    }
+    switch plan {
     case .none, .destroy:
       destroy(id)
     case .update:
@@ -201,11 +208,13 @@ public actor CoreAudioAppController: AppAudioController {
       entries[id] = Entry(
         handle: handle, token: token, key: key, generation: issued,
         health: SessionHealth(policy: policy))
+      AudioLog.logger.notice("tap and aggregate created, IO started")
       if let old {
         let serviceAtStart = serviceGeneration
         old.handle.setTarget(gain: 0)
         try? await clock.sleep(for: policy.crossfade)
         // If `coreaudiod` restarted during the fade, the old objects are already gone.
+        AudioLog.logger.notice("old tap destroyed after cross-fade")
         if serviceGeneration == serviceAtStart {
           old.handle.stop()
         } else {
@@ -239,6 +248,7 @@ public actor CoreAudioAppController: AppAudioController {
 
   private func destroy(_ id: String) {
     guard let entry = entries.removeValue(forKey: id) else { return }
+    AudioLog.logger.notice("tap and aggregate destroyed, IO stopped")
     entry.handle.stop()
     killList.remove(entry.token)
     cancelWatchdogIfIdle()

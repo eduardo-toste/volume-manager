@@ -134,12 +134,44 @@ struct MixerStoreTests {
     #expect(desired?.first?.app.pids == [1])
   }
 
-  @Test func backTo100PercentRemovesTheEntry() async {
+  @Test func backTo100PercentRemovesTheEntryAfterTheReleaseDelay() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.5, for: spotify)
     h.store.setVolume(1.0, for: spotify)
     await h.settle()
-    #expect(h.controller.reconcileCalls.last?.isEmpty == true)
+    #expect(h.controller.reconcileCalls.last?.first?.gain == 1)
+    // The release timer, beside the debounce that saves the remembered volume.
+    #expect(await eventually { h.clock.sleeperCount == 2 })
+    h.clock.advance(by: MixerStore.tapReleaseDelay)
+    #expect(await eventually { h.controller.reconcileCalls.last?.isEmpty == true })
+  }
+
+  /// Round 4 (clicks): dragging through 100% never removes the tap. Every value of the drag
+  /// keeps one entry, so the controller only moves the gain; the tap goes away only once the
+  /// slider rests at 100%.
+  @Test func draggingThroughFullVolumeNeverRemovesTheTap() async {
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    for volume in [0.6, 0.8, 0.95, 1.0, 1.0, 0.9, 1.0, 0.7, 1.0, 0.85] {
+      h.store.setVolume(volume, for: spotify)
+      await h.settle()
+    }
+    let sent = h.controller.reconcileCalls
+    #expect(!sent.isEmpty)
+    #expect(sent.allSatisfy { $0.count == 1 }, "no list without the app during the drag")
+    #expect(sent.last?.first?.gain ?? 1 < 1)
+  }
+
+  /// Round 4 (clicks): with the permission granted, volume and mute changes never run the
+  /// signal check (which creates a test tap and stops it after 500 ms).
+  @Test func volumeChangesWithThePermissionGrantedNeverRunTheAccessCheck() async {
+    let granted = MixerHarness(permission: .granted)
+    granted.start([granted.process("Spotify", pid: 1, playing: true)])
+    for step in 1...20 {
+      granted.store.setVolume(Double(step) / 40, for: spotify)
+      if step.isMultiple(of: 5) { granted.store.toggleMute(spotify) }
+    }
+    await granted.settle()
+    #expect(granted.access.requests == 0)
   }
 
   @Test func muteCreatesAnEntryAndKeepsTheSliderValue() async {

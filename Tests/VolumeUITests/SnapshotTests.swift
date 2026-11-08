@@ -241,10 +241,28 @@ struct SnapshotTests {
     #expect(many >= one - (two - one) + ceiling - 4, "the ceiling is used before scrolling")
   }
 
-  @Test func menuBarIconRenders() async {
+  /// The panel paints only inside its rounded shape: the corners of the window stay
+  /// transparent, so no square background shows behind them (⏸2 retest).
+  @Test func cornersOutsideTheRoundedPanelAreTransparent() async {
     let scene = await Fixture(apps: sample)
-    let settings = scene.context.settings
-    snapshot("menubar-icon", MenuBarIcon(store: scene.store, settings: settings), width: 40)
+    _ = NSApplication.shared
+    let host = NSHostingView(rootView: MenuBarPopover(context: scene.context))
+    host.frame = NSRect(origin: .zero, size: host.fittingSize)
+    host.layoutSubtreeIfNeeded()
+    guard let rep = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
+      Issue.record("could not render")
+      return
+    }
+    host.cacheDisplay(in: host.bounds, to: rep)
+    let corners = [
+      (0, 0), (rep.pixelsWide - 1, 0), (0, rep.pixelsHigh - 1),
+      (rep.pixelsWide - 1, rep.pixelsHigh - 1),
+    ]
+    for (x, y) in corners {
+      #expect((rep.colorAt(x: x, y: y)?.alphaComponent ?? 1) == 0, "corner \(x),\(y)")
+    }
+    let middle = rep.colorAt(x: rep.pixelsWide / 2, y: rep.pixelsHigh / 2)
+    #expect((middle?.alphaComponent ?? 0) > 0.5, "the panel itself is painted")
   }
 
   @Test func mountingThePopoverIsFast() async {

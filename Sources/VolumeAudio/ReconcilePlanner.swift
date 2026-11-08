@@ -33,12 +33,21 @@ enum ReconcilePlanner {
     case (nil, .some): return .create
     case (.some, nil): return .destroy
     case (.some(let old), .some(let new)):
-      if old == new { return .update }
+      if old == new || isOnlyProcessesGone(old: old, new: new) { return .update }
       let formatChanged = old.deviceUID == new.deviceUID && old.device != new.device
       if old.serviceGeneration != new.serviceGeneration || formatChanged {
         return .replaceHard
       }
       return .replaceGracefully
     }
+  }
+
+  /// Some processes of the app ended and nothing else changed: the running tap still covers
+  /// every remaining process, so it is kept. Rebuilding it would stop and restart the audio
+  /// (an audible click) for nothing. A process that joins still needs a new tap.
+  private static func isOnlyProcessesGone(old: SessionKey, new: SessionKey) -> Bool {
+    old.deviceUID == new.deviceUID && old.device == new.device
+      && old.serviceGeneration == new.serviceGeneration
+      && Set(new.pids).isSubset(of: old.pids)
   }
 }

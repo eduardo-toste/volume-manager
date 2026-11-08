@@ -106,8 +106,8 @@ Janela 480×600, só botão fechar ativo. Aparece **apenas na primeira execuçã
 - “Tocando” = algum processo do grupo com `IsRunningOutput = true`. Com “Mostrar apps sem áudio” desligado, apps que pararam de tocar somem da lista após **5 s** (evita piscar entre faixas).
 
 ### 4.2 Volume e mudo por app
-- Para cada app com volume ≠ 100%, mudo ou rota ≠ padrão, criar um **process tap** (`CATapDescription` com os PIDs do grupo, `muteBehavior = .mutedWhenTapped`) e um **aggregate device** privado que contém o tap como entrada e o dispositivo de saída alvo como saída. Um IOProc copia o áudio do tap para a saída multiplicando pelo ganho.
-- App em 100%, sem mudo e na saída padrão → **sem tap** (áudio original intacto, zero latência extra).
+- Para cada app da lista (§4.1) **enquanto ele reproduz áudio**, criar um **process tap** (`CATapDescription` com os PIDs do grupo, `muteBehavior = .mutedWhenTapped`) e um **aggregate device** privado que contém o tap como entrada e o dispositivo de saída alvo como saída. Um IOProc copia o áudio do tap para a saída multiplicando pelo ganho.
+- **Sempre controlar** (decisão do usuário em 2026-11-08, para estalo zero): o tap do app existe enquanto ele reproduz, **inclusive em 100%** — em 100% sem mudo o ganho é exatamente 1 (amostras copiadas bit a bit, §4.7), então o som é idêntico ao original. Assim nunca há troca entre o caminho nativo e o tap durante uma mudança de volume. O tap é criado quando o app começa a reproduzir (`IsRunningOutput`) e removido algum tempo depois que ele para (para não religar entre faixas). Sem permissão confirmada (§4.6), nenhum tap. Se o Volume fechar ou travar, o macOS devolve o som original.
 - Ganho: curva perceptual (ex.: `gain = v²` ou dB), não linear pura; mudanças de ganho com **rampa** de ~20 ms para não estalar.
 - Mudo = ganho 0 mantendo o valor do slider.
 - Se o Volume fechar ou travar, os taps morrem junto e o áudio original volta sozinho — comportamento esperado e seguro.
@@ -250,7 +250,7 @@ Infra (implementações)  CoreAudio*, SMAppService*, UserDefaults*, NSWorkspace*
 | Inicialização (login) até ícone na barra | < 1 s |
 
 Regras que garantem os orçamentos:
-- **Sem tap para app em 100%/sem mudo/saída padrão** (§4.2).
+- **Tap em 100% com ganho exatamente 1** (cópia bit a bit) e sem IO quando o app não reproduz (§4.2).
 - Escritas em `UserDefaults` com *debounce* (~500 ms) durante arraste de slider.
 - Ícones de apps carregados uma vez e em cache (por bundle ID), redimensionados para 30 pt.
 - Views da lista com identidade estável (`id` = chave do app) para evitar redesenho total.
@@ -292,7 +292,7 @@ volume-manager/
 - **Pirâmide**: maioria em `VolumeCoreTests` (rápidos, sem hardware); poucos testes de integração Core Audio; verificação manual guiada para o que depende de hardware/permissões.
 - Dublês: `FakeAudioSystem` (emite processos/dispositivos sob comando), `SpyAppAudioController` (registra o estado desejado recebido), `InMemoryPreferencesStore`, `FakeLoginItemService`, `FakeClock` (para debounce e o atraso de 5 s de §4.1).
 - Cobertura mínima: **≥ 85% de linhas em `VolumeCore`**.
-- Casos obrigatórios: agrupamento de processos (Safari/WebKit, Chrome Helper, Electron), regra “sem tap em 100%”, fallback e restauração de rota, lembrar/esquecer volume, debounce de persistência, contador “N reproduzindo”, curva de volume (0, 1, monotônica), atraso de 5 s para remover apps.
+- Casos obrigatórios: agrupamento de processos (Safari/WebKit, Chrome Helper, Electron), regra “tap enquanto reproduz, ganho 1 em 100%”, fallback e restauração de rota, lembrar/esquecer volume, debounce de persistência, contador “N reproduzindo”, curva de volume (0, 1, monotônica), atraso de 5 s para remover apps.
 - Integração (`VolumeAudioTests`): criar/destruir tap e aggregate device 100× sem vazamento; listar dispositivos; ler/escrever volume geral num dispositivo nulo/virtual quando disponível.
 - **Roteiro manual** (`docs/MANUAL_TESTS.md`, escrito pelo agente de testes) cobrindo os critérios do §14 que exigem hardware.
 - Casos obrigatórios do §4.6: vigia destrói tap parado, “Restaurar áudio original” limpa tudo, modo seguro após 2 encerramentos anormais.
@@ -405,7 +405,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 1. Primeira execução mostra Boas-vindas; “Começar” com toggle ligado deixa `SMAppService.mainApp.status == .enabled`.
 2. Após reiniciar o Mac/sessão, o app está na barra de menus sem abrir janela.
 3. Trocar o sistema entre Claro/Escuro muda o app na hora, sem reiniciar.
-4. Tocar áudio em 2 apps → ambos aparecem; baixar um para 30% muda só ele; mudo silencia só ele; 100% remove o tap.
+4. Tocar áudio em 2 apps → ambos aparecem; baixar um para 30% muda só ele; mudo silencia só ele; mudanças de volume (inclusive passando por 100%) não estalam nem recriam o tap.
 5. Mandar um app para outro dispositivo toca só ele lá; desconectar o dispositivo volta para o padrão; reconectar restaura.
 6. Teclas de volume do teclado movem o slider geral em tempo real.
 7. Com “Lembrar volume” ligado, fechar e reabrir o Spotify restaura 72%/rota.

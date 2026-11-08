@@ -34,7 +34,9 @@ private struct QARig {
     for _ in 0..<ticks {
       _ = await eventually { clock.sleeperCount > 0 }
       clock.advance(by: .milliseconds(500))
-      for _ in 0..<50 { await Task.yield() }
+      // The watchdog has handled this tick once it sleeps again (or nothing is left to watch);
+      // a fixed number of yields is not enough when the test runs alone.
+      _ = await eventually { clock.sleeperCount > 0 || engine.live.isEmpty }
     }
   }
 }

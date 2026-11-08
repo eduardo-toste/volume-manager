@@ -6,7 +6,6 @@ import VolumeCore
 public struct MenuBarPopover: View {
   private let context: PopoverContext
 
-  @State private var popoverWindow: NSWindow?
   @Environment(\.openSettings) private var openSettings
 
   /// Creates the popover content.
@@ -40,34 +39,7 @@ public struct MenuBarPopover: View {
     .padding(EdgeInsets(top: 14, leading: 14, bottom: 10, trailing: 14))
     .frame(width: 320)
     .background(GlassBackground())
-    .containerBackground(.clear, for: .window)
-    .task {
-      store.refreshAudioSystem()
-      await context.permission.refresh(onlyIfDenied: true)
-    }
-    .background(
-      WindowReader { window in
-        popoverWindow = window
-        Self.makeTransparent(window)
-      }
-    )
-    .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) {
-      note in
-      guard let window = popoverWindow, note.object as? NSWindow === window else { return }
-      store.refreshAudioSystem()
-      Task { await context.permission.refresh(onlyIfDenied: true) }
-    }
     .onExitCommand { NSApp.keyWindow?.close() }
-  }
-
-  /// The panel draws its own rounded, translucent background (`GlassBackground`), so the window
-  /// must not paint anything: transparent everywhere outside the panel's shape, with the system
-  /// shadow following that shape. Runs when the view enters the window, before it is shown.
-  private static func makeTransparent(_ window: NSWindow?) {
-    guard let window else { return }
-    window.isOpaque = false
-    window.backgroundColor = .clear
-    window.hasShadow = true
   }
 
   /// The app has no Dock icon, so it must come to the front for the window to be seen.
@@ -224,28 +196,5 @@ private struct MenuItemRow: View {
     .keyboardShortcut(shortcut)
     .rowHighlight(isActive: isHovering, cornerRadius: 8)
     .onHover { isHovering = $0 }
-  }
-}
-
-/// Reports the window that hosts the popover, as soon as the view enters it: the window is made
-/// transparent, and only its key events trigger a refresh and a permission check.
-private struct WindowReader: NSViewRepresentable {
-  let onChange: @MainActor (NSWindow?) -> Void
-
-  func makeNSView(context: Context) -> ReaderView {
-    let view = ReaderView()
-    view.onChange = onChange
-    return view
-  }
-
-  func updateNSView(_ view: ReaderView, context: Context) {}
-
-  final class ReaderView: NSView {
-    var onChange: (@MainActor (NSWindow?) -> Void)?
-
-    override func viewDidMoveToWindow() {
-      super.viewDidMoveToWindow()
-      onChange?(window)
-    }
   }
 }

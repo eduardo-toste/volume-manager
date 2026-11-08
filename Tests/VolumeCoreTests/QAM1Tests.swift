@@ -599,6 +599,20 @@ struct QAMixerStoreTests {
     return h.controller.reconcileCalls.last ?? []
   }
 
+  /// Back at 100% a tapped app keeps its tap at gain exactly 1 (sound unchanged, no click
+  /// while dragging through 100%) and loses it after `tapReleaseDelay` (round 4).
+  private func expectTapReleasedAfterDelay(_ h: MixerHarness) async {
+    let kept = await lastDesired(h)
+    #expect(kept.count == 1)
+    #expect(kept.first?.gain == 1)
+    #expect(kept.first?.muted == false)
+    #expect(kept.first?.targetDeviceUID == "speakers")
+    // The release timer, beside the debounce that saves the remembered volume.
+    #expect(await eventually { h.clock.sleeperCount == 2 })
+    h.clock.advance(by: MixerStore.tapReleaseDelay)
+    #expect(await eventually { h.controller.reconcileCalls.last?.isEmpty == true })
+  }
+
   // MARK: Rule "no tap"
 
   @Test func noTapExactlyWhenFullVolumeUnmutedOnTheDefaultOutput() async {
@@ -609,12 +623,12 @@ struct QAMixerStoreTests {
     h.store.setVolume(0.99, for: "com.spotify.client")
     #expect(await lastDesired(h).count == 1)
     h.store.setVolume(1, for: "com.spotify.client")
-    #expect(await lastDesired(h).isEmpty)
+    await expectTapReleasedAfterDelay(h)
 
     h.store.toggleMute("com.spotify.client")
     #expect(await lastDesired(h).first?.muted == true)
     h.store.toggleMute("com.spotify.client")
-    #expect(await lastDesired(h).isEmpty)
+    await expectTapReleasedAfterDelay(h)
 
     h.store.route("com.spotify.client", to: "airpods")
     #expect(await lastDesired(h).first?.targetDeviceUID == "airpods")

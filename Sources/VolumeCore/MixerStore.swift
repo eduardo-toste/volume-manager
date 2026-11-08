@@ -24,6 +24,10 @@ public final class MixerStore {
 
   /// How long an app that stopped playing stays in the list (SPEC 4.1).
   public static let gracePeriod: Duration = .seconds(5)
+  /// How long a tapped app must stay at 100%, not muted, on the default output before its tap
+  /// is removed. Removing or creating a tap switches between the original sound and the tap,
+  /// which can click: while the user drags through 100% the tap stays, at gain exactly 1.
+  public static let tapReleaseDelay: Duration = .seconds(2)
 
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
@@ -45,6 +49,10 @@ public final class MixerStore {
   @ObservationIgnored private var graceTimers: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var previouslyPlaying: Set<String> = []
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
+  /// Tapped apps back at 100% whose tap is kept until `tapReleaseDelay` passes.
+  @ObservationIgnored private var releaseTimers: [String: Task<Void, Never>] = [:]
+  /// Apps whose kept tap expired: no new delay until the user changes them again.
+  @ObservationIgnored private var releasedIDs: Set<String> = []
   /// Master volume not yet written to the system, and whether a writer is queued. Dragging
   /// the slider produces many values; only the newest one is written.
   @ObservationIgnored private var pendingMasterVolume: Double?
@@ -213,6 +221,10 @@ public final class MixerStore {
   public func restoreOriginalAudio() {
     states = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, AppAudioState.default) })
     failedAppIDs = []
+    // Panic never keeps a tap, not even for the release delay.
+    for timer in releaseTimers.values { timer.cancel() }
+    releaseTimers = [:]
+    releasedIDs = Set(groups.map(\.id))
     settings.forgetAll()
     settings.audioPermissionConfirmed = false
     lastDesired = nil
@@ -240,6 +252,8 @@ public final class MixerStore {
     }
     change(&state)
     states[appID] = state
+    releaseTimers.removeValue(forKey: appID)?.cancel()
+    releasedIDs.remove(appID)
     defer { confirmAccessIfNeeded() }
     if settings.rememberVolumes, let bundleID = groups.first(where: { $0.id == appID })?.bundleID {
       if state == .default {
@@ -354,11 +368,18 @@ public final class MixerStore {
           preferredUID: state.preferredOutputUID, devices: devices, defaultUID: defaultOutputUID)
       else { continue }
       let gain = VolumeCurve.gain(forVolume: state.volume)
-      guard gain < 1 || state.muted || !route.usesSystemDefault else { continue }
+      guard
+        gain < 1 || state.muted || !route.usesSystemDefault || keepsTap(app.id, on: route.deviceUID)
+      else {
+        continue
+      }
       desired.append(
         DesiredAppAudio(
           app: ControlledApp(app), gain: gain, muted: state.muted, targetDeviceUID: route.deviceUID)
       )
+    }
+    for id in releaseTimers.keys where !groups.contains(where: { $0.id == id }) {
+      releaseTimers.removeValue(forKey: id)?.cancel()
     }
     wantsTaps = !desired.isEmpty
     if settings.audioPermissionConfirmed, desired.contains(where: { isPlaying($0.app.id) }) {
@@ -377,6 +398,27 @@ public final class MixerStore {
         await controller.reconcile(desired: next.list)
       }
     }
+  }
+
+  /// True while a tapped app that no longer needs its tap keeps it (gain exactly 1, so the
+  /// sound is unchanged); starts the release timer the first time (`tapReleaseDelay`). Only a
+  /// tap already on `deviceUID` is kept: one on another output would have to be rebuilt anyway.
+  private func keepsTap(_ id: String, on deviceUID: String) -> Bool {
+    if releaseTimers[id] != nil { return true }
+    guard !releasedIDs.contains(id),
+      lastDesired?.contains(where: { $0.app.id == id && $0.targetDeviceUID == deviceUID }) == true
+    else { return false }
+    releaseTimers[id] = Task { [weak self, clock] in
+      do { try await clock.sleep(for: MixerStore.tapReleaseDelay) } catch { return }
+      self?.releaseExpired(id)
+    }
+    return true
+  }
+
+  private func releaseExpired(_ id: String) {
+    guard releaseTimers.removeValue(forKey: id) != nil else { return }
+    releasedIDs.insert(id)
+    rebuild()
   }
 
   private func startNewReconcileSender() {

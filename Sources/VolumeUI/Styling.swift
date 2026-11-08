@@ -47,16 +47,17 @@ enum Palette {
 }
 
 /// The popover panel: what is behind the window, blurred, under the design's tint, clipped to
-/// the panel's rounded shape with a thin light edge. The window itself is made transparent
-/// (`MenuBarPopover`), so nothing square shows around the corners. With "Reduce transparency"
-/// the system draws the blur opaque.
+/// the panel's rounded shape with a thin light edge. The window is a transparent borderless
+/// panel (`MenuBarController`), so nothing square shows around the corners and the window
+/// shadow follows the rounded shape. With "Reduce transparency" the system draws the blur
+/// opaque.
 struct GlassBackground: View {
   static let cornerRadius: CGFloat = 26
 
   var body: some View {
     let shape = RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous)
     ZStack {
-      BehindWindowBlur()
+      BehindWindowBlur(cornerRadius: Self.cornerRadius)
       LinearGradient(
         colors: [Palette.panelTop, Palette.panelBottom], startPoint: .top, endPoint: .bottom)
     }
@@ -66,14 +67,31 @@ struct GlassBackground: View {
 }
 
 /// System blur of the windows and desktop behind the popover (`NSVisualEffectView`, available
-/// on every supported macOS).
+/// on every supported macOS), limited to a rounded rectangle by its mask image (the documented
+/// way to shape it), so no square corner of blur is drawn.
 private struct BehindWindowBlur: NSViewRepresentable {
+  let cornerRadius: CGFloat
+
   func makeNSView(context: Context) -> NSVisualEffectView {
     let view = NSVisualEffectView()
     view.material = .popover
     view.blendingMode = .behindWindow
     view.state = .active
+    view.maskImage = Self.roundedMask(radius: cornerRadius)
     return view
+  }
+
+  /// A stretchable rounded rectangle: the corners keep their radius at any size.
+  private static func roundedMask(radius: CGFloat) -> NSImage {
+    let side = radius * 2 + 1
+    let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+      NSColor.black.setFill()
+      NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius).fill()
+      return true
+    }
+    image.capInsets = NSEdgeInsets(top: radius, left: radius, bottom: radius, right: radius)
+    image.resizingMode = .stretch
+    return image
   }
 
   func updateNSView(_ view: NSVisualEffectView, context: Context) {}

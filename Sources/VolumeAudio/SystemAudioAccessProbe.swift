@@ -74,6 +74,7 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
   /// `target` is `nil`. Never uses a global tap.
   func probe(target: AudioObjectID?) -> Bool {
     guard let target else { return false }
+    AudioLog.logger.notice("access check: test tap created and destroyed")
     let description = CATapDescription(monoMixdownOfProcesses: [target])
     description.name = "Volume access check"
     description.isPrivate = true
@@ -103,6 +104,7 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
       return probe(target: target) ? .indeterminate : .denied
     }
 
+    AudioLog.logger.notice("access check: listening tap, aggregate and IO started")
     let pipeline = TapPipeline()
     let state = SignalProbeState()
     do {

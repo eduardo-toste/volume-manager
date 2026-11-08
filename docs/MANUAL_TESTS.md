@@ -103,3 +103,14 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
     e. Ligue "Reduzir transparência" (Acessibilidade › Vídeo): o painel fica opaco, sem quebrar o visual.
 16. **Apps que já estavam tocando antes de abrir o Volume**: toque música em 2 apps, **depois** abra o Volume, clique no ícone da barra. Os dois apps devem aparecer na lista na hora, sem você mexer em nada. Se faltar algum, diga qual e se ele estava tocando antes ou começou depois.
 17. **Altura**: com 1, 2, 4 e 6 apps tocando o painel cresce junto, sem barra de rolagem; com 7 ou mais, a lista passa a rolar e o painel para de crescer (nunca passa de ~70% da altura da tela). O painel não deve "pular" depois de abrir.
+18. **Painel novo (janela própria)**: o painel agora abre ao clicar no ícone, colado sob a barra de menus. Confira:
+    a. Clicar no ícone abre; clicar de novo no ícone fecha (não reabre sozinho). Esc fecha. Clicar fora (na área de trabalho, em outra janela ou em outro ícone da barra) fecha.
+    b. Abrir o painel **não** deve trazer as janelas de outros apps para frente nem tirar o app da frente de onde estava (o nome do app ativo no menu da esquerda não muda).
+    c. Os menus do painel (`•••` e "Saída") abrem e escolher uma opção funciona sem o painel sumir antes da hora; ⌘, abre os Ajustes e ⌘Q sai.
+    d. Com 2 telas, o painel abre na tela do ícone clicado. Perto da borda direita, ele não passa da tela.
+    e. O ícone da barra muda conforme o volume geral e o estilo escolhido, e fica destacado enquanto o painel está aberto.
+19. **Estalo, de novo (13)**: depois da correção das paradas de áudio, repita 13a/13b e também: arraste um app passando várias vezes por 100% (de 80% a 100% e de volta). Não deve estalar. Depois de ficar 2 segundos em 100%, o app volta ao som original (sem controle).
+20. **Log** (para mandar se ainda estalar), logo depois do teste:
+    `/usr/bin/log show --last 10m --info --predicate 'subsystem == "com.volumemanager.app"'`
+    No log, ao mexer só no volume de um app já controlado, **não** devem aparecer várias linhas "tap and aggregate created" / "destroyed" seguidas. Anote o horário aproximado de cada estalo para comparar.
+21. **Restaurar e Sair com o app em 100%**: baixe um app, volte a 100% e, antes de passar 2 segundos, use "Restaurar áudio original" ou "Sair": o som continua normal e nada fica mudo.
