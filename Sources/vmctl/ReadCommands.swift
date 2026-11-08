@@ -14,7 +14,7 @@ enum ReadCommands {
       print(
         "\(isDefault)      \(device.hasVolumeControl ? "yes" : "no ")  "
           + "\(device.kind.rawValue.padding(toLength: 10, withPad: " ", startingAt: 0)) "
-          + "\(padded) \(device.uid)  |  \(device.name)")
+          + "\(padded) \(ConsoleText.safe(device.uid))  |  \(ConsoleText.safe(device.name))")
     }
     print("\(AudioDiagnostics.deviceCount()) audio devices in total (including inputs)")
   }
@@ -23,17 +23,11 @@ enum ReadCommands {
     let processes = services.catalog.processes()
     print("== Audio processes (\(processes.count)) ==")
     for process in processes {
-      print(
-        "\(process.pid)\t\(process.isRunningOutput ? "PLAYING" : "idle   ")\t"
-          + "\(process.bundleID ?? "-")\t\(process.executablePath ?? "-")"
-          + (process.responsiblePID.map { "\tresponsible=\($0)" } ?? ""))
+      print(ConsoleText.line(for: process))
     }
     print("\n== Grouped by app (what the mixer would show) ==")
     for app in services.groups(processes) {
-      let pids = app.pids.map(String.init).joined(separator: ",")
-      print(
-        "\(app.isPlaying ? "[PLAYING]" : "[idle]   ") \(app.name) <\(app.bundleID ?? app.id)> pids: \(pids)"
-      )
+      print(ConsoleText.line(for: app))
     }
   }
 
@@ -54,7 +48,7 @@ enum ReadCommands {
     }
     print(
       "master: volume \(String(format: "%.3f", master.volume)), "
-        + "\(master.isMuted ? "muted" : "not muted"), default output \(snapshot.defaultOutputUID ?? "none")"
+        + "\(master.isMuted ? "muted" : "not muted"), default output \(ConsoleText.safe(snapshot.defaultOutputUID))"
     )
   }
 

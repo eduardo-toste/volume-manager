@@ -199,6 +199,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 - Ícone do app (a partir do design).
 - `README.md`: o que é, prints, requisitos, instalação com “Abrir Mesmo Assim”/`xattr`, **como conferir o SHA-256**, “baixe só daqui”, como atualizar, como compilar, privacidade (“sem rede, nada é gravado”).
 - `SECURITY.md`: como reportar vulnerabilidades.
+- Roteiro de release: confirmar que `responsibility_get_pid_responsible_for_pid` existe no macOS mínimo (15) e no atual (ex.: `nm -gU /usr/lib/system/libsystem_kernel.dylib` ou `dyld_info -exports` no shared cache; risco M-1 aceito pelo usuário, SPEC §4.1).
 
 **QA**
 - DMG monta, contém app assinado e atalho; app abre a partir do DMG em pasta temporária; versão exibida no Sobre bate com a do release; `SHA256SUMS` confere.

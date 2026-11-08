@@ -204,7 +204,7 @@ struct QAHostileBundleTests {
     #expect(provider.appName(atAppPath: "/" + String(repeating: "a", count: 2000) + ".app") == nil)
     #expect(provider.appName(atAppPath: "") == nil)
     #expect(provider.bundleID(atAppPath: "/x/../../etc/passwd") == nil)
-    #expect(provider.appName(atAppPath: "/nonexistent/\u{202E}Evil\u{200B}.app") == "Evil")
+    #expect(provider.appName(atAppPath: "/nonexistent/\u{202E}Evil\u{200B}.app") == nil)
   }
 
   @Test func iconLookupWithHostileBundleIDsIsSafe() {

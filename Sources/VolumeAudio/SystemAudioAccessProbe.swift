@@ -51,16 +51,30 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
   }
 
   /// Creates and destroys one unmuted test tap (no aggregate device, no IOProc). This is what
-  /// shows the system prompt when the permission is undecided.
+  /// shows the system prompt when the permission is undecided. When no other audio process
+  /// exists there is nothing to tap, so no tap is created and the result is `false`.
   public func probe() -> Bool {
+    probe(target: testTarget())
+  }
+
+  /// The process to test with, chosen from the audio processes other than this one.
+  private func testTarget() -> AudioObjectID? {
     let others = catalog.objectIDs().filter { catalog.pid(of: $0) != getpid() }
-    let description: CATapDescription
-    if let target = others.first(where: { catalog.runningOutput($0) }) ?? others.first {
-      description = CATapDescription(monoMixdownOfProcesses: [target])
-    } else {
-      // No other audio process exists, so there is no single process to tap.
-      description = CATapDescription(monoGlobalTapButExcludeProcesses: [])
-    }
+    return Self.chooseTarget(among: others, isPlaying: { catalog.runningOutput($0) })
+  }
+
+  /// The process to test with: one that is playing, else any. `nil` when there is none.
+  static func chooseTarget(
+    among others: [AudioObjectID], isPlaying: (AudioObjectID) -> Bool
+  ) -> AudioObjectID? {
+    others.first(where: isPlaying) ?? others.first
+  }
+
+  /// Creates and destroys the test tap on `target`; `false` without creating anything when
+  /// `target` is `nil`. Never uses a global tap.
+  func probe(target: AudioObjectID?) -> Bool {
+    guard let target else { return false }
+    let description = CATapDescription(monoMixdownOfProcesses: [target])
     description.name = "Volume access check"
     description.isPrivate = true
     description.muteBehavior = .unmuted
@@ -74,10 +88,20 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     return true
   }
 
+  /// Creating the tap itself failed: refused. Any later step: cannot conclude. Decided by the
+  /// error's stage, never by its text.
+  static func verdictAfterFailure(_ error: AudioError) -> AudioAccessVerdict {
+    error.stage == .createTap ? .denied : .indeterminate
+  }
+
   /// Listens to the processes that are playing; see `AudioAccessProbe.verify()`.
   public func verify() async -> AudioAccessVerdict {
     let playing = Array((candidates?() ?? catalog.playingObjectIDs(excluding: getpid())).prefix(16))
-    guard !playing.isEmpty else { return probe() ? .indeterminate : .denied }
+    guard !playing.isEmpty else {
+      // Nobody to test with: nothing can be concluded.
+      guard let target = testTarget() else { return .indeterminate }
+      return probe(target: target) ? .indeterminate : .denied
+    }
 
     let pipeline = TapPipeline()
     let state = SignalProbeState()
@@ -101,7 +125,7 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     } catch {
       withExtendedLifetime(state) { pipeline.teardown() }
       // Creating the tap itself failed: refused. Anything later: cannot conclude.
-      return error.context.hasPrefix("create process tap") ? .denied : .indeterminate
+      return Self.verdictAfterFailure(error)
     }
     try? await clock.sleep(for: listenDuration)
     withExtendedLifetime(state) { pipeline.teardown() }

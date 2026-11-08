@@ -138,7 +138,8 @@ struct ReconcilePlannerTests {
   ) -> SessionKey {
     SessionKey(
       pids: pids, deviceUID: uid,
-      device: DeviceSignature(id: id, uid: uid, layout: layout(rate)), serviceGeneration: generation
+      device: DeviceSignature(id: id, uid: uid, rawUID: uid, layout: layout(rate)),
+      serviceGeneration: generation
     )
   }
 

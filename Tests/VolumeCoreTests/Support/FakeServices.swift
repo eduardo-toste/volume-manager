@@ -59,19 +59,3 @@ final class FakePermissionService: PermissionService, Sendable {
 
   func openPrivacySettings() {}
 }
-
-/// Hotkey double: tests press the shortcut with `press(_:)`.
-@MainActor
-final class FakeHotkeyService: HotkeyService {
-  private var handlers: [HotkeyAction: @MainActor () -> Void] = [:]
-
-  func setHandler(for action: HotkeyAction, _ handler: @escaping @MainActor () -> Void) {
-    handlers[action] = handler
-  }
-
-  func removeAllHandlers() { handlers = [:] }
-
-  func press(_ action: HotkeyAction) { handlers[action]?() }
-
-  var handlerCount: Int { handlers.count }
-}

@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-07, ao pausar após a M2. Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
+> Atualizado em 2026-11-07, após a M2.1. Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
 
 ## Onde estamos
 
@@ -15,20 +15,22 @@
 | M3 Serviços (`VolumeSystem`) | ✅ | `3357524` |
 | M2 Áudio real (`VolumeAudio`, `vmctl`) | ✅ QA + Segurança (LIBERA) | `5bcedbf` |
 | ⏸1 Teste de ouvido da M2 | ✅ aprovado (2026-11-07): só o app alvo muda, sem estalo, qualidade igual; AirPods ficaram em 48 kHz (sem modo ligação) | — |
+| M2.1 Correções da revisão de segurança | ✅ QA PASS + Segurança LIBERA (`docs/reports/m2.1-*.md`) | branch `etapa/m2.1` |
 | M4 Popover · M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. ~~⏸1~~ — aprovado. Opcional: repetir o teste de mudo (`--mute --duration 10`) e perguntar se 70% no controle soa natural (calibração da curva v²).
-2. **M2.1 — correções da revisão de segurança** (`docs/reports/m2-security.md`), Dev → QA:
-   - **M-1 (Médio)**: a checagem de nulo do `weak_import` em `WorkspaceAppInfoProvider.swift:74-77` não funciona (cai com SIGSEGV se o símbolo sumir). **Decisão pendente do usuário** — recomendação do orquestrador: permitir em `CSystemShims` uma função `static inline` de uma linha que testa o símbolo (`&responsibility_get_pid_responsible_for_pid != NULL`) e ajustar SPEC §12.9.2 / security-check para aceitar exatamente isso.
-   - **M-2 (Médio)**: após reinício do coreaudiod, o teardown pode destruir objetos com IDs reaproveitados — esquecer os recursos antigos sem destruir (ou conferir o UID antes).
-   - Baixos a corrigir: B-1 (sanitizar saída do `vmctl processes`; `AppPath` aceitar C1/bidi), B-2 (UID de dispositivo sanitizado/ambíguo), B-4 (converter PID em objeto uma vez só), B-5 (probe sem tap global), B-8 (`verify()` não depender do texto do erro). B-3, B-6, B-7: registrar/aceitar.
-   - **Remover os atalhos do código** (decisão do usuário: sem atalhos globais): apagar o protocolo `HotkeyService` (`Sources/VolumeCore/HotkeyService.swift`) e o `FakeHotkeyService` dos testes; no `scripts/security-check.sh`, exigir **zero** dependências (remover a exceção da `KeyboardShortcuts`) e ajustar os testes de política correspondentes.
-   - **Remover a opção “Mostrar na barra de menus”** (decisão do usuário: o ícone é sempre visível): apagar `showInMenuBar` de `Sources/VolumeCore/SettingsModel.swift` e os testes que o usam (`Tests/VolumeCoreTests/SettingsModelTests.swift`).
-3. **M4 — Popover** (Xcode já instalado e selecionado; macros do SwiftUI disponíveis). Lembretes da M2: confirmar a permissão com `verify()` antes de mostrar "sem permissão" (o vigia de silêncio também dispara com silêncio digital legítimo); ligar `CoreAudioAppController.failures()` ao domínio e chamar `retryAll()` quando a permissão for concedida; chamar `markCleanExit` via `SessionLifecycleObserver`.
+1. **M4 — Popover** (Xcode instalado e selecionado; macros do SwiftUI disponíveis). Lembretes da M2/M2.1:
+   - confirmar a permissão com `verify()` antes de mostrar "sem permissão" (o vigia de silêncio também dispara com silêncio digital legítimo, e qualquer falha ao criar o tap de teste vira `.denied`); `.indeterminate` não é "sem permissão";
+   - ligar `CoreAudioAppController.failures()` ao domínio e chamar `retryAll()` quando a permissão for concedida;
+   - chamar `markCleanExit` via `SessionLifecycleObserver`.
+2. **Pendências para a M6 (Robustez)**, da revisão `docs/reports/m2.1-security.md`:
+   - S21-B1: tap criado com IDs válidos entre o reinício do coreaudiod e o evento `.serviceRestarted` é abandonado vivo (sai da kill list; o app fica sem baixar volume/mudo até o Volume sair). Há teste `withKnownIssue`.
+   - S21-B2: janelas de ms com `Destroy` em IDs mortos (`restoreAll`, fim do crossfade, limpeza parcial do `makeSession`). Uma correção fecha B1 e B2: conferir a identidade (UID do aggregate, UUID do tap) antes de destruir.
+   - Reinício do coreaudiod no meio de `makeSession` (QA M2.1, obs. 4) — coberto pela mesma correção.
+3. Opcional (usuário): rodar a suíte de hardware (`VOLUME_AUDIO_TESTS=1`) pelo bundle `vmctl-dev.app`, que já tem a permissão; fora do bundle ela trava esperando o pedido de permissão.
 
 ## Decisões tomadas (resumo)
 - macOS mínimo **15**; atômicos com `Synchronization.Atomic`.
@@ -42,10 +44,12 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - **Sem atalhos globais** (⌥⌘V/⌥⌘M removidos) e **zero dependências externas** — decisão do usuário em 2026-11-07. O design no FigCraft ainda mostra a seção de atalhos e o item “Atalhos” na barra lateral dos Ajustes: **a SPEC prevalece** (não implementar).
 - **Ícone da barra de menus sempre visível**: a opção “Mostrar na barra de menus” foi removida (decisão do usuário em 2026-11-07); o design ainda a mostra — a SPEC prevalece.
 - **Sem CI** (decisão do usuário em 2026-11-07): `.github/workflows` removido; verificações só locais com `scripts/check.sh`.
+- **M-1 = risco aceito** (decisão do usuário em 2026-11-07): sem checagem de nulo do `weak_import`; o roteiro de release (M7) confirma o símbolo no macOS mínimo e no atual (SPEC §4.1, PLAN M7).
+- **Aceitos sem mudança**: B-3 (bundle ID declarado decide o grupo), B-6 (segundo `stop()` concorrente volta antes do teardown), B-7 (`_withUnsafeGuaranteedRef`), S21-B3 (casamento exato de UID vence o sanitizado), retenção de ~100 B por tap a cada reinício do coreaudiod no `abandon()`.
+- **Sem overengineering** (decisão do usuário em 2026-11-07): regra no `CLAUDE.md` e nos três agentes; Dev lista "Abstrações novas"; QA/Segurança julgam proporcionalidade; o orquestrador revisa o diff antes de commitar.
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 
 ## Pendências do usuário
-- Decidir M-1 (acima).
 - Ao final do projeto: remover em Ajustes › Privacidade › Gravação de Tela e Áudio do Sistema as permissões de `vmctl-test` e `vmctl-dev`.
 
 ## Modelos dos agentes

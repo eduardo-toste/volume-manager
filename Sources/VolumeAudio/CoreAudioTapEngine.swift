@@ -25,9 +25,17 @@ final class CoreAudioTapEngine: TapEngine {
     DeviceCatalog.signature(forUID: uid)
   }
 
-  /// PID, bundle ID and path are checked again right before the tap exists (SPEC 12.9.4).
-  func confirmedPIDs(for app: ControlledApp) -> [Int32] {
-    app.pids.filter { identity.confirm(pid: $0, belongsTo: app) }
+  /// PID, bundle ID and path are checked again right before the tap exists (SPEC 12.9.4). The
+  /// PID is converted to its object once; the object must still report that PID after the
+  /// check, and from here on only the object is used.
+  func confirmedProcesses(for app: ControlledApp) -> [ConfirmedProcess] {
+    app.pids.compactMap { pid in
+      guard let object = catalog.objectID(forPID: pid),
+        identity.confirm(pid: pid, belongsTo: app),
+        catalog.pid(of: object) == pid
+      else { return nil }
+      return ConfirmedProcess(pid: pid, objectID: object)
+    }
   }
 
   func isRunningOutput(pids: [Int32]) -> Bool { catalog.isRunningOutput(pids: pids) }
@@ -35,11 +43,10 @@ final class CoreAudioTapEngine: TapEngine {
   func makeSession(_ request: TapRequest, isCancelled: @Sendable () -> Bool) throws(TapError)
     -> any TapHandle
   {
-    let objects = request.pids.compactMap { catalog.objectID(forPID: $0) }
-    guard !objects.isEmpty else { throw .processGone }
+    guard !request.processes.isEmpty else { throw .processGone }
     let hub = hub
     return try CoreAudioTapSession.start(
-      request, objectIDs: objects, queue: queue, notify: { hub.yield($0) },
+      request, queue: queue, notify: { hub.yield($0) },
       isCancelled: isCancelled)
   }
 

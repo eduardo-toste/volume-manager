@@ -79,7 +79,8 @@ extension Services {
     else { throw UsageError("no audio app matches '\(text)' (see: vmctl processes)") }
     return Target(
       app: ControlledApp(app),
-      identity: GroupedProcessIdentity(catalog: catalog, info: provider), label: app.name)
+      identity: GroupedProcessIdentity(catalog: catalog, info: provider),
+      label: ConsoleText.safe(app.name))
   }
 }
 

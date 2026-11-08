@@ -13,6 +13,7 @@ Faça:
 2. Escreva testes **adicionais** de borda/aceite em `Tests/` — especialmente entradas maliciosas ou corrompidas, eventos fora de ordem e falhas que possam deixar o usuário sem som.
 3. Revise o código contra SPEC §12 (arquitetura, concorrência, qualidade) e **§12.9 (segurança) — bloqueante**.
 4. Confirme que nada fora da SPEC foi adicionado (recursos, dependências, permissões, rede).
+5. **Proporcionalidade**: julgue se a implementação é do tamanho do problema. Código morto, abstração sem uso real hoje (protocolo/tipo/camada/arquivo com um só uso trivial), generalização especulativa ou configuração não pedida são problemas — liste com arquivo:linha e uma alternativa mais simples; reprove se forem relevantes. Não peça simplificações que cortem verificações de segurança.
 
 Regras: não altere `Sources/` nem relaxe scripts de verificação. Não troque de branch, não faça commit, merge ou push.
 

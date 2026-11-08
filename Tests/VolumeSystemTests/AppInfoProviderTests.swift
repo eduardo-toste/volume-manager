@@ -114,7 +114,7 @@ struct AppInfoProviderTests {
     #expect(provider.bundleID(atAppPath: "/nonexistent/Fake Thing.app") == nil)
     #expect(provider.appName(atAppPath: "relative/X.app") == nil)
     #expect(provider.appName(atAppPath: "/usr/bin/true") == nil)
-    #expect(provider.appName(atAppPath: "/nonexistent/\u{202E}Evil.app") == "Evil")
+    #expect(provider.appName(atAppPath: "/nonexistent/\u{202E}Evil.app") == nil)
   }
 
   @Test func iconIsCachedAndUnknownBundleIsNil() throws {

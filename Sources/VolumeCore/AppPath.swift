@@ -5,12 +5,11 @@ public enum AppPath {
   public static let maxLength = 1024
 
   /// Resolves `.`, `..` and repeated slashes. Returns `nil` for relative paths, paths with
-  /// control characters and paths that are too long. `..` never climbs above the root.
+  /// control characters (C0, DEL and C1), format characters such as bidi overrides and
+  /// invisible characters (category Cf), and paths that are too long. `..` never climbs above the root.
   public static func canonicalize(_ path: String) -> String? {
     guard path.hasPrefix("/"), path.utf8.count <= maxLength else { return nil }
-    guard !path.unicodeScalars.contains(where: { $0.value < 0x20 || $0.value == 0x7F }) else {
-      return nil
-    }
+    guard !path.unicodeScalars.contains(where: isForbidden) else { return nil }
     var stack: [Substring] = []
     for part in path.split(separator: "/", omittingEmptySubsequences: true) {
       switch part {
@@ -20,6 +19,14 @@ public enum AppPath {
       }
     }
     return "/" + stack.joined(separator: "/")
+  }
+
+  private static func isForbidden(_ scalar: Unicode.Scalar) -> Bool {
+    if scalar.value < 0x20 || (0x7F...0x9F).contains(scalar.value) { return true }
+    switch scalar.properties.generalCategory {
+    case .control, .format: return true
+    default: return false
+    }
   }
 
   /// Path of the outermost `X.app` that contains the executable (`…/X.app/Contents/…`), after

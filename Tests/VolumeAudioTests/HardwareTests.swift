@@ -61,8 +61,10 @@ struct HardwareTests {
     var created = 0
     var framesSeen: UInt64 = 0
     for cycle in 0..<100 {
+      let processes = engine.confirmedProcesses(for: app)
       let request = TapRequest(
-        app: app, pids: [player.pid], device: signature, initialGain: 1, targetGain: 0.5)
+        app: app, processes: processes,
+        device: signature, initialGain: 1, targetGain: 0.5)
       do {
         let handle = try engine.makeSession(request, isCancelled: { false })
         created += 1

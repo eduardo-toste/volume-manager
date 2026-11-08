@@ -61,15 +61,26 @@ enum EnvironmentChange: Sendable, Hashable {
   case deviceFormatChanged(uid: String)
 }
 
+/// A process that passed the identity check, with the Core Audio object it was resolved to.
+/// The object is resolved once and used for the tap, so a PID reused in between cannot make
+/// the tap cover another process (review finding B-4).
+struct ConfirmedProcess: Sendable, Hashable {
+  let pid: Int32
+  let objectID: AudioObjectID
+}
+
 /// Everything needed to start one tap.
 struct TapRequest: Sendable {
   let app: ControlledApp
-  /// PIDs that passed the identity check.
-  let pids: [Int32]
+  /// Processes that passed the identity check, each with its object resolved once.
+  let processes: [ConfirmedProcess]
   let device: DeviceSignature
   /// Gain the ramp starts from (1 replaces the original sound; 0 fades in beside another tap).
   let initialGain: Float
   let targetGain: Float
+
+  var pids: [Int32] { processes.map(\.pid) }
+  var objectIDs: [AudioObjectID] { processes.map(\.objectID) }
 }
 
 /// Errors from starting a tap.
@@ -88,6 +99,9 @@ protocol TapHandle: Sendable {
   var hasFault: Bool { get }
   func setTarget(gain: Float)
   func stop()
+  /// Forgets the Core Audio objects without destroying them (the server restarted and already
+  /// lost them; the old IDs must not be used).
+  func abandon()
   var diagnostics: TapDiagnostics { get }
 }
 
@@ -96,8 +110,9 @@ protocol TapHandle: Sendable {
 protocol TapEngine: Sendable {
   /// The output device with this UID and its format, or `nil` if it does not exist.
   func deviceSignature(uid: String) -> DeviceSignature?
-  /// The PIDs of `app` that still pass the identity check.
-  func confirmedPIDs(for app: ControlledApp) -> [Int32]
+  /// The processes of `app` that still pass the identity check, each resolved to its Core
+  /// Audio object exactly once.
+  func confirmedProcesses(for app: ControlledApp) -> [ConfirmedProcess]
   /// True if any of the processes reports output now.
   func isRunningOutput(pids: [Int32]) -> Bool
   /// Creates and starts a tap. Returns only with the IOProc running, or throws having

@@ -68,17 +68,6 @@ struct ModelTests {
     #expect(await permission.currentStatus() == .notDetermined)
     #expect(await permission.request() == .granted)
     permission.openPrivacySettings()
-
-    let hotkeys = FakeHotkeyService()
-    var presses = 0
-    hotkeys.setHandler(for: .togglePopover) { presses += 1 }
-    hotkeys.press(.togglePopover)
-    hotkeys.press(.toggleFrontmostAppMute)
-    #expect(presses == 1)
-    #expect(hotkeys.handlerCount == 1)
-    hotkeys.removeAllHandlers()
-    #expect(hotkeys.handlerCount == 0)
-    #expect(HotkeyAction.allCases.count == 2)
   }
 
   @Test func fakeClockWakesSleepersInOrder() async {

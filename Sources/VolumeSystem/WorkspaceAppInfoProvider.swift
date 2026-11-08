@@ -54,10 +54,15 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
   }
 
   /// The "responsible" process of `pid` (for example the browser that owns a helper), or `nil`
-  /// when the system function is unavailable, fails, or names the process itself.
+  /// when the system call fails or names the process itself.
+  ///
+  /// The function is weak-imported, but Swift cannot reliably test whether the symbol exists:
+  /// if a future macOS removed it, this call would crash. The user accepted that risk
+  /// (SPEC 4.1, review finding M-1); the release script checks the symbol on every supported
+  /// macOS version (PLAN M7).
   public func responsiblePID(forPID pid: Int32) -> Int32? {
-    guard pid > 0, let function = responsibilityFunction else { return nil }
-    let responsible = function(pid)
+    guard pid > 0 else { return nil }
+    let responsible = responsibility_get_pid_responsible_for_pid(pid)
     guard responsible > 0, responsible != pid else { return nil }
     return responsible
   }
@@ -68,12 +73,6 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
       let path = executablePath(forPID: responsible)
     else { return nil }
     return AppPath.outermostAppPath(in: path)
-  }
-
-  /// The weak-imported symbol, or `nil` when the running system does not provide it.
-  private var responsibilityFunction: ((pid_t) -> pid_t)? {
-    let function: ((pid_t) -> pid_t)? = responsibility_get_pid_responsible_for_pid
-    return function
   }
 
   // MARK: Apps

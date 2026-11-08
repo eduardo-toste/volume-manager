@@ -468,13 +468,15 @@ extension HardwareTests {
     else { return }
     let before = aggregates()
     let signature = DeviceSignature(
-      id: speaker.id, uid: speaker.uid, layout: StreamLayout(sampleRate: 48_000, channels: 6))
+      id: speaker.id, uid: speaker.uid, rawUID: speaker.uid,
+      layout: StreamLayout(sampleRate: 48_000, channels: 6))
     let request = TapRequest(
       app: ControlledApp(id: "pid:\(player.pid)", bundleID: nil, pids: [player.pid]),
-      pids: [player.pid], device: signature, initialGain: 1, targetGain: 0.5)
+      processes: [ConfirmedProcess(pid: player.pid, objectID: object)], device: signature,
+      initialGain: 1, targetGain: 0.5)
     #expect(throws: TapError.self) {
       _ = try CoreAudioTapSession.start(
-        request, objectIDs: [object], queue: DispatchQueue(label: "qa"), notify: { _ in },
+        request, queue: DispatchQueue(label: "qa"), notify: { _ in },
         isCancelled: { false })
     }
     try await Task.sleep(for: .milliseconds(500))
@@ -490,15 +492,16 @@ extension HardwareTests {
     else { return }
     let before = aggregates()
     let signature = DeviceSignature(
-      id: speaker.id, uid: "qa.bogus.device.uid",
+      id: speaker.id, uid: "qa.bogus.device.uid", rawUID: "qa.bogus.device.uid",
       layout: StreamLayout(sampleRate: 48_000, channels: 2))
     let request = TapRequest(
       app: ControlledApp(id: "pid:\(player.pid)", bundleID: nil, pids: [player.pid]),
-      pids: [player.pid], device: signature, initialGain: 1, targetGain: 0.5)
+      processes: [ConfirmedProcess(pid: player.pid, objectID: object)], device: signature,
+      initialGain: 1, targetGain: 0.5)
     var threw = false
     do {
       let session = try CoreAudioTapSession.start(
-        request, objectIDs: [object], queue: DispatchQueue(label: "qa"), notify: { _ in },
+        request, queue: DispatchQueue(label: "qa"), notify: { _ in },
         isCancelled: { false })
       session.stop()
     } catch { threw = true }
@@ -518,11 +521,12 @@ extension HardwareTests {
     let before = aggregates()
     let request = TapRequest(
       app: ControlledApp(id: "pid:\(player.pid)", bundleID: nil, pids: [player.pid]),
-      pids: [player.pid], device: signature, initialGain: 1, targetGain: 0.5)
+      processes: [ConfirmedProcess(pid: player.pid, objectID: object)], device: signature,
+      initialGain: 1, targetGain: 0.5)
     for _ in 0..<20 {
       let cancel = ProbeCounter()
       _ = try? CoreAudioTapSession.start(
-        request, objectIDs: [object], queue: DispatchQueue(label: "qa"), notify: { _ in },
+        request, queue: DispatchQueue(label: "qa"), notify: { _ in },
         isCancelled: { cancel.next() >= 2 })
     }
     try await Task.sleep(for: .milliseconds(800))

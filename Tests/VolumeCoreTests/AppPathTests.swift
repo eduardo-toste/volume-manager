@@ -20,6 +20,24 @@ struct AppPathTests {
     #expect(AppPath.canonicalize("/" + String(repeating: "a", count: 2000)) == nil)
   }
 
+  @Test func rejectsC1ControlsAndFormatCharacters() {
+    #expect(AppPath.canonicalize("/Applications/Foo\u{0080}.app") == nil)
+    #expect(AppPath.canonicalize("/Applications/Foo\u{009B}31m.app") == nil)  // CSI
+    #expect(AppPath.canonicalize("/Applications/Foo\u{009F}.app") == nil)
+    #expect(AppPath.canonicalize("/Applications/Foo\u{202E}ppa.app") == nil)  // bidi override
+    #expect(AppPath.canonicalize("/Applications/Foo\u{200B}.app") == nil)  // zero width space
+    #expect(AppPath.canonicalize("/Applications/Foo\u{2066}.app") == nil)  // bidi isolate
+    #expect(AppPath.canonicalize("/Applications/Foo\u{FEFF}.app") == nil)
+    #expect(AppPath.canonicalize("/Applications/\u{007F}Foo.app") == nil)
+    #expect(AppPath.outermostAppPath(in: "/Applications/Fo\u{202E}o.app/Contents/MacOS/x") == nil)
+  }
+
+  @Test func acceptsOrdinaryNonAsciiPaths() {
+    #expect(AppPath.canonicalize("/Applications/Música ✓.app") == "/Applications/Música ✓.app")
+    #expect(AppPath.canonicalize("/Applications/日本語.app") == "/Applications/日本語.app")
+    #expect(AppPath.canonicalize("/Applications/\u{00A0}x") != nil)  // U+00A0 is not C1
+  }
+
   @Test func findsOutermostApp() {
     let chrome =
       "/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework"

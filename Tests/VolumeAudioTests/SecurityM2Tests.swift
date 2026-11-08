@@ -133,6 +133,7 @@ private final class CountingHandle: TapHandle {
   var hasFault: Bool { false }
   func setTarget(gain: Float) {}
   func stop() { stops.add(1, ordering: .relaxed) }
+  func abandon() {}
   var diagnostics: TapDiagnostics {
     TapDiagnostics(
       appID: "x", pids: [], deviceUID: "", framesProcessed: 0, hasSeenSignal: false,
@@ -252,12 +253,13 @@ extension HardwareTests {
     let before = ownAggregates()
     let request = TapRequest(
       app: ControlledApp(id: "pid:\(player.pid)", bundleID: nil, pids: [player.pid]),
-      pids: [player.pid], device: signature, initialGain: 1, targetGain: 0)
+      processes: [ConfirmedProcess(pid: player.pid, objectID: object)], device: signature,
+      initialGain: 1, targetGain: 0)
     var started = 0
     for _ in 0..<15 {
       guard
         let session = try? CoreAudioTapSession.start(
-          request, objectIDs: [object], queue: DispatchQueue(label: "sec"), notify: { _ in },
+          request, queue: DispatchQueue(label: "sec"), notify: { _ in },
           isCancelled: { false })
       else { continue }
       started += 1

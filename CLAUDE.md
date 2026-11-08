@@ -36,6 +36,7 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 - Swift 6 com concorrência estrita e zero avisos.
 - Dados de outros processos (nome, bundle ID, caminho, PID) são **não confiáveis**: texto puro, tamanho limitado, PID revalidado.
 - `scripts/check.sh` verde antes de entregar.
+- **Sem overengineering** (decisão do usuário): a solução mais simples que cumpre a SPEC. Nada de protocolo, tipo, camada, arquivo ou opção nova sem uso real **hoje**; nada de generalizar para um segundo caso que não existe. Toda abstração nova é justificada em uma linha no relatório. Simplificar **nunca** corta verificação de segurança nem o “nunca deixar mudo” — a ordem de prioridades acima prevalece. QA, Segurança e o orquestrador julgam a proporcionalidade de cada entrega.
 - Relatório de entrega no formato abaixo.
 
 ## Papéis (detalhes em `.claude/agents/`)

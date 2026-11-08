@@ -1,14 +1,13 @@
 import Observation
 
 /// Every user preference of SPEC 3.3, with safe defaults, validated loading and debounced
-/// saving. Keyboard shortcuts are stored by the hotkey service itself.
+/// saving.
 @MainActor
 @Observable
 public final class SettingsModel {
   /// Storage keys.
   enum Key {
     static let launchAtLogin = "launchAtLogin"
-    static let showInMenuBar = "showInMenuBar"
     static let menuBarIconStyle = "menuBarIconStyle"
     static let rememberVolumes = "rememberVolumes"
     static let showInactiveApps = "showInactiveApps"
@@ -22,8 +21,6 @@ public final class SettingsModel {
 
   /// Open the app when the user logs in. Default on.
   public var launchAtLogin = true { didSet { changed(oldValue != launchAtLogin) } }
-  /// Show the icon in the menu bar. Default on.
-  public var showInMenuBar = true { didSet { changed(oldValue != showInMenuBar) } }
   /// Style of the menu bar icon. Default speaker.
   public var menuBarIconStyle = MenuBarIconStyle.speaker {
     didSet { changed(oldValue != menuBarIconStyle) }
@@ -114,7 +111,6 @@ public final class SettingsModel {
 
   private func load() {
     launchAtLogin = PreferenceValidation.bool(store.object(forKey: Key.launchAtLogin)) ?? true
-    showInMenuBar = PreferenceValidation.bool(store.object(forKey: Key.showInMenuBar)) ?? true
     rememberVolumes = PreferenceValidation.bool(store.object(forKey: Key.rememberVolumes)) ?? true
     showInactiveApps =
       PreferenceValidation.bool(store.object(forKey: Key.showInactiveApps)) ?? false
@@ -144,7 +140,6 @@ public final class SettingsModel {
 
   private func save() {
     store.set(launchAtLogin, forKey: Key.launchAtLogin)
-    store.set(showInMenuBar, forKey: Key.showInMenuBar)
     store.set(menuBarIconStyle.rawValue, forKey: Key.menuBarIconStyle)
     store.set(rememberVolumes, forKey: Key.rememberVolumes)
     store.set(showInactiveApps, forKey: Key.showInactiveApps)

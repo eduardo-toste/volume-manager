@@ -50,15 +50,29 @@ final class CoreAudioTapSession: TapHandle {
     pipeline.teardown()
   }
 
+  /// Forgets the Core Audio objects without destroying them (SPEC 4.6, finding M-2): after a
+  /// `coreaudiod` restart their IDs are meaningless and may belong to someone else's objects,
+  /// so no destroy or stop is sent for them. Cancelling the listeners still passes the old
+  /// device ID to `AudioObjectRemovePropertyListenerBlock`; that is harmless because it only
+  /// removes this process's own listener blocks.
+  /// The realtime state is deliberately kept alive forever (a few bytes) because the IOProc
+  /// holds an unretained pointer to it and we cannot prove the client side stopped calling it.
+  func abandon() {
+    for listener in listeners { listener.cancel() }
+    pipeline.abandon()
+    _ = Unmanaged.passRetained(state)
+  }
+
   deinit { stop() }
 
   /// Builds and starts a tap. On any failure everything created so far is destroyed.
   static func start(
-    _ request: TapRequest, objectIDs: [AudioObjectID], queue: DispatchQueue,
+    _ request: TapRequest, queue: DispatchQueue,
     notify: @escaping @Sendable (EnvironmentChange) -> Void,
     isCancelled: @Sendable () -> Bool
   ) throws(TapError) -> CoreAudioTapSession {
     let output = request.device.layout
+    let objectIDs = request.objectIDs
     do {
       try FormatPolicy.validateOutput(output)
     } catch {
@@ -91,7 +105,7 @@ final class CoreAudioTapSession: TapHandle {
 
       let aggregateID = try pipeline.createAggregate(
         aggregateDictionary(
-          tapUUID: description.uuid.uuidString, outputUID: request.device.uid,
+          tapUUID: description.uuid.uuidString, outputUID: request.device.rawUID,
           sampleRatesDiffer: tapLayout.sampleRate != output.sampleRate))
       let inputShape = try AudioProperty.bufferShape(
         aggregateID, scope: kAudioObjectPropertyScopeInput)

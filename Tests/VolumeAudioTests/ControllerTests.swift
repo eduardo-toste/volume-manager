@@ -132,7 +132,9 @@ struct ControllerReconcileTests {
     await rig.controller.reconcile(desired: [desired()])
     rig.engine.emit(.serviceRestarted)
     #expect(await eventually { rig.engine.created.count == 2 })
-    #expect(rig.engine.created[0].isStopped)
+    // The old objects died with the server: forgotten, never destroyed (finding M-2).
+    #expect(rig.engine.created[0].isAbandoned)
+    #expect(rig.engine.created[0].stopCalls == 0)
     #expect(rig.engine.live.count == 1)
   }
 

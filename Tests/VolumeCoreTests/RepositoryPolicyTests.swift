@@ -80,15 +80,16 @@ struct RepositoryPolicyTests {
 
   // MARK: Package manifest (SPEC 12.1, 12.9.6)
 
-  @Test func manifestDeclaresMacOS15AndNoUnapprovedDependency() throws {
+  @Test func manifestDeclaresMacOS15AndZeroDependencies() throws {
     let manifest = try text("Package.swift")
     #expect(manifest.contains(".macOS(.v15)"))
-    let remote = manifest.components(separatedBy: ".package(").count - 1
-    #expect(remote <= 1)
-    if remote == 1 {
-      #expect(manifest.contains("KeyboardShortcuts"))
-      #expect(manifest.contains("exact:"))
-    }
+    #expect(!manifest.contains(".package("), "zero external dependencies, no exception")
+    #expect(!manifest.contains("KeyboardShortcuts"))
+    #expect(!manifest.contains("binaryTarget"), "no prebuilt binary targets")
+    #expect(!manifest.contains("url:"), "no remote sources")
+    #expect(
+      !FileManager.default.fileExists(
+        atPath: RepositoryFiles.root.appendingPathComponent("Package.resolved").path))
     #expect(!manifest.contains("from:"))
     #expect(!manifest.contains(".upToNextMajor"))
     #expect(!manifest.contains("branch:"))

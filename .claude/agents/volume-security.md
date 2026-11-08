@@ -15,6 +15,7 @@ Revise com foco em:
 - Preferências: valores maliciosos via `defaults write`.
 - Entitlements, Hardened Runtime, Info.plist, scripts de build/release, CI, dependências, segredos.
 - Ausência de rede, gravação de áudio e permissões extras.
+- **Superfície desnecessária**: código, abstrações ou caminhos que não precisam existir aumentam a superfície de ataque e dificultam a auditoria. Aponte-os (gravidade Baixo, salvo impacto maior) com a alternativa mais simples.
 
 Pode escrever e rodar testes/provas adversariais em `Tests/` ou em diretório temporário, mas **não altere código de produção**. Não troque de branch, não faça commit, merge ou push, não use `sudo`/`tccutil`.
 

@@ -5,8 +5,18 @@ import VolumeCore
 /// An output device as the tap engine needs it: object, stable UID and stream format.
 struct DeviceSignature: Sendable, Hashable {
   let id: AudioObjectID
+  /// The UID the domain knows (sanitized).
   let uid: String
+  /// The UID exactly as the system reports it. This, never `uid`, goes to Core Audio (for
+  /// example as the aggregate's main sub-device), because sanitizing may have changed it.
+  let rawUID: String
   let layout: StreamLayout
+}
+
+/// An output device identified for UID lookup.
+struct DeviceUIDEntry: Sendable, Hashable {
+  let id: AudioObjectID
+  let rawUID: String
 }
 
 extension OutputDeviceKind {
@@ -71,11 +81,25 @@ enum DeviceCatalog {
       || AudioProperty.has(id, channelVolumeAddress(element: 1))
   }
 
-  static func deviceID(forUID uid: String) -> AudioObjectID? {
-    allDeviceIDs().first { id in
-      guard hasOutput(id), let raw = rawUID(of: id) else { return false }
-      return raw == uid || TextSanitizer.clean(raw) == uid
+  /// Output devices with their raw UIDs.
+  static func outputEntries() -> [DeviceUIDEntry] {
+    allDeviceIDs().compactMap { id in
+      guard hasOutput(id), let raw = rawUID(of: id) else { return nil }
+      return DeviceUIDEntry(id: id, rawUID: raw)
     }
+  }
+
+  /// Finds the device for `uid`. An exact match with the raw UID always wins. Otherwise the
+  /// match is by sanitized UID, but only if exactly one device has it: when sanitizing makes
+  /// two UIDs equal, the lookup is refused (the app keeps its original sound, SPEC 4.6).
+  static func resolve(uid: String, in entries: [DeviceUIDEntry]) -> DeviceUIDEntry? {
+    if let exact = entries.first(where: { $0.rawUID == uid }) { return exact }
+    let matches = entries.filter { TextSanitizer.clean($0.rawUID) == uid }
+    return matches.count == 1 ? matches.first : nil
+  }
+
+  static func deviceID(forUID uid: String) -> AudioObjectID? {
+    resolve(uid: uid, in: outputEntries())?.id
   }
 
   static func defaultOutputID() -> AudioObjectID? {
@@ -99,13 +123,15 @@ enum DeviceCatalog {
 
   /// Stream format of the first output stream, with the device it belongs to.
   static func signature(forUID uid: String) -> DeviceSignature? {
-    guard let id = deviceID(forUID: uid) else { return nil }
+    guard let entry = resolve(uid: uid, in: outputEntries()) else { return nil }
+    let id = entry.id
     let address = AudioProperty.address(
       kAudioDevicePropertyStreamFormat, scope: kAudioObjectPropertyScopeOutput)
     guard
       let format = try? AudioProperty.get(id, address, initial: AudioStreamBasicDescription())
     else { return nil }
-    return DeviceSignature(id: id, uid: uid, layout: StreamLayout(format))
+    return DeviceSignature(
+      id: id, uid: uid, rawUID: entry.rawUID, layout: StreamLayout(format))
   }
 
   // MARK: Master volume and mute

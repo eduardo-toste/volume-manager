@@ -24,9 +24,11 @@ final class TapPipeline: Sendable {
   func createTap(_ description: CATapDescription) throws(AudioError) -> AudioObjectID {
     var tapID = AudioProperty.unknown
     try AudioError.check(
-      AudioHardwareCreateProcessTap(description, &tapID), "create process tap")
+      AudioHardwareCreateProcessTap(description, &tapID), "create process tap",
+      stage: .createTap)
     guard tapID != AudioProperty.unknown else {
-      throw AudioError.unsupported("create process tap returned no object")
+      throw AudioError.unsupported(
+        "create process tap returned no object", stage: .createTap)
     }
     resources.withLock { $0.tap = tapID }
     return tapID
@@ -60,6 +62,13 @@ final class TapPipeline: Sendable {
     resources.withLock { $0.procID = procID }
     try AudioError.check(AudioDeviceStart(aggregate, procID), "start IOProc")
     resources.withLock { $0.started = true }
+  }
+
+  /// Forgets everything without calling any Core Audio function. Used after `coreaudiod`
+  /// restarted: the server already lost these objects, and their IDs may now belong to objects
+  /// of other apps or of the user, which must never be touched (review finding M-2).
+  func abandon() {
+    resources.withLock { $0 = Resources() }
   }
 
   /// Destroys everything that exists. Idempotent and safe from any thread.

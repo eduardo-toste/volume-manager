@@ -178,13 +178,14 @@ public actor CoreAudioAppController: AppAudioController {
     issuedAt issued: Int, replacing old: Entry?
   ) async -> Bool {
     let id = item.app.id
-    let pids = engine.confirmedPIDs(for: item.app)
-    guard !pids.isEmpty else {
+    let processes = engine.confirmedProcesses(for: item.app)
+    guard !processes.isEmpty else {
       destroy(id)
       return false
     }
     let request = TapRequest(
-      app: item.app, pids: pids, device: key.device, initialGain: initialGain, targetGain: gain)
+      app: item.app, processes: processes,
+      device: key.device, initialGain: initialGain, targetGain: gain)
     let generation = generation
     do {
       let handle = try engine.makeSession(
@@ -199,9 +200,15 @@ public actor CoreAudioAppController: AppAudioController {
         handle: handle, token: token, key: key, generation: issued,
         health: SessionHealth(policy: policy))
       if let old {
+        let serviceAtStart = serviceGeneration
         old.handle.setTarget(gain: 0)
         try? await clock.sleep(for: policy.crossfade)
-        old.handle.stop()
+        // If `coreaudiod` restarted during the fade, the old objects are already gone.
+        if serviceGeneration == serviceAtStart {
+          old.handle.stop()
+        } else {
+          old.handle.abandon()
+        }
         killList.remove(old.token)
       }
       return true
@@ -229,6 +236,15 @@ public actor CoreAudioAppController: AppAudioController {
   private func destroy(_ id: String) {
     guard let entry = entries.removeValue(forKey: id) else { return }
     entry.handle.stop()
+    killList.remove(entry.token)
+    cancelWatchdogIfIdle()
+  }
+
+  /// After a `coreaudiod` restart: forgets the tap without destroying anything, because the
+  /// server lost its objects and the old IDs may now name objects that are not ours (M-2).
+  private func forget(_ id: String) {
+    guard let entry = entries.removeValue(forKey: id) else { return }
+    entry.handle.abandon()
     killList.remove(entry.token)
     cancelWatchdogIfIdle()
   }
@@ -304,7 +320,7 @@ public actor CoreAudioAppController: AppAudioController {
   private func handle(_ change: EnvironmentChange) async {
     if change == .serviceRestarted {
       serviceGeneration += 1
-      for id in Array(entries.keys) { destroy(id) }
+      for id in Array(entries.keys) { forget(id) }
       failed.removeAll()
     }
     guard let last = lastDesired, last.generation == generation.current

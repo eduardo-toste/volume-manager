@@ -13,8 +13,7 @@ let package = Package(
         .executable(name: "VolumeManager", targets: ["VolumeManager"]),
         .executable(name: "vmctl", targets: ["vmctl"]),
     ],
-    // No external dependencies yet. KeyboardShortcuts (exact version) returns with the hotkeys
-    // milestone, once Xcode (SwiftUI macro plugins) is available.
+    // No external dependencies, ever (CLAUDE.md rule 2): Apple frameworks only.
     dependencies: [],
     targets: [
         // The only C code allowed in the project: a header, no logic (SPEC 12.9.2).
@@ -50,6 +49,7 @@ let package = Package(
             dependencies: ["VolumeCore", "VolumeAudio", "VolumeSystem"],
             swiftSettings: strictSettings
         ),
+        .testTarget(name: "vmctlTests", dependencies: ["vmctl", "VolumeCore"]),
         .testTarget(name: "VolumeCoreTests", dependencies: ["VolumeCore"]),
         .testTarget(name: "VolumeAudioTests", dependencies: ["VolumeAudio", "VolumeCore"]),
         .testTarget(

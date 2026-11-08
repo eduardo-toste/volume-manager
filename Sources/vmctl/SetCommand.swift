@@ -27,7 +27,8 @@ enum TapCommands {
     let collector = Task { for await failure in failures { log.add(failure) } }
     installSignalHandlers(controller)
 
-    print("target: \(target.label) pids \(target.app.pids) -> device \(deviceUID)")
+    print(
+      "target: \(target.label) pids \(target.app.pids) -> device \(ConsoleText.safe(deviceUID))")
     print("volume \(volume) (gain \(gain)), \(muted ? "MUTED" : "not muted"), for \(duration) s")
     let desired = DesiredAppAudio(
       app: target.app, gain: gain, muted: muted, targetDeviceUID: deviceUID)
@@ -100,7 +101,9 @@ enum TapCommands {
     try await Task.sleep(for: .milliseconds(1500))
     let after = AudioDiagnostics.deviceCount()
     let extra = Set(AudioDiagnostics.deviceUIDs()).subtracting(beforeUIDs)
-    if !extra.isEmpty { print("devices that appeared: \(extra.sorted())") }
+    if !extra.isEmpty {
+      print("devices that appeared: \(extra.sorted().map { ConsoleText.safe($0) })")
+    }
     print("cycles: \(count), failed: \(failedCycles)")
     print("devices before: \(before), after: \(after), leaked: \(after - before)")
     if after != before || failedCycles > 0 {
@@ -150,7 +153,8 @@ enum TapCommands {
   {
     if let requested {
       guard snapshot.devices.contains(where: { $0.uid == requested }) else {
-        throw UsageError("no output device with UID '\(requested)' (see: vmctl devices)")
+        throw UsageError(
+          "no output device with UID '\(ConsoleText.safe(requested))' (see: vmctl devices)")
       }
       return requested
     }

@@ -21,8 +21,6 @@ for arg in "$@"; do
 done
 
 APP="${VOLUME_APP:-build/Volume.app}"
-APPROVED_DEPENDENCY="keyboardshortcuts"
-APPROVED_DEPENDENCY_VERSION="3.1.0"
 FAILURES=0
 
 fail() { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }
@@ -160,8 +158,8 @@ fi
 # ---------------------------------------------------------------- 7. dependencies
 echo "== dependencies"
 DEP_START=$FAILURES
-# Allowed: zero dependencies, or exactly KeyboardShortcuts at the approved exact version.
-# Count by the resolved manifest (dump-package) AND by textual occurrences; both must agree.
+# Zero external dependencies, no exception (CLAUDE.md rule 2). Count by the resolved manifest
+# (dump-package) AND by textual occurrences; the larger number counts.
 manifest_json="$(swift package dump-package 2>/dev/null)"
 pkg_count="$(plutil -extract dependencies raw -o - - <<<"$manifest_json" 2>/dev/null || echo bad)"
 text_count="$(grep -o '\.package[[:space:]]*(' Package.swift | wc -l | tr -d ' ')"
@@ -171,32 +169,15 @@ if ! [[ "$pkg_count" =~ ^[0-9]+$ ]]; then
 elif [ "$text_count" -gt "$pkg_count" ]; then
   pkg_count="$text_count"
 fi
-if [ "$pkg_count" -eq 0 ]; then
-  [ -f Package.resolved ] && [ "$(plutil -extract pins raw -o - Package.resolved 2>/dev/null || echo 0)" != "0" ] \
-    && fail "Package.resolved has pins but Package.swift declares no dependency"
-elif [ "$pkg_count" -eq 1 ]; then
-  dep_id="$(plutil -extract dependencies.0.sourceControl.0.identity raw -o - - <<<"$manifest_json" 2>/dev/null || echo none)"
-  dep_exact="$(plutil -extract dependencies.0.sourceControl.0.requirement.exact.0 raw -o - - <<<"$manifest_json" 2>/dev/null || echo none)"
-  [ "$dep_id" = "$APPROVED_DEPENDENCY" ] || fail "the only dependency must be KeyboardShortcuts (found: $dep_id)"
-  [ "$dep_exact" = "$APPROVED_DEPENDENCY_VERSION" ] || fail "KeyboardShortcuts must use exact: \"$APPROVED_DEPENDENCY_VERSION\" (found: $dep_exact)"
-  if [ -f Package.resolved ]; then
-    count=0
-    while plutil -extract "pins.$count.identity" raw -o - Package.resolved >/dev/null 2>&1; do
-      identity="$(plutil -extract "pins.$count.identity" raw -o - Package.resolved)"
-      version="$(plutil -extract "pins.$count.state.version" raw -o - Package.resolved 2>/dev/null || echo none)"
-      if [ "$identity" != "$APPROVED_DEPENDENCY" ] || [ "$version" != "$APPROVED_DEPENDENCY_VERSION" ]; then
-        fail "Package.resolved pin not allowed: $identity $version"
-      fi
-      count=$((count + 1))
-    done
-    [ "$count" -eq 1 ] || fail "Package.resolved must have exactly 1 pin (has $count)"
-  else
-    fail "Package.resolved is missing (must be committed when a dependency exists)"
-  fi
-else
-  fail "Package.swift declares $pkg_count dependencies (max 1: KeyboardShortcuts)"
+[ "$pkg_count" -eq 0 ] || fail "Package.swift declares $pkg_count dependencies (none are allowed)"
+# A binary target is a download in disguise (it also brings code the project did not write).
+if grep -Eq 'binaryTarget|url:' Package.swift; then
+  fail "Package.swift has a binaryTarget or a url: (no downloaded or prebuilt code is allowed)"
 fi
-[ "$FAILURES" -eq "$DEP_START" ] && pass "dependencies ($pkg_count; only KeyboardShortcuts exact allowed)"
+if [ -f Package.resolved ]; then
+  fail "Package.resolved exists (there must be no dependencies, so no resolved file)"
+fi
+[ "$FAILURES" -eq "$DEP_START" ] && pass "dependencies (zero)"
 
 # ---------------------------------------------------------------- 1,6. source-level plist/entitlements
 FORBIDDEN_ENTITLEMENTS=(

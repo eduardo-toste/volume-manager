@@ -351,7 +351,6 @@ struct QASettingsModelTests {
   @Test func defaultsMatchSpec33() {
     let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock)
     #expect(settings.launchAtLogin == true)
-    #expect(settings.showInMenuBar == true)
     #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes == true)
     #expect(settings.showInactiveApps == false)
@@ -361,13 +360,12 @@ struct QASettingsModelTests {
 
   @Test func wrongTypesFallBackToDefaults() {
     let wrong: [String: Any] = [
-      "launchAtLogin": "false", "showInMenuBar": 0, "menuBarIconStyle": 5,
+      "launchAtLogin": "false", "menuBarIconStyle": 5,
       "rememberVolumes": [true], "showInactiveApps": "yes", "volumeStepPercent": "10",
       "onboardingCompleted": 1, "rememberedApps": ["not", "a", "dict"],
     ]
     let settings = SettingsModel(store: InMemoryPreferencesStore(wrong), clock: clock)
     #expect(settings.launchAtLogin)
-    #expect(settings.showInMenuBar)
     #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)

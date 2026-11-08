@@ -15,7 +15,6 @@ struct SettingsModelTests {
   @Test func defaultsMatchTheSpec() {
     let settings = model(InMemoryPreferencesStore())
     #expect(settings.launchAtLogin)
-    #expect(settings.showInMenuBar)
     #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)
@@ -61,7 +60,7 @@ struct SettingsModelTests {
     settings.showInactiveApps = true
     #expect(await eventually { clock.sleeperCount == 1 })
     clock.advance(by: .milliseconds(400))
-    settings.showInMenuBar = false
+    settings.rememberVolumes = false
     #expect(await eventually { clock.sleeperCount == 1 })
     clock.advance(by: .milliseconds(400))
     await Task.yield()
@@ -91,11 +90,20 @@ struct SettingsModelTests {
     #expect(await eventually { clock.sleeperCount == 0 })
   }
 
+  @Test func theMenuBarIconIsAlwaysVisibleSoNoSuchPreferenceIsStored() {
+    let store = InMemoryPreferencesStore(["showInMenuBar": false])
+    let settings = model(store)
+    settings.flush()
+    #expect(store.values["showInMenuBar"] as? Bool == false)  // left untouched, never read
+    let fresh = InMemoryPreferencesStore()
+    model(fresh).flush()
+    #expect(fresh.values["showInMenuBar"] == nil)
+  }
+
   @Test func valuesRoundTripThroughTheStore() {
     let store = InMemoryPreferencesStore()
     let first = model(store)
     first.launchAtLogin = false
-    first.showInMenuBar = false
     first.menuBarIconStyle = .controls
     first.rememberVolumes = false
     first.showInactiveApps = true
@@ -106,7 +114,6 @@ struct SettingsModelTests {
     first.flush()
     let second = model(store)
     #expect(!second.launchAtLogin)
-    #expect(!second.showInMenuBar)
     #expect(second.menuBarIconStyle == .controls)
     #expect(!second.rememberVolumes)
     #expect(second.showInactiveApps)
@@ -169,13 +176,12 @@ struct SettingsModelTests {
 
   @Test func wrongTypesBecomeDefaults() {
     let store = InMemoryPreferencesStore([
-      "launchAtLogin": "yes", "showInMenuBar": 1, "rememberVolumes": [1],
+      "launchAtLogin": "yes", "rememberVolumes": [1],
       "showInactiveApps": 5.5, "onboardingCompleted": "true",
       "menuBarIconStyle": 42, "volumeStepPercent": "ten", "rememberedApps": "nope",
     ])
     let settings = model(store)
     #expect(settings.launchAtLogin)
-    #expect(settings.showInMenuBar)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)
     #expect(!settings.onboardingCompleted)
