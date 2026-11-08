@@ -67,12 +67,12 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M0 — Fundação do projeto
 **Dev**
-- `Package.swift` com os módulos da SPEC §12.1: `VolumeCore`, `VolumeAudio`, `VolumeSystem`, `VolumeUI`, executável `VolumeManager`, executável de desenvolvimento `vmctl` (ver M2), e alvos de teste. `platforms: [.macOS(.v15)]`, Swift 6, concorrência estrita, dependência `KeyboardShortcuts`.
+- `Package.swift` com os módulos da SPEC §12.1: `VolumeCore`, `VolumeAudio`, `VolumeSystem`, `VolumeUI`, executável `VolumeManager`, executável de desenvolvimento `vmctl` (ver M2), e alvos de teste. `platforms: [.macOS(.v15)]`, Swift 6, concorrência estrita, zero dependências externas.
 - `Resources/`: `Info.plist` (`LSUIElement`, `LSMinimumSystemVersion 15.0`, bundle ID `com.volumemanager.app`, `NSAudioCaptureUsageDescription`), entitlements, `Localizable.xcstrings`, `Version` (versão em um só lugar).
 - `.swift-format`, `.gitignore`.
 - `scripts/check.sh` (lint de formatação + build sem avisos + `swift test` + `security-check.sh`), `scripts/build-app.sh` (release build → monta `Volume.app` sem `vmctl` → Hardened Runtime → assina com `VOLUME_SIGN_IDENTITY` ou ad-hoc).
 - `scripts/security-check.sh` com todas as verificações da SPEC §12.9.7 desde o primeiro dia.
-- Entitlements de release mínimos (nenhuma exceção proibida). `KeyboardShortcuts` com versão **exata** e `Package.resolved` commitado.
+- Entitlements de release mínimos (nenhuma exceção proibida). Zero dependências (o security-check falha se houver alguma).
 - App mínimo: ícone de alto-falante na barra de menus abrindo um popover vazio “Volume”.
 - `.github/workflows/ci.yml` rodando `check.sh` em runner macOS — actions fixadas por SHA, `permissions: contents: read`, sem secrets.
 - Reaproveitar o que foi validado no spike (M0.5).
@@ -90,7 +90,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 ### M1 — Domínio (`VolumeCore`)
 **Dev**
 - Modelos: `AudioProcessInfo`, `AudioApp` (grupo de processos), `OutputDevice` (id, **UID**, nome, tipo, tem volume?), `AppAudioState` (volume, mudo, rota), `DesiredAppAudio`.
-- Protocolos de serviço: `AudioSystem`, `AppAudioController`, `PreferencesStore`, `LoginItemService`, `PermissionService`, `HotkeyService`, `AppInfoProvider`, `Clock` injetável.
+- Protocolos de serviço: `AudioSystem`, `AppAudioController`, `PreferencesStore`, `LoginItemService`, `PermissionService`, `AppInfoProvider`, `Clock` injetável.
 - `ProcessGrouping`: agrupa auxiliares sob o app dono na ordem da SPEC §4.1 (caminho do executável → processo responsável → prefixo de bundle ID), usando dados fornecidos pelo serviço. Nomes/caminhos tratados como não confiáveis (limite de tamanho, texto puro — §12.9.4).
 - `SafetyPolicy`: modo seguro (2 encerramentos anormais em < 1 min) e “restaurar áudio original” no nível do domínio (§4.6).
 - `VolumeCurve`: slider 0–1 → ganho perceptual; 0→0, 1→1, monotônica.
@@ -135,7 +135,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M3 — Serviços do sistema (`VolumeSystem`)
 **Dev**
-- `UserDefaultsPreferencesStore`, `SMAppLoginItemService` (status real, `.requiresApproval`, abrir Itens de Início), `AudioPermissionService` (estado, pedido via tap de teste, abrir Privacidade), `KeyboardShortcutsHotkeyService` (⌥⌘V, ⌥⌘M padrão), `WorkspaceAppInfoProvider` (nome, ícone em cache por bundle ID, app em primeiro plano, responsible PID/app pai para o agrupamento).
+- `UserDefaultsPreferencesStore`, `SMAppLoginItemService` (status real, `.requiresApproval`, abrir Itens de Início), `AudioPermissionService` (estado, pedido via tap de teste, abrir Privacidade), `WorkspaceAppInfoProvider` (nome, ícone em cache por bundle ID, app em primeiro plano, responsible PID/app pai para o agrupamento).
 
 **QA**
 - Testes com `UserDefaults(suiteName:)` isolado; cache de ícones; mapeamento de status do login item; resolução de app pai com processos reais conhecidos (Safari/WebKit se disponíveis, senão pular).
@@ -165,7 +165,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M5 — Ajustes e Boas-vindas
 **Dev**
-- Janela de Ajustes (uma instância, ⌘,): Geral (todas as opções + atalhos com gravador), Aplicativos (lembrados, esquecer), Dispositivos (lista, definir padrão), Atalhos, Sobre (versão/build, link de Releases). Barra lateral de vidro no 26+, `NavigationSplitView` padrão no 15.
+- Janela de Ajustes (uma instância, ⌘,): Geral (todas as opções), Aplicativos (lembrados, esquecer), Dispositivos (lista, definir padrão), Sobre (versão/build, link de Releases). Barra lateral de vidro no 26+, `NavigationSplitView` padrão no 15.
 - Boas-vindas na primeira execução: destaques, toggle “Abrir ao iniciar sessão” ligado, “Permitir…” → ✓, “Começar” registra login item e abre o popover.
 - Reabrir o app já em execução → abre Ajustes. Confirmação ao desligar “Mostrar na barra de menus”.
 
@@ -177,9 +177,8 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ---
 
-### M6 — Atalhos, ciclo de vida e robustez · ⏸3
+### M6 — Ciclo de vida e robustez · ⏸3
 **Dev**
-- ⌥⌘V abre/fecha popover; ⌥⌘M silencia app em primeiro plano.
 - Lembrar volume ponta a ponta (aplica quando o app volta a tocar).
 - Dormir/acordar, troca de usuário, reinício do `coreaudiod`, desconectar/reconectar fone: reconciliação automática.
 - Encerramento limpo (todos os taps destruídos); garantia de nenhum “mudo preso”.
@@ -190,7 +189,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 - Forçar Encerramento / `kill -9` do app real com apps modificados → todos voltam ao som original; reabrir após 2 travamentos simulados → modo seguro ativo.
 - Escreve `docs/MANUAL_TESTS.md`: roteiro passo a passo de todos os critérios da SPEC §14 que dependem de hardware.
 
-**⏸3 Você**: seguir o roteiro manual (boas-vindas → reiniciar sessão → app abre sozinho → atalhos → AirPods).
+**⏸3 Você**: seguir o roteiro manual (boas-vindas → reiniciar sessão → app abre sozinho → AirPods).
 
 ---
 

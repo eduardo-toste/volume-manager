@@ -14,7 +14,7 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 
 ## NUNCA (regras absolutas — violar = etapa reprovada)
 1. **Não mudar requisitos.** Nada de recursos, telas, opções ou dependências fora da SPEC. Desvio necessário → parar e relatar ao orquestrador.
-2. **Não adicionar dependências** além de `KeyboardShortcuts` (versão exata).
+2. **Zero dependências externas**: não adicionar nenhum pacote (só frameworks da Apple). Atalhos globais estão fora do escopo.
 3. **Nada de rede** em `Sources/`: `URLSession`, `Network.framework`, sockets, analytics, telemetria, “verificar atualização”.
 4. **Áudio nunca persiste**: proibido gravar/copiar amostras para arquivo, histórico, análise ou transcrição.
 5. **Nenhuma permissão extra**: só áudio do sistema. Proibido pedir Acessibilidade, Monitoramento de Entrada, Microfone, Gravação de Tela, etc.

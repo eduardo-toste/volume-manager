@@ -12,10 +12,9 @@
 | M0.5 Prova de viabilidade (spike) | ✅ + ⏸0 aprovado de ouvido | `7e21553`, `7962f29` |
 | M0 Fundação | ✅ | `0a904bc` |
 | M1 Domínio (`VolumeCore`) | ✅ | `450ad83` |
-| M3 Serviços (`VolumeSystem`) — sem atalhos | ✅ parcial | `3357524` |
+| M3 Serviços (`VolumeSystem`) | ✅ | `3357524` |
 | M2 Áudio real (`VolumeAudio`, `vmctl`) | ✅ QA + Segurança (LIBERA) | `5bcedbf` |
 | **⏸1 Teste de ouvido da M2** | ⏳ pendente (usuário) | — |
-| M3 restante: atalhos (`KeyboardShortcuts`) | ⏳ | — |
 | M4 Popover · M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
@@ -39,8 +38,8 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
    - **M-1 (Médio)**: a checagem de nulo do `weak_import` em `WorkspaceAppInfoProvider.swift:74-77` não funciona (cai com SIGSEGV se o símbolo sumir). **Decisão pendente do usuário** — recomendação do orquestrador: permitir em `CSystemShims` uma função `static inline` de uma linha que testa o símbolo (`&responsibility_get_pid_responsible_for_pid != NULL`) e ajustar SPEC §12.9.2 / security-check para aceitar exatamente isso.
    - **M-2 (Médio)**: após reinício do coreaudiod, o teardown pode destruir objetos com IDs reaproveitados — esquecer os recursos antigos sem destruir (ou conferir o UID antes).
    - Baixos a corrigir: B-1 (sanitizar saída do `vmctl processes`; `AppPath` aceitar C1/bidi), B-2 (UID de dispositivo sanitizado/ambíguo), B-4 (converter PID em objeto uma vez só), B-5 (probe sem tap global), B-8 (`verify()` não depender do texto do erro). B-3, B-6, B-7: registrar/aceitar.
-3. **M3 restante — atalhos**: o usuário decidiu **manter a biblioteca `KeyboardShortcuts`** (3.1.0 exata). Pela regra 16, **o usuário roda o download** (`swift package resolve`) — o orquestrador só fornece o comando. Depois, Dev implementa `KeyboardShortcutsHotkeyService` e reativa a dependência no `Package.swift`/security-check.
-4. **M4 — Popover** (Xcode já instalado e selecionado; macros do SwiftUI disponíveis). Lembretes da M2: confirmar a permissão com `verify()` antes de mostrar "sem permissão" (o vigia de silêncio também dispara com silêncio digital legítimo); ligar `CoreAudioAppController.failures()` ao domínio e chamar `retryAll()` quando a permissão for concedida; chamar `markCleanExit` via `SessionLifecycleObserver`.
+   - **Remover os atalhos do código** (decisão do usuário: sem atalhos globais): apagar o protocolo `HotkeyService` (`Sources/VolumeCore/HotkeyService.swift`) e o `FakeHotkeyService` dos testes; no `scripts/security-check.sh`, exigir **zero** dependências (remover a exceção da `KeyboardShortcuts`) e ajustar os testes de política correspondentes.
+3. **M4 — Popover** (Xcode já instalado e selecionado; macros do SwiftUI disponíveis). Lembretes da M2: confirmar a permissão com `verify()` antes de mostrar "sem permissão" (o vigia de silêncio também dispara com silêncio digital legítimo); ligar `CoreAudioAppController.failures()` ao domínio e chamar `retryAll()` quando a permissão for concedida; chamar `markCleanExit` via `SessionLifecycleObserver`.
 
 ## Decisões tomadas (resumo)
 - macOS mínimo **15**; atômicos com `Synchronization.Atomic`.
@@ -51,12 +50,12 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - Vigia de silêncio fica como na SPEC; a UI confirma com `verify()`.
 - `_withUnsafeGuaranteedRef` mantido; inspeção do desmontado entra no roteiro de release (M7).
 - Testes nunca produzem som, nunca tocam apps do usuário, nunca usam preferências reais; áudio real só via bundle `vmctl-dev.app`/`vmctl-test.app`.
+- **Sem atalhos globais** (⌥⌘V/⌥⌘M removidos) e **zero dependências externas** — decisão do usuário em 2026-11-07. O design no FigCraft ainda mostra a seção de atalhos e o item “Atalhos” na barra lateral dos Ajustes: **a SPEC prevalece** (não implementar).
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 
 ## Pendências do usuário
 - ⏸1 (acima).
 - Decidir M-1 (acima).
-- Rodar o download da `KeyboardShortcuts` quando a etapa de atalhos começar.
 - Ao final do projeto: remover em Ajustes › Privacidade › Gravação de Tela e Áudio do Sistema as permissões de `vmctl-test` e `vmctl-dev`.
 
 ## Modelos dos agentes

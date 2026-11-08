@@ -28,7 +28,7 @@
 | Barra de menus | `MenuBarExtra` com `.menuBarExtraStyle(.window)`. |
 | Áudio | **Core Audio**: Process Taps (`CATapDescription`, `AudioHardwareCreateProcessTap`) + Aggregate Devices + IOProc. |
 | Login item | `SMAppService.mainApp` (ServiceManagement). |
-| Atalhos globais | Pacote `KeyboardShortcuts` (sindresorhus) — gravação e persistência de atalhos configuráveis. Única dependência externa permitida na v1. |
+| Atalhos globais | **Nenhum** (decisão do usuário, 2026-11-07): o app é um gerenciador de volume e não registra atalhos globais. **Zero dependências externas.** |
 | Persistência | `UserDefaults` (preferências e volumes lembrados por bundle ID). |
 | Build | **Swift Package Manager** (`Package.swift`) + script `scripts/build-app.sh` que monta e assina o `.app`. Compila e testa só com as Command Line Tools; o Xcode abre o `Package.swift` diretamente quando instalado. Ver §12.7. |
 | Testes | **Swift Testing** (`swift test`). |
@@ -71,17 +71,15 @@ De cima para baixo:
 ### 3.3 Janela de Ajustes
 Janela padrão estilo Ajustes do Sistema: barra lateral de vidro + conteúdo em grupos (`Form` com `.formStyle(.grouped)`). Abre com ⌘, ou pelo popover. Uma instância só.
 
-Barra lateral: **Geral, Aplicativos, Dispositivos, Atalhos, Sobre** (campo “Buscar” filtra itens da barra lateral; pode ser omitido na v1 se custoso).
+Barra lateral: **Geral, Aplicativos, Dispositivos, Sobre** (campo “Buscar” filtra itens da barra lateral; pode ser omitido na v1 se custoso).
 
 - **Geral** (como no design)
   - Abrir ao iniciar sessão — toggle, **padrão ligado**. Subtítulo: “O Volume abre sozinho na barra de menus quando você liga o Mac”. Reflete o estado real de `SMAppService` (se o usuário desligar em Ajustes do Sistema › Itens de Início, o toggle mostra desligado). Se o sistema exigir aprovação (`.requiresApproval`), mostrar dica com botão para abrir Itens de Início.
-  - Mostrar na barra de menus — toggle, padrão ligado. Se desligado, o app só é acessível pelo atalho global ou abrindo o app de novo (reabrir o app abre os Ajustes). Mostrar confirmação antes de desligar explicando isso.
+  - Mostrar na barra de menus — toggle, padrão ligado. Se desligado, o app só é acessível abrindo o app de novo (reabrir o app abre os Ajustes). Mostrar confirmação antes de desligar explicando isso.
   - Ícone da barra de menus — pop-up: “Alto-falante” (dinâmico, §3.1) ou “Controles” (`slider.horizontal.3`, fixo).
   - **Volume**: Lembrar o volume de cada app (padrão ligado; subtítulo “Restaura o nível quando o app voltar a tocar”); Mostrar apps sem áudio (padrão desligado); Incremento do volume (1%, 5%, 10%; padrão 5%).
-  - **Atalhos de teclado**: Abrir o mixer (padrão ⌥⌘V); Silenciar o app em primeiro plano (padrão ⌥⌘M). Campos gravadores de atalho.
 - **Aplicativos**: lista de apps lembrados (ícone, nome, volume salvo, saída salva) com botão “Esquecer” por app e “Esquecer todos”.
 - **Dispositivos**: lista de saídas disponíveis (nome, tipo, padrão ✓). Ação: definir como padrão. (Somente leitura + ação; sem configuração extra na v1.)
-- **Atalhos**: mesmos dois atalhos do Geral (mesma fonte de dados). Pode ser removido da barra lateral se ficar redundante — decidir na implementação, não é requisito.
 - **Sobre**: ícone, nome, versão e build, link do repositório.
 
 ### 3.4 Boas-vindas (primeiro uso)
@@ -154,9 +152,8 @@ O áudio de um app controlado pelo Volume deve soar **exatamente como soaria sem
 - Texto do `NSAudioCaptureUsageDescription`: “O Volume usa o áudio do sistema para ajustar o volume de cada app. Nada é gravado ou enviado.”
 - Negada: estado especial do popover (§3.2) com botão que abre Ajustes do Sistema › Privacidade e Segurança na seção correspondente. Detectar a concessão posterior sem reiniciar o app (re-tentar ao abrir o popover).
 
-## 6. Atalhos e interação
-- ⌥⌘V (padrão): abre/fecha o popover.
-- ⌥⌘M (padrão): silencia/dessilencia o app em primeiro plano (`NSWorkspace.frontmostApplication`); se ele não tem áudio, não faz nada (beep do sistema opcional).
+## 6. Interação por teclado
+- **Sem atalhos globais** (fora do escopo por decisão do usuário). Apenas as teclas padrão do macOS dentro do app, necessárias para acessibilidade:
 - Sliders: setas ←/→ e rolagem do trackpad/mouse ajustam pelo **Incremento do volume**.
 - No popover: Tab/Setas navegam; Espaço alterna mudo da linha focada; Esc fecha. ⌘, abre Ajustes, ⌘Q sai.
 
@@ -208,15 +205,15 @@ UI (SwiftUI)            MenuBarPopover, AppRowView, OutputPicker, SettingsWindow
 Domínio (VolumeCore)    MixerStore, DeviceStore, SettingsModel, ProcessGrouping, RoutingPolicy, VolumeCurve
   │  depende só de protocolos
 Serviços (protocolos)   AudioSystem, AppAudioController, LoginItemService, PermissionService,
-                        HotkeyService, PreferencesStore, AppInfoProvider
+                        PreferencesStore, AppInfoProvider
   │
-Infra (implementações)  CoreAudio*, SMAppService*, UserDefaults*, NSWorkspace*, KeyboardShortcuts*
+Infra (implementações)  CoreAudio*, SMAppService*, UserDefaults*, NSWorkspace*
 ```
 
 - **Separação em módulos SwiftPM** (fronteira imposta pelo compilador):
   - `VolumeCore` — domínio + protocolos de serviço. **Não importa** CoreAudio, AppKit nem SwiftUI (só Foundation/Observation). 100% testável com dublês.
   - `VolumeAudio` — implementações Core Audio (`AudioSystem`, `AppAudioController`). Depende de `VolumeCore`.
-  - `VolumeSystem` — login item, permissão, atalhos, preferências, info de apps (AppKit/ServiceManagement). Depende de `VolumeCore`.
+  - `VolumeSystem` — login item, permissão, preferências, info de apps (AppKit/ServiceManagement). Depende de `VolumeCore`.
   - `VolumeUI` — views SwiftUI. Depende de `VolumeCore` (nunca de `VolumeAudio`/`VolumeSystem`).
   - `VolumeManager` (executável) — **composition root**: cria as implementações reais e injeta no domínio. Único lugar que conhece todos os módulos.
 - **Fluxo de dados unidirecional**: a UI lê estado `@Observable` e chama métodos de intenção (`setVolume(_:for:)`, `toggleMute(_:)`, `route(_:to:)`); nunca altera estado diretamente nem fala com serviços.
@@ -239,7 +236,7 @@ Infra (implementações)  CoreAudio*, SMAppService*, UserDefaults*, NSWorkspace*
 - **Erros tipados**: chamadas Core Audio retornam `OSStatus` → convertido em `AudioError` com contexto (qual propriedade/objeto). Nunca ignorar `OSStatus` silenciosamente.
 - **Gestão de recursos**: todo tap, aggregate device, IOProc e listener criado tem dono claro e é destruído no `deinit`/shutdown (RAII). Teste de vazamento: criar/destruir 100 vezes sem sobras (§12.8).
 - APIs públicas dos módulos documentadas com comentários `///`.
-- Sem dependências além de `KeyboardShortcuts`; qualquer nova exige justificativa no PR.
+- **Zero dependências externas** (só frameworks da Apple); qualquer dependência nova exige aprovação do usuário e alteração desta SPEC.
 
 ### 12.4 Performance (orçamentos)
 | Métrica | Orçamento |
@@ -361,7 +358,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 - Requisito designado (`codesign -d -r-`) estável entre versões e documentado em `docs/SIGNING.md`.
 
 #### 12.9.6 Cadeia de suprimentos
-- Dependências: apenas `KeyboardShortcuts`, **versão exata** (`exact:`), `Package.resolved` commitado. Atualizar dependência = revisão do diff da dependência.
+- Dependências: **nenhuma**. `Package.swift` sem `dependencies` e sem `Package.resolved`.
 - GitHub Actions: actions referenciadas por **SHA de commit**, `permissions: contents: read`, sem secrets, sem `pull_request_target`.
 - Repositório: 2FA na conta, proteção da branch `main`, tags de release assinadas.
 - Ferramentas de desenvolvimento (`vmctl`) **não** são incluídas no `Volume.app` nem no DMG.
@@ -374,7 +371,7 @@ Script `scripts/security-check.sh`, chamado pelo `check.sh` (as verificações d
 4. Busca por segredos no repositório (chaves privadas, `.p12`, tokens).
 5. `vmctl` ausente do bundle; nenhum dylib/framework de terceiros fora do esperado em `Contents/`.
 6. `Info.plist` contém só a descrição de uso de áudio (nenhuma outra `NS*UsageDescription`).
-7. Dependências: `Package.resolved` só com `KeyboardShortcuts` na versão aprovada.
+7. Dependências: `Package.swift` declara zero dependências e não existe `Package.resolved` com pins.
 8. Logs: busca por `Logger` com interpolação sem `privacy:` em dados de apps/dispositivos.
 
 #### 12.9.8 Auditoria independente
@@ -413,7 +410,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 6. Teclas de volume do teclado movem o slider geral em tempo real.
 7. Com “Lembrar volume” ligado, fechar e reabrir o Spotify restaura 72%/rota.
 8. Permissão negada → aviso no popover; conceder em Ajustes do Sistema → lista aparece ao reabrir o popover.
-9. ⌥⌘V abre o popover; ⌥⌘M silencia o app em primeiro plano.
+9. O app não registra nenhum atalho global; no popover, Tab/setas/Espaço/Esc funcionam e ⌘, / ⌘Q respondem.
 10. Sair do Volume → todos os apps voltam ao áudio original.
 11. Testes unitários cobrem `MixerStore`, `PreferencesStore`, agrupamento de processos e a lógica de fallback de rota, usando mocks (cobertura ≥ 85% em `VolumeCore`).
 12. `scripts/check.sh` passa: formatação, build sem avisos (concorrência estrita) e todos os testes.
