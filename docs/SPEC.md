@@ -38,7 +38,7 @@
 
 ## 3. Telas
 
-Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos** (Slider, Toggle, Picker, `.glassEffect`/materiais do sistema, SF Symbols, SF Pro) — o design é referência visual, não pixel-perfect para recriar à mão. **Referência principal do popover (decisão do usuário em 2026-11-08, ⏸2): o módulo “Som” da Central de Controle do macOS** — painel com cantos arredondados e a mesma translucidez do sistema (Liquid Glass no macOS 26, material de menu antes), sliders largos no estilo da Central de Controle, tipografia e espaçamentos iguais. O design do FigCraft passa a ser referência secundária (estrutura e conteúdo).
+Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos** (Slider, Toggle, Picker, `.glassEffect`/materiais do sistema, SF Symbols, SF Pro) sempre que eles reproduzirem o design; quando um controle nativo não reproduzir o design (ex.: o slider), usar um componente próprio pequeno e acessível. **O popover segue o design do FigCraft à risca** (decisão do usuário em 2026-11-08, após o ⏸2): layout, hierarquia, espaçamentos, tamanhos, cores, cantos e translucidez como em `design/VolumeManager.figcraft` (imagens de referência em `design/reference/`). Exceções já decididas: sem atalhos globais, sem “Mostrar na barra de menus” e sem “⌘,”/“⌘Q” escritos no rodapé.
 
 ### 3.1 Item da barra de menus
 - Ícone SF Symbol de alto-falante. Com estilo “Alto-falante”, reflete o volume geral: `speaker.slash.fill` (mudo/0%), `speaker.wave.1.fill` (≤33%), `speaker.wave.2.fill` (≤66%), `speaker.wave.3.fill` (>66%).

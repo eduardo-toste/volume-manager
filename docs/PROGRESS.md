@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-08: M4.1 em andamento no branch `etapa/m4.1` (não integrada), **pausada para refazer o design no FigCraft** (decisão do usuário). Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
+> Atualizado em 2026-11-08: M4.1 em andamento no branch `etapa/m4.1` (não integrada), retomada seguindo o design do FigCraft à risca (decisão do usuário: o design existente é a referência; não redesenhar). Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
 
 ## Onde estamos
 
@@ -19,19 +19,17 @@
 | M4 Popover do mixer (`VolumeUI`) | ✅ QA PASS (3 rodadas) + Segurança LIBERA (`docs/reports/m4-*.md`) | branch `etapa/m4` |
 | ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado pelo usuário (2026-11-08) | — |
 | M4.1 Correções do ⏸2 | ⏸ pausada (WIP no branch `etapa/m4.1`); QA PASS em 2 rodadas, mas o reteste reprovou o visual | branch `etapa/m4.1` |
-| Redesign do popover no FigCraft (referência: menu Som do macOS 26) | ⏳ em andamento | — |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **Redesign no FigCraft** (`design/VolumeManager.figcraft`), referência = menu **Som** da barra de menus do macOS 26 (print do usuário em 2026-11-08): título em negrito, slider largo com alto-falantes nas pontas (preenchimento azul, puxador branco em pílula), separadores finos, cabeçalhos de seção cinza ("Saída"), linhas de dispositivo com ícone em círculo (azul = selecionado, cinza = não), itens de menu no rodapé, painel translúcido com cantos bem arredondados. Usuário aprova o design antes de voltar ao código.
-2. **Retomar a M4.1** seguindo o design aprovado (reimplementar o visual do popover) e corrigir os bugs do reteste abaixo.
+1. **M4.1 — implementar o popover seguindo o design do FigCraft à risca** (`design/VolumeManager.figcraft`, imagens em `design/reference/`) e corrigir os bugs abaixo.
 
 ### Bugs do reteste do ⏸2 (2026-11-08), a corrigir na M4.1
 1. **Painel não é translúcido** e não tem a aparência do menu Som (fundo escuro opaco; cantos e vidro diferentes).
-2. **`CapsuleSlider` quebrado**: aparece como barra branca cheia, sem preenchimento visível nem puxador (geral e apps). Volta-se ao estilo do menu Som (slider nativo largo).
+2. **`CapsuleSlider` quebrado**: aparece como barra branca cheia, sem preenchimento visível nem puxador (geral e apps). Seguir o slider do design (trilha fina, preenchimento azul, puxador branco em pílula).
 3. **Apps que já tocavam antes de abrir o Volume não aparecem**: só aparecem apps que começam a tocar depois que o Volume abriu (falta leitura inicial completa dos processos/`IsRunningOutput` na inicialização).
 4. **Painel não cresce com os apps; aparece barra de rolagem** mesmo com 1 app (`ViewThatFits` escolhe o `ScrollView`). Comportamento desejado: crescer com o conteúdo, rolar só acima do teto (~70% da tela), sem barra visível em uso normal.
 5. Ainda não verificados de ouvido (reteste interrompido): estalo ao baixar o Spotify de 100% para ~10% (itens 13a/13b de `docs/MANUAL_TESTS.md`; a mudança de `initialGain` para o ganho-alvo é hipótese não confirmada — QA M4.1 rodada 2, observação Média), Spotify obedecendo após a permissão, painel colado à barra, borda azul.
