@@ -45,6 +45,16 @@ public final class MixerStore {
   @ObservationIgnored private var graceTimers: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var previouslyPlaying: Set<String> = []
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
+  /// Master volume not yet written to the system, and whether a writer is queued. Dragging
+  /// the slider produces many values; only the newest one is written.
+  @ObservationIgnored private var pendingMasterVolume: Double?
+  @ObservationIgnored private var masterWriterQueued = false
+  /// Newest desired audio not yet sent to the controller, and whether a sender is queued.
+  @ObservationIgnored private var pendingReconcile: (list: [DesiredAppAudio], generation: Int)?
+  @ObservationIgnored private var reconcileQueued = false
+  /// Identifies the sender that may take `pendingReconcile`: a retry queued after it starts a
+  /// new one, so the retry always runs before the reconcile that follows it.
+  @ObservationIgnored private var reconcileSender = 0
 
   /// Creates the store. Nothing happens until `run()` or `handle(_:)`.
   public init(
@@ -106,7 +116,9 @@ public final class MixerStore {
     case .defaultOutput(let uid):
       defaultOutputUID = uid.map { TextSanitizer.clean($0) }.flatMap { $0.isEmpty ? nil : $0 }
     case .master(let state):
-      masterVolume = state.volume
+      // While our own writes are in flight the system echoes older values; the slider keeps
+      // following the user and the last echo, after the writes, brings the real value.
+      if !masterWriterQueued { masterVolume = state.volume }
       masterMuted = state.isMuted
     }
     rebuild()
@@ -122,6 +134,7 @@ public final class MixerStore {
   public func retryAll() {
     failedAppIDs = []
     lastDesired = nil
+    startNewReconcileSender()
     controllerWork.enqueue { [controller] in await controller.retryAll() }
     rebuild()
   }
@@ -150,7 +163,26 @@ public final class MixerStore {
     guard volume.isFinite else { return }
     let clamped = VolumeCurve.clampedVolume(volume)
     masterVolume = clamped
-    systemWork.enqueue { [audioSystem] in await audioSystem.setMasterVolume(clamped) }
+    pendingMasterVolume = clamped
+    guard !masterWriterQueued else { return }
+    masterWriterQueued = true
+    systemWork.enqueue { [weak self] in
+      while let next = await self?.takePendingMasterVolume() {
+        await self?.audioSystem.setMasterVolume(next)
+      }
+    }
+  }
+
+  /// The newest master volume to write, or `nil` (and the writer ends) when there is none.
+  private func takePendingMasterVolume() -> Double? {
+    defer { pendingMasterVolume = nil }
+    if pendingMasterVolume == nil { masterWriterQueued = false }
+    return pendingMasterVolume
+  }
+
+  /// Asks the audio system to re-read its state (the popover just opened).
+  public func refreshAudioSystem() {
+    systemWork.enqueue { [audioSystem] in await audioSystem.refresh() }
   }
 
   /// Mutes or unmutes the default output.
@@ -203,6 +235,7 @@ public final class MixerStore {
     guard var state = states[appID] else { return }
     if failedAppIDs.remove(appID) != nil {
       lastDesired = nil
+      startNewReconcileSender()
       controllerWork.enqueue { [controller] in await controller.retry(appID: appID) }
     }
     change(&state)
@@ -334,10 +367,28 @@ public final class MixerStore {
     let allowed = permission.status == .granted ? desired : []
     guard allowed != lastDesired else { return }
     lastDesired = allowed
-    let generation = epoch.current
-    controllerWork.enqueue { [controller, epoch, allowed] in
-      guard epoch.current == generation else { return }
-      await controller.reconcile(desired: allowed)
+    pendingReconcile = (allowed, epoch.current)
+    guard !reconcileQueued else { return }
+    reconcileQueued = true
+    let sender = reconcileSender
+    controllerWork.enqueue { [weak self, controller, epoch] in
+      while let next = await self?.takePendingReconcile(sender: sender) {
+        guard epoch.current == next.generation else { continue }
+        await controller.reconcile(desired: next.list)
+      }
     }
+  }
+
+  private func startNewReconcileSender() {
+    reconcileSender += 1
+    reconcileQueued = false
+  }
+
+  /// The newest desired audio to send, or `nil` (and the sender ends) when there is none.
+  private func takePendingReconcile(sender: Int) -> (list: [DesiredAppAudio], generation: Int)? {
+    guard sender == reconcileSender else { return nil }
+    defer { pendingReconcile = nil }
+    if pendingReconcile == nil { reconcileQueued = false }
+    return pendingReconcile
   }
 }

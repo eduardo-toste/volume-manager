@@ -8,6 +8,7 @@ struct AppRowView: View {
   let context: PopoverContext
 
   @State private var isHovering = false
+  @FocusState private var isFocused: Bool
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   /// Icon width plus spacing: sliders and output choices line up with the name.
@@ -45,10 +46,11 @@ struct AppRowView: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 8)
-    .rowHighlight(isActive: isHovering || isExpanded)
+    .rowHighlight(isActive: isHovering || isExpanded || isFocused)
     .onHover { isHovering = $0 }
     .animation(reduceMotion ? nil : .default, value: isExpanded)
     .volumeKeys(adjust: adjust, space: { store.toggleMute(row.id) })
+    .focused($isFocused)
     .accessibilityElement(children: .contain)
     .accessibilityLabel(presentation.accessibilityLabel(failed: failed))
   }
@@ -120,13 +122,11 @@ struct AppRowView: View {
   }
 
   private var slider: some View {
-    Slider(
-      value: Binding(
-        get: { row.state.volume }, set: { store.setVolume($0, for: row.id) }),
-      in: 0...1
+    CapsuleSlider(
+      value: Binding(get: { row.state.volume }, set: { store.setVolume($0, for: row.id) }),
+      symbol: showsMuted ? "speaker.slash.fill" : "speaker.fill", height: 18
     )
-    .focusable(false)
-    .opacity(showsMuted ? 0.4 : 1)
+    .opacity(showsMuted ? 0.65 : 1)
     .scrollAdjusts(adjust)
     .accessibilityLabel(Text(verbatim: presentation.appName))
     .accessibilityValue(Text("a11y.percent \(presentation.percent)", bundle: .main))

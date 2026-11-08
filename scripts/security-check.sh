@@ -236,6 +236,33 @@ else
   [ -d "$APP/Contents/Frameworks" ] && fail "Contents/Frameworks must not exist"
   bad_libs="$(otool -L "$APP/Contents/MacOS/VolumeManager" 2>/dev/null | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/Library/|/usr/lib/)' || true)"
   [ -n "$bad_libs" ] && fail "binary links libraries from outside the system: $bad_libs"
+  # 7. compiled strings equal the catalog (catches double UTF-8 encoding: "saÃ­da")
+  for lproj in "$APP"/Contents/Resources/*.lproj; do
+    [ -d "$lproj" ] || continue
+    lang="$(basename "$lproj" .lproj)"
+    plutil -convert json -o - "$lproj/Localizable.strings" 2>/dev/null \
+      | /usr/bin/perl -MJSON::PP -e '
+          my ($lang, $catalog) = @ARGV;
+          local $/;
+          my $json = JSON::PP->new->utf8;
+          my $got = $json->decode(<STDIN>);
+          open(my $fh, "<:raw", $catalog) or die "cannot read $catalog\n";
+          my $strings = $json->decode(<$fh>)->{strings};
+          my $bad = 0;
+          for my $key (keys %$strings) {
+            my $unit = ($strings->{$key}{localizations} // {})->{$lang} or next;
+            my $want = $unit->{stringUnit}{value};
+            if (!defined $got->{$key} || $got->{$key} ne $want) { print "mismatch: $key\n"; $bad++ }
+          }
+          for my $key (keys %$got) {
+            my $unit = ($strings->{$key}{localizations} // {})->{$lang};
+            if (!$unit) { print "extra key: $key\n"; $bad++ }
+          }
+          for my $value (values %$got) { if ($value =~ /[\x{C2}\x{C3}][\x{80}-\x{BF}]/) { print "mojibake: $value\n"; $bad++ } }
+          exit($bad ? 1 : 0);
+        ' "$lang" Resources/Localizable.xcstrings \
+      || fail "$lproj/Localizable.strings does not match Resources/Localizable.xcstrings"
+  done
   # 6. permission descriptions
   check_usage_descriptions "$APP/Contents/Info.plist" "$APP/Contents/Info.plist"
   [ "$FAILURES" -eq "$APP_START" ] && pass "bundle checks"

@@ -6,7 +6,6 @@ import VolumeCore
 public struct MenuBarPopover: View {
   private let context: PopoverContext
 
-  @State private var listHeight: CGFloat = 0
   @State private var popoverWindow: NSWindow?
   @Environment(\.openSettings) private var openSettings
 
@@ -17,7 +16,7 @@ public struct MenuBarPopover: View {
 
   private var store: MixerStore { context.store }
 
-  /// The popover is never taller than about 70% of the screen, and the list shows about six
+  /// The popover is never taller than about 70% of the screen, and the list shows about five
   /// apps before it scrolls.
   private var maxListHeight: CGFloat {
     let screen = NSScreen.main?.visibleFrame.height ?? 900
@@ -40,12 +39,15 @@ public struct MenuBarPopover: View {
     }
     .padding(12)
     .frame(width: 320)
-    .glassBackground()
-    .task { await context.permission.refresh(onlyIfDenied: true) }
+    .task {
+      store.refreshAudioSystem()
+      await context.permission.refresh(onlyIfDenied: true)
+    }
     .background(WindowReader { popoverWindow = $0 })
     .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) {
       note in
       guard let window = popoverWindow, note.object as? NSWindow === window else { return }
+      store.refreshAudioSystem()
       Task { await context.permission.refresh(onlyIfDenied: true) }
     }
     .onExitCommand { NSApp.keyWindow?.close() }
@@ -106,17 +108,20 @@ public struct MenuBarPopover: View {
     }
   }
 
+  /// The list has its natural height up to the screen-based ceiling, then it scrolls
+  /// (`ViewThatFits` picks the plain list when it fits under the ceiling). Nothing is measured after the popover
+  /// appears, so the window never changes size (and position) on its own when it opens.
   private var appList: some View {
-    ScrollView {
-      LazyVStack(spacing: 0) {
-        ForEach(store.rows) { row in
-          AppRowView(row: row, context: context)
-        }
+    let list = VStack(spacing: 0) {
+      ForEach(store.rows) { row in
+        AppRowView(row: row, context: context)
       }
-      .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { listHeight = $0 }
     }
-    .scrollBounceBehavior(.basedOnSize)
-    .frame(height: min(listHeight > 0 ? listHeight : 64 * CGFloat(store.rows.count), maxListHeight))
+    return ViewThatFits(in: .vertical) {
+      list
+      ScrollView { list }
+    }
+    .frame(maxHeight: maxListHeight)
     .padding(.horizontal, -12)
   }
 
@@ -154,7 +159,8 @@ private struct PermissionNotice: View {
   }
 }
 
-/// A menu-like item of the footer, with an optional ⌘ shortcut.
+/// A menu-like item of the footer. The optional ⌘ shortcut works with the popover open but
+/// is not written (SPEC 3.2).
 private struct MenuItemRow: View {
   let title: LocalizedStringKey
   let shortcut: KeyboardShortcut?
@@ -167,10 +173,6 @@ private struct MenuItemRow: View {
       HStack {
         Text(title, bundle: .main)
         Spacer()
-        if let shortcut {
-          Text(verbatim: "⌘" + String(shortcut.key.character).uppercased())
-            .foregroundStyle(.secondary)
-        }
       }
       .padding(.horizontal, 8)
       .padding(.vertical, 5)

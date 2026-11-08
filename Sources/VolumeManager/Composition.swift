@@ -64,7 +64,11 @@ final class Composition {
         for await failure in failures {
           store.controlFailed(failure.appID)
           if failure.reason == .permissionLikelyDenied {
+            // A tap created before the user allowed the permission delivers only zeros. If
+            // the check now says granted, try again; if it was already granted, do not loop.
+            let wasGranted = permission.status == .granted
             await permission.refresh(onlyIfDenied: false)
+            if !wasGranted, permission.status == .granted { store.retryAll() }
           }
         }
       },

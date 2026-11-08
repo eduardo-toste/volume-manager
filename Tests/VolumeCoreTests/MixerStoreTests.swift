@@ -423,8 +423,43 @@ struct MixerStoreTests {
     h.store.setMasterVolume(.nan)
     h.store.setMasterVolume(.infinity)
     await h.settle()
-    #expect(h.system.calls == [.masterVolume(0.4), .masterVolume(1)])
+    #expect(h.system.calls == [.masterVolume(1)], "writes in a burst are coalesced")
     #expect(h.store.masterVolume == 1)
+  }
+
+  @Test func systemEchoesDoNotMoveTheSliderWhileWritesArePending() async {
+    h.store.setMasterVolume(0.2)
+    h.store.setMasterVolume(0.6)
+    h.store.handle(.master(MasterOutputState(volume: 0.2, isMuted: false)))
+    #expect(h.store.masterVolume == 0.6)
+    await h.settle()
+    h.store.handle(.master(MasterOutputState(volume: 0.6, isMuted: false)))
+    #expect(h.store.masterVolume == 0.6)
+    h.store.handle(.master(MasterOutputState(volume: 0.3, isMuted: false)))
+    #expect(h.store.masterVolume == 0.3, "external changes are followed again after the writes")
+  }
+
+  @Test func appVolumeBurstsAreCoalescedAndTheLastValueWins() async {
+    h.start([h.process("Spotify", pid: 10, playing: true)])
+    await h.settle()
+    let before = h.controller.reconcileCalls.count
+    for step in 1...9 { h.store.setVolume(1 - Double(step) / 10, for: "com.spotify.client") }
+    await h.settle()
+    #expect(h.controller.reconcileCalls.count == before + 1)
+    #expect(h.controller.reconcileCalls.last?.first?.gain == VolumeCurve.gain(forVolume: 0.1))
+  }
+
+  @Test func refreshAsksTheAudioSystemToReadAgain() async {
+    h.store.refreshAudioSystem()
+    await h.settle()
+    #expect(h.system.calls == [.refresh])
+  }
+
+  @Test func aPlayingAppAppearsWithoutReopeningAnything() {
+    h.start([])
+    #expect(h.store.rows.isEmpty)
+    h.store.handle(.processes([h.process("Spotify", pid: 10, playing: true)]))
+    #expect(h.store.rows.map(\.app.name) == ["Spotify"])
   }
 
   @Test func masterMuteToggles() async {

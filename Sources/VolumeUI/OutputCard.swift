@@ -5,6 +5,8 @@ import VolumeCore
 struct OutputCard: View {
   let context: PopoverContext
 
+  @FocusState private var isFocused: Bool
+
   private var store: MixerStore { context.store }
 
   var body: some View {
@@ -12,8 +14,6 @@ struct OutputCard: View {
       outputMenu
       masterSlider
     }
-    .padding(12)
-    .cardBackground()
   }
 
   private var outputMenu: some View {
@@ -32,8 +32,9 @@ struct OutputCard: View {
     } label: {
       HStack(spacing: 10) {
         Image(systemName: (store.defaultOutput?.kind ?? .other).symbolName)
-          .frame(width: 24)
-          .foregroundStyle(Color.accentColor)
+          .foregroundStyle(.white)
+          .frame(width: 30, height: 30)
+          .background(Circle().fill(Color.accentColor))
         VStack(alignment: .leading, spacing: 1) {
           Text("output.label", bundle: .main)
             .font(.caption)
@@ -57,42 +58,44 @@ struct OutputCard: View {
   }
 
   private var masterSlider: some View {
-    HStack(spacing: 8) {
+    CapsuleSlider(
+      value: Binding(get: { store.masterVolume }, set: { store.setMasterVolume($0) }),
+      symbol: masterSymbol, symbolIsAlert: store.masterMuted
+    )
+    .opacity(store.masterHasVolumeControl ? 1 : 0.4)
+    .allowsHitTesting(store.masterHasVolumeControl)
+    .scrollAdjusts(adjust)
+    .accessibilityLabel(Text("output.volume", bundle: .main))
+    .accessibilityValue(
+      Text("a11y.percent \(RowPresentation.percent(store.masterVolume))", bundle: .main)
+    )
+    .accessibilityAdjustableAction { direction in
+      adjust(direction == .increment ? 1 : -1)
+    }
+    .overlay {
+      if !store.masterHasVolumeControl {
+        Color.clear.contentShape(Rectangle()).help(Text("output.noVolume", bundle: .main))
+      }
+    }
+    .overlay(alignment: .leading) {
       Button {
         store.toggleMasterMute()
       } label: {
-        Image(systemName: store.masterMuted ? "speaker.slash.fill" : "speaker.fill")
-          .foregroundStyle(store.masterMuted ? Color.red : Color.secondary)
-          .frame(width: 20)
+        Color.clear.frame(width: 30, height: 24).contentShape(Rectangle())
       }
       .buttonStyle(.plain)
       .accessibilityLabel(
         Text(store.masterMuted ? "a11y.master.unmute" : "a11y.master.mute", bundle: .main))
-      Slider(
-        value: Binding(get: { store.masterVolume }, set: { store.setMasterVolume($0) }),
-        in: 0...1
-      )
-      .focusable(false)
-      .disabled(!store.masterHasVolumeControl)
-      .overlay {
-        if !store.masterHasVolumeControl {
-          Color.clear.contentShape(Rectangle()).help(Text("output.noVolume", bundle: .main))
-        }
-      }
-      .scrollAdjusts(adjust)
-      .accessibilityLabel(Text("output.volume", bundle: .main))
-      .accessibilityValue(
-        Text("a11y.percent \(RowPresentation.percent(store.masterVolume))", bundle: .main)
-      )
-      .accessibilityAdjustableAction { direction in
-        adjust(direction == .increment ? 1 : -1)
-      }
-      Image(systemName: "speaker.wave.3.fill")
-        .foregroundStyle(.secondary)
-        .frame(width: 20)
-        .accessibilityHidden(true)
     }
     .volumeKeys(adjust: adjust, space: { store.toggleMasterMute() })
+    .focused($isFocused)
+    .rowHighlight(isActive: isFocused)
+  }
+
+  private var masterSymbol: String {
+    if store.masterMuted || store.masterVolume <= 0 { return "speaker.slash.fill" }
+    if store.masterVolume <= 0.33 { return "speaker.wave.1.fill" }
+    return store.masterVolume <= 0.66 ? "speaker.wave.2.fill" : "speaker.wave.3.fill"
   }
 
   private func adjust(_ steps: Int) {

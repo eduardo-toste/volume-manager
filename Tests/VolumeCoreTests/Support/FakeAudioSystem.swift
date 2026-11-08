@@ -8,6 +8,7 @@ final class FakeAudioSystem: AudioSystem, Sendable {
     case masterVolume(Double)
     case masterMuted(Bool)
     case defaultOutput(String)
+    case refresh
   }
 
   private struct State {
@@ -43,6 +44,8 @@ final class FakeAudioSystem: AudioSystem, Sendable {
   }
 
   func currentState() async -> AudioSystemSnapshot { state.withLock { $0.snapshot } }
+
+  func refresh() async { state.withLock { $0.calls.append(.refresh) } }
 
   func setMasterVolume(_ volume: Double) async {
     state.withLock { $0.calls.append(.masterVolume(volume)) }

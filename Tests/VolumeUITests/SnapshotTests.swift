@@ -13,6 +13,7 @@ import VolumeCore
 private final class QuietAudioSystem: AudioSystem, Sendable {
   func events() -> AsyncStream<AudioSystemEvent> { AsyncStream { _ in } }
   func currentState() async -> AudioSystemSnapshot { AudioSystemSnapshot() }
+  func refresh() async {}
   func setMasterVolume(_ volume: Double) async {}
   func setMasterMuted(_ muted: Bool) async {}
   func setDefaultOutput(uid: String) async {}

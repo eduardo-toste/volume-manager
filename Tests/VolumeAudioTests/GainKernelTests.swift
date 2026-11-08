@@ -183,3 +183,59 @@ struct GainKernelTests {
     #expect(GainKernel.rampStep(sampleRate: 96_000) < GainKernel.rampStep(sampleRate: 48_000))
   }
 }
+
+/// No clicks: a large gain drop never changes the gain by more than one ramp step per frame,
+/// across buffer boundaries and when the target changes in the middle of a ramp (SPEC 12.8.2).
+@Suite("Gain ramp continuity")
+struct GainRampContinuityTests {
+  private let step = GainKernel.rampStep(sampleRate: 48_000)
+
+  /// Runs `targets` (one per buffer, with the buffer sizes in `sizes`) over a constant input
+  /// of 1, so the output is the gain itself, and returns every frame's gain.
+  private func gains(start: Float, sizes: [Int], targets: [Float]) -> [Float] {
+    var ramp = GainRamp(current: start, step: step)
+    var all: [Float] = []
+    for (size, target) in zip(sizes, targets) {
+      let input = [Float](repeating: 1, count: size)
+      var output = [Float](repeating: 0, count: size)
+      input.withUnsafeBufferPointer { source in
+        output.withUnsafeMutableBufferPointer { destination in
+          _ = GainKernel.process(
+            input: source.baseAddress!, output: destination.baseAddress!, frames: size,
+            channels: 1, target: target, ramp: &ramp)
+        }
+      }
+      all += output
+    }
+    return all
+  }
+
+  private func maxJump(_ values: [Float], from first: Float) -> Float {
+    var previous = first
+    var worst: Float = 0
+    for value in values {
+      worst = max(worst, abs(value - previous))
+      previous = value
+    }
+    return worst
+  }
+
+  @Test func dropFromFullTo1PercentIsContinuousAcrossSmallBuffers() {
+    let out = gains(
+      start: 1, sizes: Array(repeating: 64, count: 30), targets: Array(repeating: 0.01, count: 30))
+    #expect(maxJump(out, from: 1) <= step * 1.001)
+    #expect(out.last == 0.01)
+  }
+
+  @Test func targetChangingMidRampStaysContinuous() {
+    let sizes = [100, 37, 256, 5, 480, 64, 64]
+    let targets: [Float] = [0.01, 0.9, 0.0, 0.5, 0.01, 1, 0.2]
+    let out = gains(start: 1, sizes: sizes, targets: targets)
+    #expect(maxJump(out, from: 1) <= step * 1.001)
+  }
+
+  @Test func aTapThatStartsAtItsTargetHasNoJumpAtItsFirstSample() {
+    let out = gains(start: 0.1, sizes: [128], targets: [0.1])
+    #expect(maxJump(out, from: 0.1) == 0)
+  }
+}

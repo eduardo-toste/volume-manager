@@ -16,8 +16,9 @@ final class RealtimeTapState: Sendable {
   private let signalEver = Atomic<Bool>(false)
   private let faultFlag = Atomic<Bool>(false)
 
-  /// Creates the state. `initialGain` is where the ramp starts (1 for a tap that replaces the
-  /// original sound, 0 for one that fades in next to another); `target` is where it goes.
+  /// Creates the state. `initialGain` is where the ramp starts (the target for a tap that
+  /// replaces the original sound, so its first sample is not louder than needed after the
+  /// unavoidable cut from the native sound; 0 for one that fades in next to another); `target` is where it goes.
   init(initialGain: Float, target: Float, step: Float) {
     targetBits = Atomic(Self.sanitized(target).bitPattern)
     currentBits = Atomic(Self.sanitized(initialGain).bitPattern)

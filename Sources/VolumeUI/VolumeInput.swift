@@ -5,12 +5,13 @@ import VolumeCore
 /// Keyboard and scroll input for a volume control (SPEC 6): the arrows and the scroll wheel
 /// move the value by the volume step; the closure receives the signed number of steps.
 extension View {
-  /// Makes the view a keyboard focus target. Arrows adjust the volume, Space (when given)
-  /// toggles mute.
+  /// Makes the view a keyboard focus target without the system focus ring (callers show their
+  /// own soft highlight). Arrows adjust the volume, Space (when given) toggles mute.
   func volumeKeys(adjust: @escaping @MainActor (Int) -> Void, space: (@MainActor () -> Void)? = nil)
     -> some View
   {
     focusable()
+      .focusEffectDisabled()
       .onKeyPress(keys: [.leftArrow, .downArrow, .rightArrow, .upArrow]) { press in
         adjust(press.key == .leftArrow || press.key == .downArrow ? -1 : 1)
         return .handled

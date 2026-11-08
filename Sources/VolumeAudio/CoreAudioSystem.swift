@@ -54,6 +54,12 @@ public actor CoreAudioSystem: AudioSystem {
     return snapshot
   }
 
+  /// Re-reads everything once and emits what changed (the popover just opened).
+  public func refresh() async {
+    guard started else { return }
+    handle(.changed)
+  }
+
   /// Sets the volume of the default output device.
   public func setMasterVolume(_ volume: Double) async {
     guard let id = DeviceCatalog.defaultOutputID() else { return }
@@ -133,8 +139,8 @@ public actor CoreAudioSystem: AudioSystem {
     publish(forced: trigger == .serviceRestarted)
   }
 
-  /// Keeps one `IsRunningOutput` listener per process and the volume listener on the default
-  /// device.
+  /// Keeps one `IsRunningOutput` listener per process and the volume and activity listeners on
+  /// the default device.
   private func syncDynamicListeners() {
     let hub = triggers
     let present = Set(catalog.objectIDs())
@@ -142,10 +148,15 @@ public actor CoreAudioSystem: AudioSystem {
       processListeners.removeValue(forKey: object)
     }
     for object in present where processListeners[object] == nil {
-      processListeners[object] = try? PropertyListener(
-        object: object,
-        addresses: [AudioProperty.address(kAudioProcessPropertyIsRunningOutput)],
-        queue: queue, handler: { hub.yield(.changed) })
+      do {
+        processListeners[object] = try PropertyListener(
+          object: object,
+          addresses: [AudioProperty.address(kAudioProcessPropertyIsRunningOutput)],
+          queue: queue, handler: { hub.yield(.changed) })
+      } catch {
+        AudioLog.logger.error(
+          "process listener failed: \(error.description, privacy: .public)")
+      }
     }
     let defaultID = DeviceCatalog.defaultOutputID() ?? AudioProperty.unknown
     if defaultID != masterDeviceID {
@@ -153,14 +164,23 @@ public actor CoreAudioSystem: AudioSystem {
       masterListener = nil
       if defaultID != AudioProperty.unknown {
         let scope = kAudioObjectPropertyScopeOutput
-        masterListener = try? PropertyListener(
-          object: defaultID,
-          addresses: [
-            AudioProperty.address(AudioProperty.virtualMainVolume, scope: scope),
-            AudioProperty.address(kAudioDevicePropertyMute, scope: scope),
-            AudioProperty.address(kAudioDevicePropertyVolumeScalar, scope: scope, element: 1),
-          ],
-          queue: queue, handler: { hub.yield(.changed) })
+        do {
+          masterListener = try PropertyListener(
+            object: defaultID,
+            addresses: [
+              AudioProperty.address(AudioProperty.virtualMainVolume, scope: scope),
+              AudioProperty.address(kAudioDevicePropertyMute, scope: scope),
+              AudioProperty.address(kAudioDevicePropertyVolumeScalar, scope: scope, element: 1),
+              // Per-process `IsRunningOutput` notifications are not always delivered (measured:
+              // none arrived for a process that started and stopped output). The device
+              // notification is, so an app that starts playing is still noticed (no polling).
+              AudioProperty.address(kAudioDevicePropertyDeviceIsRunningSomewhere),
+            ],
+            queue: queue, handler: { hub.yield(.changed) })
+        } catch {
+          AudioLog.logger.error(
+            "output device listener failed: \(error.description, privacy: .public)")
+        }
       }
     }
   }

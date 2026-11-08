@@ -1,34 +1,11 @@
 import SwiftUI
 
-/// Look of the popover. This file is the only place with `#available`: on macOS 26 and later
-/// it uses Liquid Glass, before that the native translucent materials (SPEC 12.6). With
-/// "Reduce transparency" the system makes both opaque by itself.
+/// Look of the popover. The window of `MenuBarExtra` already provides the system background
+/// (Liquid Glass on macOS 26, a translucent material before) with its rounded corners, so the
+/// content paints no background of its own: a rectangle on top would square the corners and
+/// hide the translucency. With "Reduce transparency" the system makes the window opaque.
 
-/// Background of the whole popover.
-struct GlassBackground: ViewModifier {
-  func body(content: Content) -> some View {
-    if #available(macOS 26, *) {
-      content.glassEffect(.regular, in: .rect)
-    } else {
-      content.background(.regularMaterial)
-    }
-  }
-}
-
-/// Background of a card ("Saída principal").
-struct CardBackground: ViewModifier {
-  private let shape = RoundedRectangle(cornerRadius: 12, style: .continuous)
-
-  func body(content: Content) -> some View {
-    if #available(macOS 26, *) {
-      content.glassEffect(.regular, in: shape)
-    } else {
-      content.background(.thinMaterial, in: shape)
-    }
-  }
-}
-
-/// Soft highlight of a row or menu item under the pointer.
+/// Soft highlight of a row or menu item under the pointer or with keyboard focus.
 struct RowHighlight: ViewModifier {
   let isActive: Bool
 
@@ -40,7 +17,5 @@ struct RowHighlight: ViewModifier {
 }
 
 extension View {
-  func glassBackground() -> some View { modifier(GlassBackground()) }
-  func cardBackground() -> some View { modifier(CardBackground()) }
   func rowHighlight(isActive: Bool) -> some View { modifier(RowHighlight(isActive: isActive)) }
 }

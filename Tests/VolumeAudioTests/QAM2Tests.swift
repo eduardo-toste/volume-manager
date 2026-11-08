@@ -241,15 +241,15 @@ struct QAReconcileTests {
     #expect(rig.engine.created[0].targets == [1, 1, 0, 0])
   }
 
-  @Test func newTapStartsAtUnityAndHardReplacementToo() async {
+  @Test func newTapStartsAtItsTargetGainAndHardReplacementToo() async {
     let rig = QARig()
     await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)])
-    #expect(rig.engine.created[0].request.initialGain == 1)
+    #expect(rig.engine.created[0].request.initialGain == 0.2)
     rig.engine.setDevice("SPK", rate: 96_000, id: 1)  // format changed
     await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)])
     #expect(rig.engine.created.count == 2)
     #expect(rig.engine.created[0].isStopped)
-    #expect(rig.engine.created[1].request.initialGain == 1)
+    #expect(rig.engine.created[1].request.initialGain == 0.2)
   }
 
   @Test func routeChangeCrossfadesThenStopsTheOldOne() async {

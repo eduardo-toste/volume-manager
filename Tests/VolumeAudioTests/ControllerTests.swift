@@ -44,7 +44,7 @@ struct ControllerReconcileTests {
     let request = rig.engine.created[0].request
     #expect(request.pids == [10, 11])
     #expect(request.targetGain == 0.5)
-    #expect(request.initialGain == 1)
+    #expect(request.initialGain == request.targetGain)
     #expect(request.device.uid == "SPK")
   }
 
@@ -115,7 +115,7 @@ struct ControllerReconcileTests {
     #expect(rig.engine.created.count == 2)
     #expect(rig.engine.created[0].isStopped)
     #expect(rig.engine.created[1].request.device.layout.sampleRate == 96_000)
-    #expect(rig.engine.created[1].request.initialGain == 1)
+    #expect(rig.engine.created[1].request.initialGain == 0.5)
   }
 
   @Test func formatChangeEventReappliesTheLastDesiredState() async {

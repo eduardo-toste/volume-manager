@@ -38,7 +38,7 @@
 
 ## 3. Telas
 
-Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos** (Slider, Toggle, Picker, `.glassEffect`/materiais do sistema, SF Symbols, SF Pro) — o design é referência visual, não pixel-perfect para recriar à mão.
+Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos** (Slider, Toggle, Picker, `.glassEffect`/materiais do sistema, SF Symbols, SF Pro) — o design é referência visual, não pixel-perfect para recriar à mão. **Referência principal do popover (decisão do usuário em 2026-11-08, ⏸2): o módulo “Som” da Central de Controle do macOS** — painel com cantos arredondados e a mesma translucidez do sistema (Liquid Glass no macOS 26, material de menu antes), sliders largos no estilo da Central de Controle, tipografia e espaçamentos iguais. O design do FigCraft passa a ser referência secundária (estrutura e conteúdo).
 
 ### 3.1 Item da barra de menus
 - Ícone SF Symbol de alto-falante. Com estilo “Alto-falante”, reflete o volume geral: `speaker.slash.fill` (mudo/0%), `speaker.wave.1.fill` (≤33%), `speaker.wave.2.fill` (≤66%), `speaker.wave.3.fill` (>66%).
@@ -62,7 +62,7 @@ De cima para baixo:
    - **Expandir linha** (clique no nome/ícone ou no rótulo de rota): mostra “SAÍDA DESTE APP” com a lista de dispositivos; o atual tem ✓. Primeira opção: “Padrão do sistema (‹nome›)”. Só uma linha expandida por vez.
    - Hover: fundo levemente destacado na linha.
    - Lista rola se passar de ~6 apps; o popover não cresce além de ~70% da altura da tela.
-5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume…  ⌘,”, “Sair  ⌘Q”.
+5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume…”, “Sair”. ⌘, e ⌘Q funcionam com o popover aberto, mas **não aparecem escritos** (decisão do usuário em 2026-11-08, como na Central de Controle).
 
 **Estados especiais do popover**
 - **Sem permissão de áudio**: no lugar da lista de apps, um aviso “O Volume precisa de acesso ao áudio do sistema para ajustar cada app” + botão “Permitir…” (ver §5). O card de saída principal continua funcionando.

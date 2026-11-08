@@ -73,3 +73,25 @@ Para cada app, toque áudio, baixe o volume, silencie e volte:
 - Medição prévia do QA (só montar a visão com dados falsos, sem áudio): cerca de 70 ms para criar e desenhar o painel completo.
 
 Ao terminar, avise se algo falhou ou pareceu estranho (em especial os itens 1.3 e 2.5).
+
+## M4.1 — reteste do ⏸2
+
+Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/Volume.app` de novo. Só confira o que mudou.
+
+1. **Textos com acento**: abra o painel. Deve estar escrito "Saída", "Aplicativos", "Não foi possível controlar este app" (nada de "SaÃ­da").
+2. **Rodapé**: "Ajustes do Volume…" e "Sair" sem "⌘," nem "⌘Q" escritos. Com o painel aberto, ⌘, ainda abre os Ajustes e ⌘Q ainda sai.
+3. **Volume geral rápido**: arraste o controle largo do cartão "Saída" de ponta a ponta, bem rápido, várias vezes. Ele deve acompanhar o dedo sem travar nem voltar sozinho. Solte no meio: o valor onde você soltou é o que fica (confira em Ajustes do Sistema › Som).
+4. **Volume de um app rápido**: mesma coisa num app tocando; o som muda sem engasgar e fica no último valor.
+5. **Sem anel azul**: clique numa linha: aparece só o fundo suave, sem anel azul. Com "Navegação por teclado" ligada, Tab percorre cartão e linhas com o mesmo fundo suave; setas ajustam e Espaço silencia.
+6. **Aparência**: o painel tem cantos arredondados e transparência como o módulo "Som" da Central de Controle (compare lado a lado, claro e escuro). Controles largos em forma de cápsula, com o alto-falante dentro. O alto-falante do cartão muda conforme o volume e fica vermelho no mudo; clicar nele silencia.
+7. **Posição do painel**: abra e feche várias vezes, com 1, 3 e 6 apps tocando. O painel deve abrir colado na barra de menus, sem pular depois de aparecer.
+8. **Painel alto**: com 5 apps ou menos, abra a saída de um app (clique no nome) e veja se o painel continua inteiro dentro da tela. Anote se passar da borda de baixo.
+9. **Play com o painel aberto**: com o painel aberto e nenhum app tocando, dê play num app. A linha deve aparecer sozinha em até ~1 s. Repita com **outro app já tocando** e um segundo app que estava aberto e pausado: anote se a linha do segundo demora ou só aparece ao reabrir o painel (limitação conhecida).
+10. **Spotify com AirPods**: com a permissão já concedida, deixe o Spotify tocando nos AirPods e baixe o volume dele: deve mudar. Se aparecer "Não foi possível controlar este app", anote e mande o texto de: `log show --last 2m --predicate 'subsystem == "com.volumemanager.app"' --info`.
+11. **Permissão no lançamento**: com o Volume fechado, abra-o sem mexer em nada. Se aparecer sozinho o pedido de permissão, anote (o orquestrador diz que vem do sistema, não do app).
+12. **VoiceOver** (⌘F5): o controle geral e o de cada app são lidos com nome e porcentagem e ajustam com Ctrl+Opt+↑/↓; o botão de mudo do cartão continua sendo lido como botão.
+13. **Estalo ao baixar o Spotify** (use fones ou volume geral baixo; ouça com atenção):
+    a. Feche o Volume e abra de novo. Deixe o Spotify tocando com o controle dele em 100% (sem ter mexido antes). Arraste o controle do Spotify de 100% para cerca de 10% de uma vez. Este é o **primeiro movimento** (o Volume ainda não estava controlando o Spotify). Anote: estalou? (sim/não)
+    b. Agora, com o Spotify já controlado, faça mudanças grandes: arraste de 80% para 10%, depois de 10% para 80%, e repita 2 vezes. Anote: estalou? Em qual direção (descendo, subindo)?
+    c. Resultado esperado: nenhum estalo em (a) nem em (b). Se houver, diga em qual das duas (a ou b) apareceu. Ajuda dizer se foi no começo da música/trecho alto ou também em trechos calmos.
+14. **Painel e lista**: com 5 apps ou menos, abrir a saída de um app não deve passar da borda da tela (a lista passa a rolar). Dar play num app com outro já tocando e o painel aberto: se não aparecer sozinho, feche e abra o painel; a linha deve aparecer ao abrir.

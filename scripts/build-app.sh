@@ -40,13 +40,15 @@ cp Resources/Info.plist "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 plutil -lint "$APP/Contents/Info.plist" >/dev/null
 
-# Compile Localizable.xcstrings into <lang>.lproj/Localizable.strings (xcstringstool is
-# not available with the Command Line Tools). Only simple string units are supported.
+# Compile Localizable.xcstrings into <lang>.lproj/Localizable.strings. The catalog is UTF-8:
+# it is decoded with ->utf8 (bytes to characters) and written back as UTF-8, so accented text
+# is not encoded twice. security-check.sh --app compares the result with the catalog.
+# Only simple string units are supported.
 /usr/bin/perl -MJSON::PP -e '
   use strict; use warnings;
   my ($src, $out) = @ARGV;
   open(my $fh, "<:raw", $src) or die "cannot read $src";
-  my $catalog = JSON::PP->new->decode(do { local $/; <$fh> });
+  my $catalog = JSON::PP->new->utf8->decode(do { local $/; <$fh> });
   my %langs;
   for my $key (sort keys %{ $catalog->{strings} }) {
     my $locs = $catalog->{strings}{$key}{localizations} // {};

@@ -54,6 +54,10 @@ public protocol AudioSystem: Sendable {
   func events() -> AsyncStream<AudioSystemEvent>
   /// The current state of the system.
   func currentState() async -> AudioSystemSnapshot
+  /// Reads the processes and devices once more and emits what changed. Called when the popover
+  /// opens: some changes (an app starting to play while another already plays on the same
+  /// device) send no notification.
+  func refresh() async
   /// Sets the volume of the default output device.
   func setMasterVolume(_ volume: Double) async
   /// Mutes or unmutes the default output device.

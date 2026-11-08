@@ -162,10 +162,12 @@ public actor CoreAudioAppController: AppAudioController {
     case .update:
       entries[id]?.handle.setTarget(gain: gain)
     case .create:
-      _ = await start(item, key: key, gain: gain, initialGain: 1, issuedAt: issued, replacing: nil)
+      _ = await start(
+        item, key: key, gain: gain, initialGain: gain, issuedAt: issued, replacing: nil)
     case .replaceHard:
       destroy(id)
-      _ = await start(item, key: key, gain: gain, initialGain: 1, issuedAt: issued, replacing: nil)
+      _ = await start(
+        item, key: key, gain: gain, initialGain: gain, issuedAt: issued, replacing: nil)
     case .replaceGracefully:
       let old = entries[id]
       _ = await start(item, key: key, gain: gain, initialGain: 0, issuedAt: issued, replacing: old)
@@ -216,7 +218,9 @@ public actor CoreAudioAppController: AppAudioController {
       switch error {
       case .cancelled, .processGone:
         destroy(id)
-      case .incompatibleFormat:
+      case .incompatibleFormat(let mismatch):
+        AudioLog.logger.error(
+          "tap format incompatible: \(String(describing: mismatch), privacy: .public)")
         fail(id, .incompatibleFormat)
       case .coreAudio(let cause):
         AudioLog.logger.error("tap creation failed: \(cause.description, privacy: .public)")
@@ -258,6 +262,8 @@ public actor CoreAudioAppController: AppAudioController {
 
   /// Fail open: destroys the tap, remembers the failure (no retry loop) and tells the domain.
   private func fail(_ id: String, _ reason: AppAudioFailure.Reason) {
+    AudioLog.logger.error(
+      "control failed, tap destroyed: \(String(describing: reason), privacy: .public)")
     destroy(id)
     failed[id] = (reason, generation.current)
     emit(AppAudioFailure(appID: id, reason: reason))

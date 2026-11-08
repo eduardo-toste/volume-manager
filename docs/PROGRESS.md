@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-07, ao pausar após a M4 (⏸2 pendente com o usuário). Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
+> Atualizado em 2026-11-08: M4.1 em andamento no branch `etapa/m4.1` (não integrada), **pausada para refazer o design no FigCraft** (decisão do usuário). Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
 
 ## Onde estamos
 
@@ -17,19 +17,29 @@
 | ⏸1 Teste de ouvido da M2 | ✅ aprovado (2026-11-07): só o app alvo muda, sem estalo, qualidade igual; AirPods ficaram em 48 kHz (sem modo ligação) | — |
 | M2.1 Correções da revisão de segurança | ✅ QA PASS + Segurança LIBERA (`docs/reports/m2.1-*.md`) | `51a3262` |
 | M4 Popover do mixer (`VolumeUI`) | ✅ QA PASS (3 rodadas) + Segurança LIBERA (`docs/reports/m4-*.md`) | branch `etapa/m4` |
-| ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ⏳ com o usuário | — |
+| ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado pelo usuário (2026-11-08) | — |
+| M4.1 Correções do ⏸2 | ⏸ pausada (WIP no branch `etapa/m4.1`); QA PASS em 2 rodadas, mas o reteste reprovou o visual | branch `etapa/m4.1` |
+| Redesign do popover no FigCraft (referência: menu Som do macOS 26) | ⏳ em andamento | — |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **⏸2 — teste do app real com o usuário** (`scripts/build-app.sh`, abrir `build/Volume.app`; roteiro em `docs/MANUAL_TESTS.md`, seção M4). Pontos que só o app real valida: nome do dispositivo no card "Saída" (item 1.3), Esc fecha o popover, vidro duplicado no macOS 26, reverificação ao abrir o popover, ⌘, abrindo a janela provisória num app sem Dock, Sair < 2 s, fundo da linha expandida (sutil), CPU ocioso e abertura do popover (§12.4), matriz de apps §4.1. Corrigir o que o ⏸2 apontar numa M4.1 antes da M5.
-2. **M5 — Ajustes e Boas-vindas**: substituir a cena `Settings` provisória (`Sources/VolumeManager/VolumeManagerApp.swift`); o "Permitir…" das Boas-vindas é a ação do usuário que dispara o pedido de permissão e grava a marca `audioPermissionConfirmed`.
-3. **Pendências para a M6 (Robustez)**:
-   - S21-B1/S21-B2 (`docs/reports/m2.1-security.md`): conferir a identidade (UID do aggregate, UUID do tap) antes de destruir; cobre também o reinício do coreaudiod no meio de `makeSession`.
-   - QA M4 rodada 3, problema 1: a marca `audioPermissionConfirmed` pode ficar velha (permissão zerada no macOS ou app reassinado com outro certificado) e o pedido do sistema aparecer ao reabrir sem ação do usuário. Mitigação sugerida: auto-verificar só se a marca existir e a última sessão terminou limpa.
-4. Opcional (usuário): rodar a suíte de hardware (`VOLUME_AUDIO_TESTS=1`) pelo bundle `vmctl-dev.app`.
+1. **Redesign no FigCraft** (`design/VolumeManager.figcraft`), referência = menu **Som** da barra de menus do macOS 26 (print do usuário em 2026-11-08): título em negrito, slider largo com alto-falantes nas pontas (preenchimento azul, puxador branco em pílula), separadores finos, cabeçalhos de seção cinza ("Saída"), linhas de dispositivo com ícone em círculo (azul = selecionado, cinza = não), itens de menu no rodapé, painel translúcido com cantos bem arredondados. Usuário aprova o design antes de voltar ao código.
+2. **Retomar a M4.1** seguindo o design aprovado (reimplementar o visual do popover) e corrigir os bugs do reteste abaixo.
+
+### Bugs do reteste do ⏸2 (2026-11-08), a corrigir na M4.1
+1. **Painel não é translúcido** e não tem a aparência do menu Som (fundo escuro opaco; cantos e vidro diferentes).
+2. **`CapsuleSlider` quebrado**: aparece como barra branca cheia, sem preenchimento visível nem puxador (geral e apps). Volta-se ao estilo do menu Som (slider nativo largo).
+3. **Apps que já tocavam antes de abrir o Volume não aparecem**: só aparecem apps que começam a tocar depois que o Volume abriu (falta leitura inicial completa dos processos/`IsRunningOutput` na inicialização).
+4. **Painel não cresce com os apps; aparece barra de rolagem** mesmo com 1 app (`ViewThatFits` escolhe o `ScrollView`). Comportamento desejado: crescer com o conteúdo, rolar só acima do teto (~70% da tela), sem barra visível em uso normal.
+5. Ainda não verificados de ouvido (reteste interrompido): estalo ao baixar o Spotify de 100% para ~10% (itens 13a/13b de `docs/MANUAL_TESTS.md`; a mudança de `initialGain` para o ganho-alvo é hipótese não confirmada — QA M4.1 rodada 2, observação Média), Spotify obedecendo após a permissão, painel colado à barra, borda azul.
+
+### Pendências para a M6 (Robustez)
+- S21-B1/S21-B2 (`docs/reports/m2.1-security.md`): conferir a identidade (UID do aggregate, UUID do tap) antes de destruir; cobre também o reinício do coreaudiod no meio de `makeSession`.
+- Marca `audioPermissionConfirmed` velha (permissão zerada no macOS ou app reassinado): auto-verificar só se a marca existir e a última sessão terminou limpa.
+- Opcional (usuário): suíte de hardware (`VOLUME_AUDIO_TESTS=1`) pelo `vmctl-dev.app`.
 
 ## Decisões tomadas (resumo)
 - macOS mínimo **15**; atômicos com `Synchronization.Atomic`.
