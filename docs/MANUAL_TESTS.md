@@ -109,7 +109,7 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
     c. Os menus do painel (`•••` e "Saída") abrem e escolher uma opção funciona sem o painel sumir antes da hora; ⌘, abre os Ajustes e ⌘Q sai.
     d. Com 2 telas, o painel abre na tela do ícone clicado. Perto da borda direita, ele não passa da tela.
     e. O ícone da barra muda conforme o volume geral e o estilo escolhido, e fica destacado enquanto o painel está aberto.
-19. **Estalo, de novo (13)**: depois da correção das paradas de áudio, repita 13a/13b e também: arraste um app passando várias vezes por 100% (de 80% a 100% e de volta). Não deve estalar. Depois de ficar 2 segundos em 100%, o app volta ao som original (sem controle).
+19. **Estalo, de novo (13)**: depois da correção das paradas de áudio, repita 13a/13b e também: arraste um app passando várias vezes por 100% (de 80% a 100% e de volta). Não deve estalar. Em 100% o app continua controlado (ganho 1, som idêntico ao original); ele só deixa de ser controlado cerca de 15 segundos depois de parar de tocar.
 20. **Log** (para mandar se ainda estalar), logo depois do teste:
     `/usr/bin/log show --last 10m --info --predicate 'subsystem == "com.volumemanager.app"'`
     No log, ao mexer só no volume de um app já controlado, **não** devem aparecer várias linhas "tap and aggregate created" / "destroyed" seguidas. Anote o horário aproximado de cada estalo para comparar.
@@ -124,3 +124,16 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
     g. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora, nenhum app fica mudo, e nenhum app é controlado de novo até você mexer em um volume.
     h. **Revogar permissão com o Volume aberto** (opcional): com 2 apps tocando, desligue o "Volume" em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema. Em poucos segundos os apps devem voltar a tocar normalmente (nunca ficar mudos) e o painel mostrar "sem permissão".
     i. **Apps com saída especial** (HDMI/monitor, interface multicanal): se aparecer "Não foi possível controlar este app" num app que você nem mexeu, anote — o som deve continuar normal.
+
+## Reteste agora (versão curta, vale mais que os itens acima)
+
+Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/Volume.app`. Se algo falhar, rode logo depois:
+`/usr/bin/log show --last 10m --info --predicate 'subsystem == "com.volumemanager.app"'` e mande o resultado, com o horário aproximado do problema.
+
+1. **Visual**: abra o painel ao lado de `design/reference/popover-light.png` (e `-dark`). Deve ser igual ao design: fundo borrado translúcido, cantos bem arredondados, sem retângulo nem sombra quadrada em volta, controles com botão branco em pílula. Claro e escuro.
+2. **Apps já tocando**: toque música em 2 apps, depois clique no ícone: os dois aparecem na hora.
+3. **Altura**: com 1, 3 e 6 apps o painel cresce junto, sem barra de rolagem; com 7 ou mais a lista rola. O painel não pula depois de abrir.
+4. **Estalo zero**: toque música e arraste o volume de um app várias vezes (passando por 100%, de 80% a 10% e voltando), e também o volume geral. Não deve estalar. Anote se ouvir um estalinho só quando um app começa a tocar.
+5. **Pausa**: pause um app controlado, espere cerca de 20 segundos e rode o comando do log: deve aparecer "tap and aggregate destroyed" mais ou menos 15 s depois da pausa. Dar play de novo antes disso não deve causar nada.
+6. **Navegador silencioso**: deixe uma aba com vídeo mudo/pausado como único áudio e abra o painel: não deve aparecer "sem permissão". Se aparecer, anote; ele deve sumir sozinho em até ~30 s depois que algo tocar de verdade.
+7. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora e nenhum app fica mudo.

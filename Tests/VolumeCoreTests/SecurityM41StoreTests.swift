@@ -55,4 +55,22 @@ struct SecurityM41StoreTests {
     #expect(h.access.requests == 2)
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "no app stays mute")
   }
+
+  /// Re-audit (S41R-M1): within 30 s of a cached grant, a fresh silence report (for example from
+  /// an app that was playing real sound and went mute because the permission was just revoked)
+  /// runs no check and keeps every tap. The mute is bounded by the cache (about 30 s).
+  @Test func aCachedGrantAnswersAFreshSilenceWithoutACheck() async {
+    let h = MixerHarness(permission: .granted)
+    h.start([
+      h.process("Safari", pid: 10, playing: true), h.process("Spotify", pid: 11, playing: true),
+    ])
+    await h.settle()
+    h.access.answer = .granted
+    await h.store.checkSilentTap()
+    h.access.answer = .denied  // revoked right after
+    await h.store.checkSilentTap()
+    await h.settle()
+    #expect(h.access.requests == 1, "no test tap inside the cache window")
+    #expect(h.controller.reconcileCalls.last?.count == 2, "both taps kept")
+  }
 }
