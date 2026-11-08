@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-08: M4.1 em andamento no branch `etapa/m4.1` (não integrada), retomada seguindo o design do FigCraft à risca (decisão do usuário: o design existente é a referência; não redesenhar). Leia junto com `CLAUDE.md`, `docs/SPEC.md` e `docs/PLAN.md`.
+> Atualizado em 2026-11-08: M4.1 concluída e integrada na `main` (⏸2 aprovado pelo usuário). Próxima: pendências curtas abaixo e depois a M5.
 
 ## Onde estamos
 
@@ -17,22 +17,21 @@
 | ⏸1 Teste de ouvido da M2 | ✅ aprovado (2026-11-07): só o app alvo muda, sem estalo, qualidade igual; AirPods ficaram em 48 kHz (sem modo ligação) | — |
 | M2.1 Correções da revisão de segurança | ✅ QA PASS + Segurança LIBERA (`docs/reports/m2.1-*.md`) | `51a3262` |
 | M4 Popover do mixer (`VolumeUI`) | ✅ QA PASS (3 rodadas) + Segurança LIBERA (`docs/reports/m4-*.md`) | branch `etapa/m4` |
-| ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado pelo usuário (2026-11-08) | — |
-| M4.1 Correções do ⏸2 | ⏸ pausada (WIP no branch `etapa/m4.1`); QA PASS em 2 rodadas, mas o reteste reprovou o visual | branch `etapa/m4.1` |
+| ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado (2026-11-08, manhã) → ✅ aprovado após a M4.1 (2026-11-08, tarde) | — |
+| M4.1 Correções do ⏸2 (design do FigCraft à risca, painel próprio, sempre controlar, estalo zero) | ✅ QA PASS (6 rodadas) + Segurança LIBERA (reavaliação) + ⏸2 aprovado | branch `etapa/m4.1` |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **M4.1 — implementar o popover seguindo o design do FigCraft à risca** (`design/VolumeManager.figcraft`, imagens em `design/reference/`) e corrigir os bugs abaixo.
-
-### Bugs do reteste do ⏸2 (2026-11-08), a corrigir na M4.1
-1. **Painel não é translúcido** e não tem a aparência do menu Som (fundo escuro opaco; cantos e vidro diferentes).
-2. **`CapsuleSlider` quebrado**: aparece como barra branca cheia, sem preenchimento visível nem puxador (geral e apps). Seguir o slider do design (trilha fina, preenchimento azul, puxador branco em pílula).
-3. **Apps que já tocavam antes de abrir o Volume não aparecem**: só aparecem apps que começam a tocar depois que o Volume abriu (falta leitura inicial completa dos processos/`IsRunningOutput` na inicialização).
-4. **Painel não cresce com os apps; aparece barra de rolagem** mesmo com 1 app (`ViewThatFits` escolhe o `ScrollView`). Comportamento desejado: crescer com o conteúdo, rolar só acima do teto (~70% da tela), sem barra visível em uso normal.
-5. Ainda não verificados de ouvido (reteste interrompido): estalo ao baixar o Spotify de 100% para ~10% (itens 13a/13b de `docs/MANUAL_TESTS.md`; a mudança de `initialGain` para o ganho-alvo é hipótese não confirmada — QA M4.1 rodada 2, observação Média), Spotify obedecendo após a permissão, painel colado à barra, borda azul.
+1. **Pendências curtas da M4.1** (uma rodada Dev → QA, antes da M5):
+   - **S41R-M1 (Médio, `docs/reports/m4.1-security.md`, Reavaliação)**: o "concedida" guardado por 30 s (`recentGrant`) responde também a um silêncio novo; após revogar a permissão com o Volume aberto, um app pode ficar mudo até ~30 s. Correção: usar o resultado guardado só para reverificar um silêncio já verificado, nunca para o primeiro silêncio depois de sinal.
+   - **S41R-B1 (Baixo)**: no estado negado, a reverificação a cada 30 s pode mostrar o pedido do TCC sem ação do usuário se a permissão for zerada (§5).
+   - **Teste intermitente**: `swift test` falhou 1 vez em 5 execuções em 2026-11-08 (provavelmente sob carga, com outros agentes testando em paralelo); identificar e estabilizar (só no teste, sem afrouxar).
+   - Itens do reteste não confirmados explicitamente pelo usuário: pausa → log "tap and aggregate destroyed" ~15 s depois (S41-M2), navegador silencioso sem "sem permissão", estalinho no início da reprodução.
+   - QA M4.1 rodada 6, problema 1 (Média): "sem permissão" falso com navegador silencioso como único áudio (falha aberta; aceito pela SPEC §4.6, sumirá na reverificação com som real).
+2. **M5 — Ajustes e Boas-vindas**: substituir a cena `Settings` provisória; seguir o design do FigCraft à risca também nessas telas; "Permitir…" das Boas-vindas é a ação do usuário que dispara o pedido de permissão e grava a marca. Com o painel próprio (`MenuBarController`), conferir que ⌘, / "Ajustes do Volume…" abrem a janela (risco relatado pelo Dev na rodada 4).
 
 ### Pendências para a M6 (Robustez)
 - **Antes do release (M7)**: rebaixar os logs `.notice` de ciclo de vida de tap (criado/destruído/plano/sondas) para `.debug`/`.info` — hoje persistidos para diagnosticar o reteste (S41-B3, `docs/reports/m4.1-security.md`).
