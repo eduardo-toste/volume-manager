@@ -50,3 +50,18 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 
 ## Modelos dos agentes
 Dev e QA: Sonnet · Segurança: Opus · tarefas mecânicas/documentação: Haiku. Escalar para Opus só se o Sonnet travar.
+
+## Como retomar (para o orquestrador)
+1. Falar com o usuário **sempre em português (pt-BR)**, com um resumo curto ao fim de cada etapa.
+2. Ler este arquivo, `CLAUDE.md`, a etapa em `docs/PLAN.md` e os relatórios em `docs/reports/`.
+3. Fluxo de cada etapa:
+   - criar o branch `etapa/<id>` a partir da `main`;
+   - **Dev** (subagente Sonnet, papel em `.claude/agents/volume-dev.md`) implementa;
+   - **QA** (Sonnet, `.claude/agents/volume-qa.md`) verifica de forma independente e dá PASS/FAIL. Em FAIL, devolver ao mesmo Dev a lista de problemas, no máximo 3 voltas;
+   - **Segurança** (Opus, `.claude/agents/volume-security.md`) nas etapas de áudio e na M7.5;
+   - o orquestrador roda `scripts/check.sh` ele mesmo antes de commitar;
+   - commit no branch, `git merge --ff-only` na `main`, atualizar este arquivo.
+4. Os prompts dos agentes devem repetir as regras críticas: nenhum som audível, nunca fazer tap em apps do usuário (só `afplay -v 0` próprio), nada de instalar ou baixar, sem commit/branch/push pelos agentes.
+5. **Push: só o usuário faz** (`git push` é bloqueado em `.claude/settings.json`). Ao fim, passar o comando `! git -C <repo> push origin main`.
+6. Testes com áudio real: usar `scripts/make-vmctl-app.sh` e `open -W --stdout … build/vmctl-dev.app --args …`. O usuário já concedeu a permissão ao `vmctl-dev`. Ferramentas de terminal sem `Info.plist` recebem só silêncio.
+7. Decisões que mudam requisitos: perguntar ao usuário e então atualizar SPEC, PLAN e este arquivo.

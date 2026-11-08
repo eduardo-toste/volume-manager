@@ -9,7 +9,7 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 - `design/VolumeManager.figcraft` — referência visual (não é para recriar pixel a pixel; usar controles nativos).
 
 ## Ambiente
-- macOS 27, Swift 6.4 via Command Line Tools. **Sem Xcode** (sem `xcodebuild`, sem XCTest). Testes com **Swift Testing**.
+- macOS 27, **Xcode 27.2 instalado e selecionado** (Swift 6.4.2; macros do SwiftUI disponíveis). Testes com **Swift Testing**. Sem CI: tudo é verificado localmente.
 - Comandos: `swift build`, `swift test`, `swift format lint -r .`, `scripts/check.sh` (portão de qualidade), `scripts/build-app.sh`.
 
 ## NUNCA (regras absolutas — violar = etapa reprovada)
