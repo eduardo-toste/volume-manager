@@ -42,7 +42,7 @@ Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos*
 
 ### 3.1 Item da barra de menus
 - Ícone SF Symbol de alto-falante. Com estilo “Alto-falante”, reflete o volume geral: `speaker.slash.fill` (mudo/0%), `speaker.wave.1.fill` (≤33%), `speaker.wave.2.fill` (≤66%), `speaker.wave.3.fill` (>66%).
-- Clique abre/fecha o popover. Fica destacado enquanto o popover está aberto (comportamento padrão do `MenuBarExtra`).
+- Clique abre/fecha o popover. Fica destacado enquanto o popover está aberto. O popover é uma **janela própria sem moldura** (`NSStatusItem` + painel transparente), presa ao ícone, para reproduzir exatamente os cantos e a translucidez do design — a janela padrão do `MenuBarExtra` desenha fundo e cantos próprios por trás (decisão do usuário em 2026-11-08). Fecha ao clicar fora, com Esc ou ao clicar de novo no ícone; não usa monitor global de eventos nem pede permissão nova.
 
 ### 3.2 Popover do mixer (largura ~320pt)
 De cima para baixo:
