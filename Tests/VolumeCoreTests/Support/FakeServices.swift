@@ -50,12 +50,37 @@ final class FakeLoginItemService: LoginItemService, Sendable {
 final class FakePermissionService: PermissionService, Sendable {
   private let granted = Mutex(AudioPermissionStatus.notDetermined)
 
-  func currentStatus() async -> AudioPermissionStatus { granted.withLock { $0 } }
-
   func request() async -> AudioPermissionStatus {
     granted.withLock { $0 = .granted }
     return .granted
   }
 
   func openPrivacySettings() {}
+}
+
+/// Permission double whose answer the test chooses.
+final class ScriptedPermissionService: PermissionService, Sendable {
+  private let state = Mutex((answer: AudioPermissionStatus.notDetermined, requests: 0, opened: 0))
+
+  var answer: AudioPermissionStatus {
+    get { state.withLock { $0.answer } }
+    set { state.withLock { $0.answer = newValue } }
+  }
+  var requests: Int { state.withLock { $0.requests } }
+  var opened: Int { state.withLock { $0.opened } }
+
+  func request() async -> AudioPermissionStatus {
+    state.withLock {
+      $0.requests += 1
+      return $0.answer
+    }
+  }
+
+  func openPrivacySettings() { state.withLock { $0.opened += 1 } }
+}
+
+/// A monitor that already knows the permission was confirmed, for tests that are not about it.
+@MainActor
+func grantedPermission() -> PermissionMonitor {
+  PermissionMonitor(service: ScriptedPermissionService(), status: .granted)
 }

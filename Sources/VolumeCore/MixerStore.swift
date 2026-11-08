@@ -18,6 +18,9 @@ public final class MixerStore {
   public private(set) var masterMuted = false
   /// The one row that is expanded, if any.
   public private(set) var expandedAppID: String?
+  /// Apps whose tap failed or was removed by the safety watchdog; they play normally and the
+  /// row says it could not be controlled (SPEC 4.6). Cleared by the next user action on the app.
+  public private(set) var failedAppIDs: Set<String> = []
 
   /// How long an app that stopped playing stays in the list (SPEC 4.1).
   public static let gracePeriod: Duration = .seconds(5)
@@ -28,6 +31,9 @@ public final class MixerStore {
   @ObservationIgnored private let settings: SettingsModel
   @ObservationIgnored private let safety: SafetyPolicy
   @ObservationIgnored private let clock: AppClock
+  @ObservationIgnored private let permission: PermissionMonitor
+  @ObservationIgnored private var accessTask: Task<Void, Never>?
+  @ObservationIgnored private var wantsTaps = false
   @ObservationIgnored private let ownPID: Int32?
   @ObservationIgnored private let epoch = EpochCounter()
   @ObservationIgnored private var panicTasks: [Task<Void, Never>] = []
@@ -44,8 +50,9 @@ public final class MixerStore {
   public init(
     audioSystem: any AudioSystem, controller: any AppAudioController,
     appInfo: any AppInfoProvider, settings: SettingsModel, safety: SafetyPolicy, clock: AppClock,
-    ownPID: Int32? = nil
+    permission: PermissionMonitor, ownPID: Int32? = nil
   ) {
+    self.permission = permission
     self.ownPID = ownPID
     self.audioSystem = audioSystem
     self.controller = controller
@@ -54,6 +61,12 @@ public final class MixerStore {
     self.safety = safety
     self.clock = clock
     settings.onChange { [weak self] in self?.rebuild() }
+    let previous = permission.onGranted
+    permission.onGranted = { [weak self] in
+      previous()
+      self?.settings.audioPermissionConfirmed = true
+      self?.retryAll()
+    }
   }
 
   // MARK: Derived state
@@ -96,6 +109,20 @@ public final class MixerStore {
       masterVolume = state.volume
       masterMuted = state.isMuted
     }
+    rebuild()
+  }
+
+  /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6).
+  public func controlFailed(_ appID: String) {
+    guard groups.contains(where: { $0.id == appID }) else { return }
+    failedAppIDs.insert(appID)
+  }
+
+  /// Allows a new attempt for every failed app, for example after the permission was granted.
+  public func retryAll() {
+    failedAppIDs = []
+    lastDesired = nil
+    controllerWork.enqueue { [controller] in await controller.retryAll() }
     rebuild()
   }
 
@@ -153,7 +180,9 @@ public final class MixerStore {
   /// called at once, not queued behind pending `reconcile` calls, which are discarded.
   public func restoreOriginalAudio() {
     states = Dictionary(uniqueKeysWithValues: groups.map { ($0.id, AppAudioState.default) })
+    failedAppIDs = []
     settings.forgetAll()
+    settings.audioPermissionConfirmed = false
     lastDesired = nil
     epoch.advance()
     panicTasks.append(Task { [controller] in await controller.restoreAll() })
@@ -164,6 +193,7 @@ public final class MixerStore {
 
   /// Waits until every queued call to the services has finished.
   func settle() async {
+    await accessTask?.value
     await systemWork.settle()
     await controllerWork.settle()
     for task in panicTasks { await task.value }
@@ -171,8 +201,13 @@ public final class MixerStore {
 
   private func update(_ appID: String, _ change: (inout AppAudioState) -> Void) {
     guard var state = states[appID] else { return }
+    if failedAppIDs.remove(appID) != nil {
+      lastDesired = nil
+      controllerWork.enqueue { [controller] in await controller.retry(appID: appID) }
+    }
     change(&state)
     states[appID] = state
+    defer { confirmAccessIfNeeded() }
     if settings.rememberVolumes, let bundleID = groups.first(where: { $0.id == appID })?.bundleID {
       if state == .default {
         settings.forget(bundleID)
@@ -181,6 +216,31 @@ public final class MixerStore {
       }
     }
     rebuild()
+  }
+
+  /// No tap exists until a signal check confirmed the permission in this session (SPEC 4.6).
+  /// The check runs after a user action, or by itself when the permission was confirmed on
+  /// this Mac before and a remembered app is playing (the user already decided, so the system
+  /// shows no prompt). An indeterminate result leaves it pending until the next action or
+  /// reconciliation.
+  private func confirmAccessIfNeeded() {
+    guard wantsTaps, permission.status != .granted, accessTask == nil else { return }
+    accessTask = Task { [weak self] in
+      guard let self else { return }
+      await permission.refresh(onlyIfDenied: false)
+      accessTask = nil
+      switch permission.status {
+      case .granted:
+        settings.audioPermissionConfirmed = true
+        retryAll()
+      case .denied: settings.audioPermissionConfirmed = false
+      case .notDetermined: break
+      }
+    }
+  }
+
+  private func isPlaying(_ appID: String) -> Bool {
+    groups.contains { $0.id == appID && $0.isPlaying }
   }
 
   private func adoptNewApps() {
@@ -222,6 +282,7 @@ public final class MixerStore {
       settings.showInactiveApps || $0.isPlaying || graceTimers[$0.id] != nil
     }
     rows = visible.map(makeRow).sorted(by: Self.isOrderedBefore)
+    failedAppIDs.formIntersection(groups.map(\.id))
     if let expanded = expandedAppID, !rows.contains(where: { $0.id == expanded }) {
       expandedAppID = nil
     }
@@ -266,12 +327,17 @@ public final class MixerStore {
           app: ControlledApp(app), gain: gain, muted: state.muted, targetDeviceUID: route.deviceUID)
       )
     }
-    guard desired != lastDesired else { return }
-    lastDesired = desired
+    wantsTaps = !desired.isEmpty
+    if settings.audioPermissionConfirmed, desired.contains(where: { isPlaying($0.app.id) }) {
+      confirmAccessIfNeeded()
+    }
+    let allowed = permission.status == .granted ? desired : []
+    guard allowed != lastDesired else { return }
+    lastDesired = allowed
     let generation = epoch.current
-    controllerWork.enqueue { [controller, epoch, desired] in
+    controllerWork.enqueue { [controller, epoch, allowed] in
       guard epoch.current == generation else { return }
-      await controller.reconcile(desired: desired)
+      await controller.reconcile(desired: allowed)
     }
   }
 }

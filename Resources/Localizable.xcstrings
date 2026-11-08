@@ -1,16 +1,356 @@
 {
-  "sourceLanguage" : "pt-BR",
-  "strings" : {
-    "popover.title" : {
-      "localizations" : {
-        "pt-BR" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Volume"
+  "sourceLanguage": "pt-BR",
+  "strings": {
+    "a11y.master.mute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silenciar a saída"
+          }
+        }
+      }
+    },
+    "a11y.master.unmute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reativar o som da saída"
+          }
+        }
+      }
+    },
+    "a11y.percent %lld": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld por cento"
+          }
+        }
+      }
+    },
+    "a11y.row": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, volume %2$lld por cento, saída %3$@"
+          }
+        }
+      }
+    },
+    "a11y.row.expand": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostra as saídas deste app"
+          }
+        }
+      }
+    },
+    "a11y.row.failed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@, não foi possível controlar este app"
+          }
+        }
+      }
+    },
+    "a11y.row.mute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silenciar"
+          }
+        }
+      }
+    },
+    "a11y.row.muted": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@, silenciado, saída %2$@"
+          }
+        }
+      }
+    },
+    "a11y.row.unmute": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reativar o som"
+          }
+        }
+      }
+    },
+    "app.unnamed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "App sem nome"
+          }
+        }
+      }
+    },
+    "device.unknown": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Desconhecido"
+          }
+        }
+      }
+    },
+    "device.unnamed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivo sem nome"
+          }
+        }
+      }
+    },
+    "footer.quit": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair"
+          }
+        }
+      }
+    },
+    "footer.settings": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes do Volume…"
+          }
+        }
+      }
+    },
+    "footer.sound": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes de Som…"
+          }
+        }
+      }
+    },
+    "menu.about": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobre o Volume"
+          }
+        }
+      }
+    },
+    "menu.more": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mais opções"
+          }
+        }
+      }
+    },
+    "menu.quit": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair"
+          }
+        }
+      }
+    },
+    "menu.restore": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaurar áudio original"
+          }
+        }
+      }
+    },
+    "menu.settings": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajustes do Volume…"
+          }
+        }
+      }
+    },
+    "output.label": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saída"
+          }
+        }
+      }
+    },
+    "output.noVolume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este dispositivo não permite ajustar o volume"
+          }
+        }
+      }
+    },
+    "output.volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume geral"
+          }
+        }
+      }
+    },
+    "permission.allow": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitir…"
+          }
+        }
+      }
+    },
+    "permission.message": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Volume precisa de acesso ao áudio do sistema para ajustar cada app"
+          }
+        }
+      }
+    },
+    "popover.apps": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplicativos"
+          }
+        }
+      }
+    },
+    "popover.empty": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum app está reproduzindo áudio"
+          }
+        }
+      }
+    },
+    "popover.playing %lld": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld reproduzindo"
+          }
+        }
+      }
+    },
+    "popover.safeMode": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modo seguro: os volumes lembrados não foram aplicados nesta sessão."
+          }
+        }
+      }
+    },
+    "popover.title": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume"
+          }
+        }
+      }
+    },
+    "row.defaultOutput": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão do sistema (%@)"
+          }
+        }
+      }
+    },
+    "row.failed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível controlar este app"
+          }
+        }
+      }
+    },
+    "row.muted": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Silenciado"
+          }
+        }
+      }
+    },
+    "row.outputs": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "SAÍDA DESTE APP"
+          }
+        }
+      }
+    },
+    "settings.placeholder": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Os Ajustes do Volume chegam na próxima etapa."
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

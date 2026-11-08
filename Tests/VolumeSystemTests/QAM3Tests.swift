@@ -394,7 +394,7 @@ struct QAPermissionTests {
       for _ in 0..<20 { group.addTask { _ = await service.request() } }
     }
     #expect(probe.callCount == 20)
-    let status = await service.currentStatus()
+    let status = await service.request()
     #expect(status == .granted || status == .denied)
   }
 

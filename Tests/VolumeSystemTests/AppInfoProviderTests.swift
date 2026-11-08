@@ -124,11 +124,4 @@ struct AppInfoProviderTests {
     #expect(provider.icon(forBundleID: "com.example.does.not.exist.\(UUID().uuidString)") == nil)
     #expect(provider.icon(forBundleID: "") == nil)
   }
-
-  @Test func frontmostApplicationIsSanitizedWhenPresent() {
-    if let app = provider.frontmostApplication() {
-      #expect(app.pid > 0)
-      #expect((app.name?.count ?? 0) <= TextSanitizer.maxLength)
-    }
-  }
 }

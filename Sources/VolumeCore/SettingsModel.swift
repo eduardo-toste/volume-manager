@@ -13,6 +13,7 @@ public final class SettingsModel {
     static let showInactiveApps = "showInactiveApps"
     static let volumeStep = "volumeStepPercent"
     static let onboardingCompleted = "onboardingCompleted"
+    static let permissionConfirmed = "audioPermissionConfirmed"
     static let rememberedApps = "rememberedApps"
   }
 
@@ -34,6 +35,12 @@ public final class SettingsModel {
   /// True once the welcome window has been dealt with.
   public var onboardingCompleted = false {
     didSet { changed(oldValue != onboardingCompleted) }
+  }
+  /// True once the audio permission was confirmed as granted on this Mac. It lets the app
+  /// verify the permission at launch without showing the system prompt (the user already
+  /// decided). Cleared when the permission is found denied and by the panic button.
+  public var audioPermissionConfirmed = false {
+    didSet { changed(oldValue != audioPermissionConfirmed) }
   }
   /// Remembered apps by bundle ID.
   public private(set) var rememberedApps: [String: RememberedApp] = [:]
@@ -116,6 +123,8 @@ public final class SettingsModel {
       PreferenceValidation.bool(store.object(forKey: Key.showInactiveApps)) ?? false
     onboardingCompleted =
       PreferenceValidation.bool(store.object(forKey: Key.onboardingCompleted)) ?? false
+    audioPermissionConfirmed =
+      PreferenceValidation.bool(store.object(forKey: Key.permissionConfirmed)) ?? false
     menuBarIconStyle =
       PreferenceValidation.string(store.object(forKey: Key.menuBarIconStyle))
       .flatMap(MenuBarIconStyle.init(rawValue:)) ?? .speaker
@@ -145,6 +154,7 @@ public final class SettingsModel {
     store.set(showInactiveApps, forKey: Key.showInactiveApps)
     store.set(volumeStep.rawValue, forKey: Key.volumeStep)
     store.set(onboardingCompleted, forKey: Key.onboardingCompleted)
+    store.set(audioPermissionConfirmed, forKey: Key.permissionConfirmed)
     store.set(rememberedApps.mapValues(\.propertyList), forKey: Key.rememberedApps)
   }
 }

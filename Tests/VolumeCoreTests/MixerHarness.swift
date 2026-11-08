@@ -11,18 +11,24 @@ struct MixerHarness {
   let settings: SettingsModel
   let safety: SafetyPolicy
   let store: MixerStore
+  let permission: PermissionMonitor
+  let access = ScriptedPermissionService()
 
   static let speakers = OutputDevice(id: 1, uid: "speakers", name: "Alto-falantes", kind: .builtIn)
   static let airpods = OutputDevice(id: 2, uid: "airpods", name: "AirPods Pro", kind: .bluetooth)
 
-  init(preferences initial: [String: Any] = [:], beginSafety: Bool = false) {
+  init(
+    preferences initial: [String: Any] = [:], beginSafety: Bool = false,
+    permission status: AudioPermissionStatus = .granted
+  ) {
+    permission = PermissionMonitor(service: access, status: status)
     preferences = InMemoryPreferencesStore(initial)
     settings = SettingsModel(store: preferences, clock: clock)
     safety = SafetyPolicy(store: preferences, clock: clock)
     if beginSafety { safety.beginSession() }
     store = MixerStore(
       audioSystem: system, controller: controller, appInfo: info, settings: settings,
-      safety: safety, clock: clock)
+      safety: safety, clock: clock, permission: permission)
     for (name, bundleID) in [
       ("Spotify", "com.spotify.client"), ("Safari", "com.apple.Safari"),
       ("Música", "com.apple.Music"), ("Zoom", "us.zoom.xos"),

@@ -6,6 +6,9 @@ import Testing
 
 /// Records every call in order. The first `reconcile` can be held until `release()`.
 final class OrderedSpyController: AppAudioController, Sendable {
+  func retry(appID: String) async {}
+  func retryAll() async {}
+
   enum Call: Sendable, Equatable {
     case reconcile([DesiredAppAudio])
     case restoreAll
@@ -66,7 +69,8 @@ struct QAPanicOrderingTests {
     let settings = SettingsModel(store: preferences, clock: clock)
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: controller, appInfo: FakeAppInfoProvider(),
-      settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock)
+      settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,
+      permission: grantedPermission())
     store.handle(.devices([MixerHarness.speakers, MixerHarness.airpods]))
     store.handle(.defaultOutput(uid: "speakers"))
     store.handle(
@@ -197,7 +201,8 @@ struct QARound2StoreTests {
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: SpyAppAudioController(), appInfo: info,
       settings: SettingsModel(store: preferences, clock: clock),
-      safety: SafetyPolicy(store: preferences, clock: clock), clock: clock, ownPID: 4242)
+      safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,
+      permission: grantedPermission(), ownPID: 4242)
     store.handle(
       .processes([
         AudioProcessInfo(pid: 4242, bundleID: "com.apple.Safari", isRunningOutput: true),

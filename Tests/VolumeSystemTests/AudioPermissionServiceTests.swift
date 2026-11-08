@@ -29,21 +29,12 @@ private final class URLBox: @unchecked Sendable {
 
 @Suite("AudioPermissionService")
 struct AudioPermissionServiceTests {
-  @Test func currentStatusNeverProbes() async {
-    let probe = FakeProbe(result: true)
-    let service = AudioPermissionService(probe: probe)
-    #expect(await service.currentStatus() == .notDetermined)
-    #expect(probe.callCount == 0)
-  }
-
   @Test func requestMapsProbeResult() async {
     let probe = FakeProbe(result: true)
     let service = AudioPermissionService(probe: probe)
     #expect(await service.request() == .granted)
-    #expect(await service.currentStatus() == .granted)
     probe.set(false)
     #expect(await service.request() == .denied)
-    #expect(await service.currentStatus() == .denied)
     probe.set(true)
     #expect(await service.request() == .granted)
   }

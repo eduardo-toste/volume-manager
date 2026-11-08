@@ -70,7 +70,7 @@ enum DeviceCatalog {
         (try? AudioProperty.get(
           id, AudioProperty.address(kAudioDevicePropertyTransportType), initial: UInt32(0))) ?? 0
       return OutputDevice(
-        id: id, uid: uid, name: name.isEmpty ? "Output" : name,
+        id: id, uid: uid, name: name,
         kind: OutputDeviceKind(transportType: transport),
         hasVolumeControl: hasVolumeControl(id))
     }

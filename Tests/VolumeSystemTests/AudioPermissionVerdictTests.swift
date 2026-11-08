@@ -31,7 +31,6 @@ struct AudioPermissionVerdictTests {
     _ = await service.request()
     probe.set(.indeterminate)
     #expect(await service.request() == .denied)
-    #expect(await service.currentStatus() == .denied)
   }
 
   @Test func probesWithoutAVerifyOverrideStillWork() async {

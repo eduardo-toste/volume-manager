@@ -1,16 +1,34 @@
+import AppKit
 import SwiftUI
 import VolumeUI
 
-/// Composition root: the only place that knows every module.
+/// The app: a menu bar item with the mixer popover. Everything is built by `Composition`.
 @main
 struct VolumeManagerApp: App {
+  @NSApplicationDelegateAdaptor private var delegate: AppDelegate
+
   var body: some Scene {
     MenuBarExtra {
-      MenuBarPopover()
+      MenuBarPopover(context: delegate.composition.context)
     } label: {
-      Image(systemName: "speaker.wave.2.fill")
-        .accessibilityLabel(Text("popover.title", bundle: .main))
+      MenuBarIcon(store: delegate.composition.store, settings: delegate.composition.settings)
     }
     .menuBarExtraStyle(.window)
+
+    // Placeholder until the settings window (M5).
+    Settings {
+      Text("settings.placeholder", bundle: .main)
+        .padding(32)
+    }
+  }
+}
+
+/// Owns the composition and starts it when the app finishes launching.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+  let composition = Composition()
+
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    composition.start()
   }
 }

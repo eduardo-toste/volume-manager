@@ -7,6 +7,8 @@ final class SpyAppAudioController: AppAudioController, Sendable {
   enum Call: Sendable, Equatable {
     case reconcile([DesiredAppAudio])
     case restoreAll
+    case retry(String)
+    case retryAll
   }
 
   private let recorded = Mutex<[Call]>([])
@@ -31,5 +33,13 @@ final class SpyAppAudioController: AppAudioController, Sendable {
 
   func restoreAll() async {
     recorded.withLock { $0.append(.restoreAll) }
+  }
+
+  func retry(appID: String) async {
+    recorded.withLock { $0.append(.retry(appID)) }
+  }
+
+  func retryAll() async {
+    recorded.withLock { $0.append(.retryAll) }
   }
 }

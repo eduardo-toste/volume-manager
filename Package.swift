@@ -51,6 +51,7 @@ let package = Package(
         ),
         .testTarget(name: "vmctlTests", dependencies: ["vmctl", "VolumeCore"]),
         .testTarget(name: "VolumeCoreTests", dependencies: ["VolumeCore"]),
+        .testTarget(name: "VolumeUITests", dependencies: ["VolumeUI", "VolumeCore"]),
         .testTarget(name: "VolumeAudioTests", dependencies: ["VolumeAudio", "VolumeCore"]),
         .testTarget(
             name: "VolumeSystemTests", dependencies: ["VolumeSystem", "VolumeAudio", "VolumeCore"]),

@@ -121,7 +121,7 @@ public enum ProcessGrouping {
       if !provided.isEmpty { return provided }
     }
     let cleaned = TextSanitizer.clean(fallback)
-    return cleaned.isEmpty ? "App" : cleaned
+    return cleaned
   }
 
   private static func isExcluded(

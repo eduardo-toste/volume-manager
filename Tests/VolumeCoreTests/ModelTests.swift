@@ -65,7 +65,6 @@ struct ModelTests {
     #expect(login.openedSettingsCount == 1)
 
     let permission = FakePermissionService()
-    #expect(await permission.currentStatus() == .notDetermined)
     #expect(await permission.request() == .granted)
     permission.openPrivacySettings()
   }

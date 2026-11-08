@@ -524,7 +524,8 @@ struct MixerStoreTests {
     let own = MixerHarness()
     let store = MixerStore(
       audioSystem: own.system, controller: own.controller, appInfo: own.info,
-      settings: own.settings, safety: own.safety, clock: own.clock, ownPID: 42)
+      settings: own.settings, safety: own.safety, clock: own.clock, permission: grantedPermission(),
+      ownPID: 42)
     store.handle(.devices([MixerHarness.speakers]))
     store.handle(
       .processes([

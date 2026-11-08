@@ -4,16 +4,6 @@ import Foundation
 import Synchronization
 import VolumeCore
 
-/// The app that currently has keyboard focus. Text is sanitized.
-public struct FrontmostApplication: Sendable, Hashable {
-  /// Process identifier.
-  public let pid: Int32
-  /// Bundle identifier, if the app has one.
-  public let bundleID: String?
-  /// Display name, if available.
-  public let name: String?
-}
-
 /// `AppInfoProvider` over `NSWorkspace`, `Bundle`, `proc_pidpath` and the one allowed private
 /// call (`responsibility_get_pid_responsible_for_pid`, weak-linked).
 ///
@@ -102,17 +92,6 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
     else { return nil }
     let clean = TextSanitizer.clean(identifier)
     return clean.isEmpty ? nil : clean
-  }
-
-  /// The app in the foreground, or `nil`.
-  public func frontmostApplication() -> FrontmostApplication? {
-    guard let app = NSWorkspace.shared.frontmostApplication else { return nil }
-    let identifier = app.bundleIdentifier.map { TextSanitizer.clean($0) }
-    let name = app.localizedName.map { TextSanitizer.clean($0) }
-    return FrontmostApplication(
-      pid: app.processIdentifier,
-      bundleID: identifier?.isEmpty == false ? identifier : nil,
-      name: name?.isEmpty == false ? name : nil)
   }
 
   // MARK: Icons

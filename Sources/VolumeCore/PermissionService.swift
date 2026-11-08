@@ -10,8 +10,6 @@ public enum AudioPermissionStatus: Sendable, Hashable {
 
 /// Asks for and checks the system audio permission (SPEC 5).
 public protocol PermissionService: Sendable {
-  /// The current permission state.
-  func currentStatus() async -> AudioPermissionStatus
   /// Triggers the system prompt (when it has not been decided) and returns the result.
   func request() async -> AudioPermissionStatus
   /// Opens System Settings at the audio capture privacy pane.

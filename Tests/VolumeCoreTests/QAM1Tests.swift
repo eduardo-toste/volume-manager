@@ -811,7 +811,8 @@ struct QAMixerStoreTests {
     let settings = SettingsModel(store: preferences, clock: clock)
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: controller, appInfo: FakeAppInfoProvider(),
-      settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock)
+      settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,
+      permission: grantedPermission())
     store.handle(.devices([MixerHarness.speakers]))
     store.handle(.defaultOutput(uid: "speakers"))
     store.handle(
@@ -1003,6 +1004,9 @@ struct QAMixerStoreTests {
 /// A controller whose `reconcile` never returns until released, to prove that the panic button
 /// does not queue behind it.
 final class HangingController: AppAudioController, Sendable {
+  func retry(appID: String) async {}
+  func retryAll() async {}
+
   private struct State {
     var started = false
     var restored = false
