@@ -75,7 +75,7 @@ Barra lateral: **Geral, Aplicativos, Dispositivos, Sobre** (campo “Buscar” f
 
 - **Geral** (como no design)
   - Abrir ao iniciar sessão — toggle, **padrão ligado**. Subtítulo: “O Volume abre sozinho na barra de menus quando você liga o Mac”. Reflete o estado real de `SMAppService` (se o usuário desligar em Ajustes do Sistema › Itens de Início, o toggle mostra desligado). Se o sistema exigir aprovação (`.requiresApproval`), mostrar dica com botão para abrir Itens de Início.
-  - Mostrar na barra de menus — toggle, padrão ligado. Se desligado, o app só é acessível abrindo o app de novo (reabrir o app abre os Ajustes). Mostrar confirmação antes de desligar explicando isso.
+  - (Sem opção para esconder o ícone: o ícone na barra de menus é a única porta de entrada do mixer e fica **sempre visível**. Decisão do usuário, 2026-11-07.)
   - Ícone da barra de menus — pop-up: “Alto-falante” (dinâmico, §3.1) ou “Controles” (`slider.horizontal.3`, fixo).
   - **Volume**: Lembrar o volume de cada app (padrão ligado; subtítulo “Restaura o nível quando o app voltar a tocar”); Mostrar apps sem áudio (padrão desligado); Incremento do volume (1%, 5%, 10%; padrão 5%).
 - **Aplicativos**: lista de apps lembrados (ícone, nome, volume salvo, saída salva) com botão “Esquecer” por app e “Esquecer todos”.

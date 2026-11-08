@@ -39,6 +39,7 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
    - **M-2 (Médio)**: após reinício do coreaudiod, o teardown pode destruir objetos com IDs reaproveitados — esquecer os recursos antigos sem destruir (ou conferir o UID antes).
    - Baixos a corrigir: B-1 (sanitizar saída do `vmctl processes`; `AppPath` aceitar C1/bidi), B-2 (UID de dispositivo sanitizado/ambíguo), B-4 (converter PID em objeto uma vez só), B-5 (probe sem tap global), B-8 (`verify()` não depender do texto do erro). B-3, B-6, B-7: registrar/aceitar.
    - **Remover os atalhos do código** (decisão do usuário: sem atalhos globais): apagar o protocolo `HotkeyService` (`Sources/VolumeCore/HotkeyService.swift`) e o `FakeHotkeyService` dos testes; no `scripts/security-check.sh`, exigir **zero** dependências (remover a exceção da `KeyboardShortcuts`) e ajustar os testes de política correspondentes.
+   - **Remover a opção “Mostrar na barra de menus”** (decisão do usuário: o ícone é sempre visível): apagar `showInMenuBar` de `Sources/VolumeCore/SettingsModel.swift` e os testes que o usam (`Tests/VolumeCoreTests/SettingsModelTests.swift`).
 3. **M4 — Popover** (Xcode já instalado e selecionado; macros do SwiftUI disponíveis). Lembretes da M2: confirmar a permissão com `verify()` antes de mostrar "sem permissão" (o vigia de silêncio também dispara com silêncio digital legítimo); ligar `CoreAudioAppController.failures()` ao domínio e chamar `retryAll()` quando a permissão for concedida; chamar `markCleanExit` via `SessionLifecycleObserver`.
 
 ## Decisões tomadas (resumo)
@@ -51,6 +52,7 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - `_withUnsafeGuaranteedRef` mantido; inspeção do desmontado entra no roteiro de release (M7).
 - Testes nunca produzem som, nunca tocam apps do usuário, nunca usam preferências reais; áudio real só via bundle `vmctl-dev.app`/`vmctl-test.app`.
 - **Sem atalhos globais** (⌥⌘V/⌥⌘M removidos) e **zero dependências externas** — decisão do usuário em 2026-11-07. O design no FigCraft ainda mostra a seção de atalhos e o item “Atalhos” na barra lateral dos Ajustes: **a SPEC prevalece** (não implementar).
+- **Ícone da barra de menus sempre visível**: a opção “Mostrar na barra de menus” foi removida (decisão do usuário em 2026-11-07); o design ainda a mostra — a SPEC prevalece.
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 
 ## Pendências do usuário
