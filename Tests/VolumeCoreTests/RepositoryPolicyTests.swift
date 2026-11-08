@@ -69,21 +69,13 @@ struct RepositoryPolicyTests {
     #expect(strings["popover.title"] != nil)
   }
 
-  // MARK: CI workflow (SPEC 12.9.6)
+  // MARK: No CI (SPEC 12.9.6 — user decision: the project has no CI)
 
-  @Test func workflowIsHardened() throws {
-    let workflow = try text(".github/workflows/ci.yml")
-    #expect(!workflow.contains("pull_request_target"))
-    #expect(!workflow.contains("secrets."))
-    #expect(workflow.contains("contents: read"))
-    #expect(!workflow.contains("write"), "workflow must not request write permissions")
-    for line in workflow.split(separator: "\n") {
-      guard let range = line.range(of: "uses:") else { continue }
-      let reference = line[range.upperBound...].trimmingCharacters(in: .whitespaces)
-      let pinned = reference.split(separator: "@").last.map(String.init) ?? ""
-      let isSHA = pinned.count == 40 && pinned.allSatisfy { $0.isHexDigit && !$0.isUppercase }
-      #expect(isSHA, "action must be pinned by commit SHA: \(reference)")
-    }
+  @Test func repositoryHasNoCIWorkflows() {
+    let workflows = RepositoryFiles.root.appendingPathComponent(".github/workflows")
+    #expect(
+      !FileManager.default.fileExists(atPath: workflows.path),
+      "the project has no CI by user decision; do not add .github/workflows")
   }
 
   // MARK: Package manifest (SPEC 12.1, 12.9.6)

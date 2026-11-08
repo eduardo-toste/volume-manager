@@ -359,7 +359,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 
 #### 12.9.6 Cadeia de suprimentos
 - Dependências: **nenhuma**. `Package.swift` sem `dependencies` e sem `Package.resolved`.
-- GitHub Actions: actions referenciadas por **SHA de commit**, `permissions: contents: read`, sem secrets, sem `pull_request_target`.
+- **Sem CI** (decisão do usuário, 2026-11-07): o repositório não tem `.github/workflows`; as verificações rodam localmente com `scripts/check.sh` antes de cada commit/merge. Um teste de política impede que um workflow seja adicionado.
 - Repositório: 2FA na conta, proteção da branch `main`, tags de release assinadas.
 - Ferramentas de desenvolvimento (`vmctl`) **não** são incluídas no `Volume.app` nem no DMG.
 
@@ -383,7 +383,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 - **GitHub Releases**: cada versão publica `Volume-<versão>.dmg` e o `.zip` do app, junto com o arquivo `SHA256SUMS` (hash de cada artefato), também colado nas notas da Release.
 - DMG com **instrução visual**: fundo da janela com seta “arraste para Aplicativos” e lembrete “Na primeira vez: Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim”.
 - Publicação **manual** no MVP: `scripts/release.sh <versão>` gera, assina e calcula os hashes **localmente**; o upload na Release é feito à mão. O GitHub oficial é o **único** canal de download divulgado.
-- CI no GitHub Actions apenas para **qualidade**: roda `scripts/check.sh` em todo push/PR (runner macOS).
+- **Sem CI**: a qualidade é garantida localmente (`scripts/check.sh` e `scripts/check.sh --app`) antes de cada merge e de cada release.
 
 ### 13.2 Assinatura sem conta da Apple
 - Não usar assinatura ad-hoc em releases: ela muda a identidade do app a cada build e o macOS esquece a permissão de áudio a cada versão.

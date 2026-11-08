@@ -74,7 +74,6 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 - `scripts/security-check.sh` com todas as verificações da SPEC §12.9.7 desde o primeiro dia.
 - Entitlements de release mínimos (nenhuma exceção proibida). Zero dependências (o security-check falha se houver alguma).
 - App mínimo: ícone de alto-falante na barra de menus abrindo um popover vazio “Volume”.
-- `.github/workflows/ci.yml` rodando `check.sh` em runner macOS — actions fixadas por SHA, `permissions: contents: read`, sem secrets.
 - Reaproveitar o que foi validado no spike (M0.5).
 
 **QA**
