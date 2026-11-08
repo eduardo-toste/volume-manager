@@ -10,10 +10,13 @@ struct OutputCard: View {
   private var store: MixerStore { context.store }
 
   var body: some View {
-    VStack(spacing: 10) {
+    VStack(alignment: .leading, spacing: 12) {
       outputMenu
-      masterSlider
+      volumeRow
     }
+    .padding(12)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .cardBackground()
   }
 
   private var outputMenu: some View {
@@ -32,22 +35,28 @@ struct OutputCard: View {
     } label: {
       HStack(spacing: 10) {
         Image(systemName: (store.defaultOutput?.kind ?? .other).symbolName)
+          .font(.system(size: 12, weight: .semibold))
           .foregroundStyle(.white)
-          .frame(width: 30, height: 30)
+          .frame(width: 26, height: 26)
           .background(Circle().fill(Color.accentColor))
-        VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 0) {
           Text("output.label", bundle: .main)
-            .font(.caption)
+            .font(.system(size: 11, weight: .medium))
             .foregroundStyle(.secondary)
           Text(
             verbatim: store.defaultOutput?.displayName
               ?? String(localized: "device.unknown", bundle: .main)
           )
+          .font(.system(size: 13, weight: .semibold))
+          .foregroundStyle(.primary)
           .lineLimit(1)
         }
-        Spacer()
-        Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+        Spacer(minLength: 4)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(.secondary)
       }
+      .frame(height: 28)
       .contentShape(Rectangle())
     }
     .menuStyle(.button)
@@ -57,13 +66,39 @@ struct OutputCard: View {
     .accessibilityValue(Text(verbatim: store.defaultOutput?.displayName ?? ""))
   }
 
+  /// Speaker at each end of the slider; the small one mutes and unmutes the output (SPEC 3.2).
+  private var volumeRow: some View {
+    HStack(spacing: 10) {
+      Button {
+        store.toggleMasterMute()
+      } label: {
+        speaker(store.masterMuted ? "speaker.slash.fill" : "speaker.fill")
+          .foregroundStyle(store.masterMuted ? Color(nsColor: .systemRed) : .secondary)
+          .contentShape(Rectangle())
+      }
+      .buttonStyle(.plain)
+      .accessibilityLabel(
+        Text(store.masterMuted ? "a11y.master.unmute" : "a11y.master.mute", bundle: .main))
+      masterSlider
+      speaker("speaker.wave.2.fill")
+        .foregroundStyle(.secondary)
+        .accessibilityHidden(true)
+    }
+    .frame(height: 19)
+  }
+
   private var masterSlider: some View {
-    CapsuleSlider(
+    VolumeSlider(
       value: Binding(get: { store.masterVolume }, set: { store.setMasterVolume($0) }),
-      symbol: masterSymbol, symbolIsAlert: store.masterMuted
+      isDimmed: store.masterMuted
     )
-    .opacity(store.masterHasVolumeControl ? 1 : 0.4)
     .allowsHitTesting(store.masterHasVolumeControl)
+    .opacity(store.masterHasVolumeControl ? 1 : 0.4)
+    .overlay {
+      if !store.masterHasVolumeControl {
+        Color.clear.contentShape(Rectangle()).help(Text("output.noVolume", bundle: .main))
+      }
+    }
     .scrollAdjusts(adjust)
     .accessibilityLabel(Text("output.volume", bundle: .main))
     .accessibilityValue(
@@ -72,30 +107,15 @@ struct OutputCard: View {
     .accessibilityAdjustableAction { direction in
       adjust(direction == .increment ? 1 : -1)
     }
-    .overlay {
-      if !store.masterHasVolumeControl {
-        Color.clear.contentShape(Rectangle()).help(Text("output.noVolume", bundle: .main))
-      }
-    }
-    .overlay(alignment: .leading) {
-      Button {
-        store.toggleMasterMute()
-      } label: {
-        Color.clear.frame(width: 30, height: 24).contentShape(Rectangle())
-      }
-      .buttonStyle(.plain)
-      .accessibilityLabel(
-        Text(store.masterMuted ? "a11y.master.unmute" : "a11y.master.mute", bundle: .main))
-    }
     .volumeKeys(adjust: adjust, space: { store.toggleMasterMute() })
     .focused($isFocused)
-    .rowHighlight(isActive: isFocused)
+    .rowHighlight(isActive: isFocused, cornerRadius: 6)
   }
 
-  private var masterSymbol: String {
-    if store.masterMuted || store.masterVolume <= 0 { return "speaker.slash.fill" }
-    if store.masterVolume <= 0.33 { return "speaker.wave.1.fill" }
-    return store.masterVolume <= 0.66 ? "speaker.wave.2.fill" : "speaker.wave.3.fill"
+  private func speaker(_ symbol: String) -> some View {
+    Image(systemName: symbol)
+      .font(.system(size: 12))
+      .frame(width: 17, height: 14)
   }
 
   private func adjust(_ steps: Int) {

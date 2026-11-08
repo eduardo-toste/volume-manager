@@ -536,6 +536,28 @@ struct MixerStoreTests {
     await task.value
   }
 
+  /// Bug of the ⏸2 retest: apps that were already playing when the Volume started must be
+  /// listed from the first snapshot, before any change event arrives.
+  @Test func appsAlreadyPlayingAtLaunchAreListedWithoutAnyEvent() async {
+    h.system.setSnapshot(
+      AudioSystemSnapshot(
+        processes: [
+          h.process("Spotify", pid: 1, playing: true), h.process("Safari", pid: 2, playing: true),
+          h.process("Safari", pid: 3, playing: false), h.process("Zoom", pid: 4, playing: false),
+        ],
+        devices: [MixerHarness.speakers], defaultOutputUID: "speakers"))
+    let store = h.store
+    let task = Task { await store.run() }
+    #expect(await eventually { h.system.subscriberCount == 1 && !store.rows.isEmpty })
+    #expect(store.rows.map(\.app.name) == ["Safari", "Spotify"])
+    #expect(store.playingCount == 2)
+    #expect(store.rows.first { $0.app.name == "Safari" }?.app.pids == [2, 3])
+    store.refreshAudioSystem()
+    #expect(await eventually { h.system.calls.contains(.refresh) })
+    h.system.finish()
+    await task.value
+  }
+
   @Test func runWithoutMasterStateKeepsDefaults() async {
     let store = h.store
     let task = Task { await store.run() }

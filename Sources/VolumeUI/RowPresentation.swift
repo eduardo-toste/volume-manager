@@ -47,7 +47,7 @@ extension OutputDeviceKind {
   /// SF Symbol for the device.
   var symbolName: String {
     switch self {
-    case .builtIn: "laptopcomputer"
+    case .builtIn: "speaker.wave.2.fill"
     case .usb: "cable.connector"
     case .bluetooth: "headphones"
     case .display: "display"

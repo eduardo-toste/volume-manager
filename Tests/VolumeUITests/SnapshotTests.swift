@@ -218,6 +218,29 @@ struct SnapshotTests {
     snapshot("popover-safe-mode", MenuBarPopover(context: scene.context))
   }
 
+  /// Bug of the ⏸2 retest: the panel must grow with the apps (no scroll view squeezed to a few
+  /// points) and stop at the ceiling, measured the way the window measures it (ideal size).
+  @Test func listGrowsWithTheAppsThenStopsAtTheCeiling() async {
+    func height(apps count: Int) async -> CGFloat {
+      let scene = await Fixture(apps: (0..<count).map { "App\($0)" })
+      #expect(scene.store.rows.count == count)
+      let host = NSHostingView(rootView: MenuBarPopover(context: scene.context))
+      return host.fittingSize.height
+    }
+    let one = await height(apps: 1)
+    let two = await height(apps: 2)
+    let three = await height(apps: 3)
+    let many = await height(apps: 40)
+    let ceiling = MenuBarPopover.maxListHeight(
+      screenHeight: NSScreen.main?.visibleFrame.height ?? 900)
+    #expect(two - one > 40, "one more app adds a whole row")
+    #expect(abs((three - two) - (two - one)) < 1, "every row adds the same height")
+    #expect(many > three)
+    // Everything but the list, plus the ceiling (a few points for the spacing between rows).
+    #expect(many <= one - (two - one) + ceiling + 4, "40 apps stop at the ceiling and scroll")
+    #expect(many >= one - (two - one) + ceiling - 4, "the ceiling is used before scrolling")
+  }
+
   @Test func menuBarIconRenders() async {
     let scene = await Fixture(apps: sample)
     let settings = scene.context.settings

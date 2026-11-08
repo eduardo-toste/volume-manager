@@ -1,8 +1,8 @@
 import SwiftUI
 import VolumeCore
 
-/// One app of the mixer: icon, name, value, volume slider, mute, and the optional list of
-/// outputs for this app.
+/// One app of the mixer: icon, name, value, optional output label, volume slider and mute
+/// button; expanded, the list of outputs for this app ("SAÍDA DESTE APP").
 struct AppRowView: View {
   let row: MixerRow
   let context: PopoverContext
@@ -10,9 +10,6 @@ struct AppRowView: View {
   @State private var isHovering = false
   @FocusState private var isFocused: Bool
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-  /// Icon width plus spacing: sliders and output choices line up with the name.
-  private static let textColumn: CGFloat = 40
 
   private var store: MixerStore { context.store }
   private var presentation: RowPresentation { RowPresentation(row: row) }
@@ -22,31 +19,22 @@ struct AppRowView: View {
   private var showsMuted: Bool { row.state.muted && !failed }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      HStack(spacing: 10) {
-        Button(action: toggleExpanded) {
-          HStack(spacing: 10) {
-            icon
-            titles
-          }
-          .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityHint(Text("a11y.row.expand", bundle: .main))
-        Spacer(minLength: 4)
-        valueText
-        muteButton
-      }
-      slider.padding(.leading, Self.textColumn)
+    VStack(spacing: 0) {
+      header
+        .padding(.vertical, 7)
+        .padding(.horizontal, 8)
+        .rowHighlight(isActive: isHovering || isExpanded || isFocused)
       if isExpanded {
         OutputChoices(row: row, store: store)
-          .padding(.leading, Self.textColumn)
+          .padding(EdgeInsets(top: 8, leading: 48, bottom: 4, trailing: 8))
           .transition(reduceMotion ? .identity : .opacity)
       }
     }
-    .padding(.horizontal, 12)
-    .padding(.vertical, 8)
-    .rowHighlight(isActive: isHovering || isExpanded || isFocused)
+    .padding(.bottom, isExpanded ? 6 : 0)
+    .background(
+      isExpanded ? Palette.highlight : Color.clear,
+      in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+    )
     .onHover { isHovering = $0 }
     .animation(reduceMotion ? nil : .default, value: isExpanded)
     .volumeKeys(adjust: adjust, space: { store.toggleMute(row.id) })
@@ -57,6 +45,37 @@ struct AppRowView: View {
 
   // MARK: Parts
 
+  private var header: some View {
+    HStack(spacing: 10) {
+      expandButton { icon }
+        .accessibilityHidden(true)
+      VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 6) {
+          expandButton {
+            Text(verbatim: presentation.appName)
+              .font(.system(size: 13, weight: .medium))
+              .foregroundStyle(showsMuted ? .secondary : .primary)
+              .lineLimit(1)
+          }
+          .accessibilityHint(Text("a11y.row.expand", bundle: .main))
+          Spacer(minLength: 4)
+          valueText
+        }
+        if failed {
+          Text("row.failed", bundle: .main)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(.orange)
+            .lineLimit(2)
+        } else if let route = presentation.routeName {
+          expandButton { routeLabel(route) }
+            .accessibilityHidden(true)
+        }
+        slider
+      }
+      muteButton
+    }
+  }
+
   private var icon: some View {
     Group {
       if let bundleID = row.app.bundleID, let image = context.icon(bundleID) {
@@ -66,29 +85,16 @@ struct AppRowView: View {
       }
     }
     .frame(width: 30, height: 30)
-    .accessibilityHidden(true)
   }
 
-  private var titles: some View {
-    VStack(alignment: .leading, spacing: 1) {
-      Text(verbatim: presentation.appName)
-        .lineLimit(1)
-        .foregroundStyle(showsMuted ? .secondary : .primary)
-      if failed {
-        Text("row.failed", bundle: .main)
-          .font(.caption)
-          .foregroundStyle(.orange)
-          .lineLimit(2)
-      } else if let route = presentation.routeName {
-        HStack(spacing: 3) {
-          Image(systemName: "speaker.wave.2.fill")
-          Text(verbatim: route).lineLimit(1)
-          Image(systemName: "chevron.down").font(.caption2)
-        }
-        .font(.caption)
-        .foregroundStyle(Color.accentColor)
-      }
+  /// "🔈 AirPods Pro ⌄" in the accent color, under the name (SPEC 3.2).
+  private func routeLabel(_ route: String) -> some View {
+    HStack(spacing: 5) {
+      Image(systemName: "speaker.fill").font(.system(size: 11))
+      Text(verbatim: route).font(.system(size: 11, weight: .medium)).lineLimit(1)
+      Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold))
     }
+    .foregroundStyle(Color.accentColor)
   }
 
   private var valueText: some View {
@@ -101,7 +107,7 @@ struct AppRowView: View {
         Text(verbatim: "\(presentation.percent)%")
       }
     }
-    .font(.callout.monospacedDigit())
+    .font(.system(size: 11).monospacedDigit())
     .foregroundStyle(.secondary)
     .accessibilityHidden(true)
   }
@@ -110,11 +116,12 @@ struct AppRowView: View {
     Button {
       store.toggleMute(row.id)
     } label: {
-      Image(systemName: showsMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-        .foregroundStyle(showsMuted ? Color.red : Color.secondary)
-        .frame(width: 28, height: 28)
-        .background(
-          Circle().fill(showsMuted ? Color.red.opacity(0.15) : Color.primary.opacity(0.06)))
+      Image(systemName: showsMuted ? "speaker.slash.fill" : "speaker.wave.1.fill")
+        .font(.system(size: 12))
+        .foregroundStyle(showsMuted ? Color(nsColor: .systemRed) : .primary)
+        .frame(width: 26, height: 26)
+        .background(Circle().fill(showsMuted ? Palette.mutedButtonFill : Palette.buttonFill))
+        .contentShape(Circle())
     }
     .buttonStyle(.plain)
     .accessibilityLabel(
@@ -122,17 +129,22 @@ struct AppRowView: View {
   }
 
   private var slider: some View {
-    CapsuleSlider(
+    VolumeSlider(
       value: Binding(get: { row.state.volume }, set: { store.setVolume($0, for: row.id) }),
-      symbol: showsMuted ? "speaker.slash.fill" : "speaker.fill", height: 18
+      isDimmed: showsMuted
     )
-    .opacity(showsMuted ? 0.65 : 1)
     .scrollAdjusts(adjust)
     .accessibilityLabel(Text(verbatim: presentation.appName))
     .accessibilityValue(Text("a11y.percent \(presentation.percent)", bundle: .main))
     .accessibilityAdjustableAction { direction in
       adjust(direction == .increment ? 1 : -1)
     }
+  }
+
+  /// The icon, the name and the output label expand the row (SPEC 3.2).
+  private func expandButton(@ViewBuilder _ label: () -> some View) -> some View {
+    Button(action: toggleExpanded) { label().contentShape(Rectangle()) }
+      .buttonStyle(.plain)
   }
 
   // MARK: Intents
@@ -157,35 +169,55 @@ private struct OutputChoices: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 2) {
       Text("row.outputs", bundle: .main)
-        .font(.caption2.weight(.semibold))
+        .font(.system(size: 10, weight: .semibold))
+        .tracking(0.4)
         .foregroundStyle(.secondary)
-        .padding(.top, 2)
-      choice(
+        .padding(.bottom, 2)
+      OutputChoice(
         title: String(
           format: String(localized: "row.defaultOutput", bundle: .main),
           store.defaultOutput?.displayName ?? String(localized: "device.unknown", bundle: .main)),
         isCurrent: row.usesSystemDefault
       ) { store.route(row.id, to: nil) }
       ForEach(store.devices) { device in
-        choice(
+        OutputChoice(
           title: device.displayName,
           isCurrent: !row.usesSystemDefault && row.device?.uid == device.uid
         ) { store.route(row.id, to: device.uid) }
       }
     }
   }
+}
 
-  private func choice(title: String, isCurrent: Bool, action: @escaping () -> Void) -> some View {
+/// One output of the list: check mark column, then the name; the current one is highlighted.
+private struct OutputChoice: View {
+  let title: String
+  let isCurrent: Bool
+  let action: () -> Void
+
+  @State private var isHovering = false
+
+  var body: some View {
     Button(action: action) {
-      HStack {
-        Text(verbatim: title).lineLimit(1)
-        Spacer()
-        if isCurrent { Image(systemName: "checkmark").foregroundStyle(Color.accentColor) }
+      HStack(spacing: 8) {
+        Image(systemName: "checkmark")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(Color.accentColor)
+          .frame(width: 12)
+          .opacity(isCurrent ? 1 : 0)
+        Text(verbatim: title)
+          .font(.system(size: 13, weight: isCurrent ? .medium : .regular))
+          .foregroundStyle(.primary)
+          .lineLimit(1)
+        Spacer(minLength: 0)
       }
-      .font(.callout)
+      .padding(.vertical, 5)
+      .padding(.horizontal, 8)
       .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .rowHighlight(isActive: isCurrent || isHovering, cornerRadius: 8)
+    .onHover { isHovering = $0 }
     .accessibilityAddTraits(isCurrent ? .isSelected : [])
   }
 }
