@@ -8,7 +8,7 @@ private final class ScriptedProbe: AudioAccessProbe {
   private let verdict = Mutex(AudioAccessVerdict.indeterminate)
   func set(_ value: AudioAccessVerdict) { verdict.withLock { $0 = value } }
   func probe() -> Bool { true }
-  func verify() async -> AudioAccessVerdict { verdict.withLock { $0 } }
+  func verify(idleTargetAllowed: Bool) async -> AudioAccessVerdict { verdict.withLock { $0 } }
 }
 
 /// QA M4: the popover's `PermissionMonitor` on top of the real `AudioPermissionService`.

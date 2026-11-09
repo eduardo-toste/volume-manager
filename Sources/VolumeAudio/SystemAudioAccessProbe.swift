@@ -101,15 +101,26 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     objects.allSatisfy { catalog.pid(of: $0) != nil }
   }
 
-  /// Listens to the processes that are playing; see `AudioAccessProbe.verify()`.
-  public func verify() async -> AudioAccessVerdict {
+  /// Listens to the processes that are playing; see `AudioAccessProbe.verify(idleTargetAllowed:)`. When nothing is
+  /// playing it listens the same way to any other audio process: the tap, the aggregate and the
+  /// IO are what makes the system show its permission prompt, a bare tap does not. Without a
+  /// signal that is `.indeterminate` (nothing was playing).
+  public func verify(idleTargetAllowed: Bool) async -> AudioAccessVerdict {
     let playing = Array((candidates?() ?? catalog.playingObjectIDs(excluding: getpid())).prefix(16))
-    guard !playing.isEmpty else {
-      // Nobody to test with: nothing can be concluded.
-      guard let target = testTarget() else { return .indeterminate }
+    if !playing.isEmpty { return await listen(to: playing) }
+    // The test seam never reaches the user's own processes.
+    guard candidates == nil, let target = testTarget() else { return .indeterminate }
+    // Only the user may start listening to an idle process (that is what shows the prompt).
+    // Automatic checks only create and destroy a bare tap, as before.
+    guard idleTargetAllowed else {
       return probe(target: target) || !exist([target]) ? .indeterminate : .denied
     }
+    return await listen(to: [target])
+  }
 
+  /// Creates an unmuted private tap on `playing`, an aggregate with auto-start and the signal
+  /// IO, listens for `listenDuration` and destroys everything, on every path.
+  private func listen(to playing: [AudioObjectID]) async -> AudioAccessVerdict {
     AudioLog.logger.notice("access check: listening tap, aggregate and IO started")
     let pipeline = TapPipeline()
     let state = SignalProbeState()

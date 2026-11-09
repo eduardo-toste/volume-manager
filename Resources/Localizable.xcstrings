@@ -686,7 +686,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Não deu para confirmar agora. Toque algo e tente de novo."
+            "value": "Pedido enviado ao macOS. O acesso é confirmado quando você ajustar um app que esteja tocando."
           }
         }
       }

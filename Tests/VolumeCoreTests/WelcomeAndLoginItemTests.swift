@@ -10,8 +10,10 @@ struct WelcomeAndLoginItemTests {
   private let loginItem: LoginItemModel
   private let welcome: WelcomeModel
 
-  init(permission: AudioPermissionStatus = .notDetermined) {
-    harness = MixerHarness(permission: permission)
+  init(
+    permission: AudioPermissionStatus = .notDetermined, preferences: [String: Any] = [:]
+  ) {
+    harness = MixerHarness(preferences: preferences, permission: permission)
     loginItem = LoginItemModel(service: login)
     welcome = WelcomeModel(
       settings: harness.settings, loginItem: loginItem, store: harness.store,
@@ -89,6 +91,55 @@ struct WelcomeAndLoginItemTests {
     welcome.refreshAccess()
     #expect(welcome.access == .allowed)
     #expect(harness.access.requests == 2, "only the monitor's own check ran, not the window's")
+  }
+
+  @Test func inconclusiveCheckStaysInconclusiveEvenWithTheMarkSet() async {
+    let known = WelcomeAndLoginItemTests(preferences: ["audioPermissionConfirmed": true])
+    known.harness.access.conclusive = false
+    #expect(known.welcome.access == .notAsked, "not shown before the user clicks")
+    let writes = known.harness.preferences.writeCount
+    await known.welcome.allow()
+    #expect(known.welcome.access == .inconclusive, "a stale mark is never shown as granted")
+    #expect(known.harness.permission.status == .notDetermined)
+    #expect(known.harness.preferences.writeCount == writes)
+  }
+
+  @Test func clickDuringAnotherCheckStaysInconclusiveEvenWithTheMarkSet() async {
+    let known = WelcomeAndLoginItemTests(preferences: ["audioPermissionConfirmed": true])
+    known.harness.access.conclusive = false
+    let other = Task { await known.harness.permission.refresh(onlyIfDenied: false) }
+    await Task.yield()
+    await known.welcome.allow()
+    #expect(known.welcome.access == .inconclusive, "a stale mark is never shown as granted")
+    _ = await other.value
+    #expect(known.harness.permission.status == .notDetermined)
+  }
+
+  @Test func onlyTheUsersClickMayListenToAnIdleProcess() async {
+    harness.access.answer = .granted
+    await harness.permission.refresh(onlyIfDenied: false)
+    #expect(harness.access.userActions == [false], "an automatic check is not a user action")
+    let other = WelcomeAndLoginItemTests()
+    other.harness.access.answer = .granted
+    await other.welcome.allow()
+    #expect(other.harness.access.userActions == [true])
+  }
+
+  @Test func adjustingAnAppIsAUserActionButTheAutomaticCheckAtStartIsNot() async {
+    let auto = MixerHarness(
+      preferences: [
+        "audioPermissionConfirmed": true,
+        "rememberedApps": ["com.spotify.client": ["volume": 0.4, "muted": false]],
+      ], permission: .notDetermined)
+    let state = MixerHarness(permission: .notDetermined)
+    for h in [auto, state] { h.access.conclusive = false }
+    auto.start([auto.process("Spotify", pid: 10, playing: true)])
+    #expect(await eventually { !auto.access.userActions.isEmpty })
+    #expect(auto.access.userActions == [false])
+    state.start([state.process("Spotify", pid: 10, playing: true)])
+    state.store.setVolume(0.4, for: "com.spotify.client")
+    #expect(await eventually { !state.access.userActions.isEmpty })
+    #expect(state.access.userActions == [true])
   }
 
   @Test func alreadyGrantedThisSessionShowsAllowed() {

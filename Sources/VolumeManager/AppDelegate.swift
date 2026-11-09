@@ -12,7 +12,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let menuBar = MenuBarController(context: composition.context)
     self.menuBar = menuBar
     installMainMenu()
-    composition.showWelcomeIfNeeded { [weak menuBar] in menuBar?.showPopover() }
+    // One run-loop turn later, once launching is over: the app can then really become active
+    // (macOS 14+ ignores `activate()` during launch), so the window shows its active look.
+    Task { @MainActor [composition, weak menuBar] in
+      composition.showWelcomeIfNeeded { menuBar?.showPopover() }
+    }
   }
 
   /// Opening the app again while it runs (double click in the Finder) opens the settings

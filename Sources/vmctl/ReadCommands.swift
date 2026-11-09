@@ -54,7 +54,7 @@ enum ReadCommands {
 
   static func probePermission(_ services: Services) async throws {
     let probe = SystemAudioAccessProbe(catalog: services.catalog)
-    let verdict = await probe.verify()
+    let verdict = await probe.verify(idleTargetAllowed: true)
     switch verdict {
     case .granted: print("permission: GRANTED (real audio reached the test tap)")
     case .denied:

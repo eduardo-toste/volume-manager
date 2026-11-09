@@ -125,7 +125,7 @@ struct HardwareTests {
     let probe = SystemAudioAccessProbe(
       catalog: catalog,
       candidates: { ProcessCatalog().objectID(forPID: pid).map { [$0] } ?? [] })
-    let verdict = await probe.verify()
+    let verdict = await probe.verify(idleTargetAllowed: false)
     #expect(verdict != .granted)
     #expect(await deviceCountSettles(to: before))
   }

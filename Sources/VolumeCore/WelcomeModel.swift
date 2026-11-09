@@ -60,7 +60,7 @@ public final class WelcomeModel {
     case nil:
       // Another check was already running: show what it concluded, if it did.
       refreshAccess()
-      if access == .notAsked { access = .inconclusive }
+      if access != .allowed, access != .denied { access = .inconclusive }
     }
   }
 

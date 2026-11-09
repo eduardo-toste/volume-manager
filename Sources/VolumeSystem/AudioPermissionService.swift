@@ -30,8 +30,8 @@ public actor AudioPermissionService: PermissionService {
   /// Creates a test tap (showing the system prompt if undecided) and returns the result of
   /// this check; `.notDetermined` when it could not conclude. `PermissionMonitor` keeps the last
   /// known state.
-  public func request() async -> AudioPermissionStatus {
-    switch await probe.verify() {
+  public func request(userAction: Bool) async -> AudioPermissionStatus {
+    switch await probe.verify(idleTargetAllowed: userAction) {
     case .granted: .granted
     case .denied: .denied
     case .indeterminate: .notDetermined

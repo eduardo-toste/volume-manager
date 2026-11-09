@@ -9,7 +9,7 @@ private final class VerdictProbe: AudioAccessProbe {
   private let verdict = Mutex(AudioAccessVerdict.indeterminate)
   func set(_ value: AudioAccessVerdict) { verdict.withLock { $0 = value } }
   func probe() -> Bool { true }
-  func verify() async -> AudioAccessVerdict { verdict.withLock { $0 } }
+  func verify(idleTargetAllowed: Bool) async -> AudioAccessVerdict { verdict.withLock { $0 } }
 }
 
 @Suite("AudioPermissionService with signal verdicts (SPEC 4.6)", .timeLimit(.minutes(1)))
@@ -43,7 +43,7 @@ struct AudioPermissionVerdictTests {
       let result: Bool
       func probe() -> Bool { result }
     }
-    #expect(await Legacy(result: true).verify() == .granted)
-    #expect(await Legacy(result: false).verify() == .denied)
+    #expect(await Legacy(result: true).verify(idleTargetAllowed: false) == .granted)
+    #expect(await Legacy(result: false).verify(idleTargetAllowed: true) == .denied)
   }
 }

@@ -35,14 +35,15 @@ public final class PermissionMonitor {
   /// never shows the system prompt by itself. Without it (a user action needs taps) it always
   /// checks. Returns the result of this check (`.notDetermined`: it could not conclude, and the
   /// last known status is kept), or `nil` when no check ran (another one is running, or
-  /// `onlyIfDenied` and not denied).
+  /// `onlyIfDenied` and not denied). `userAction` is true only for a check the user asked for.
   @discardableResult
-  public func refresh(onlyIfDenied: Bool) async -> AudioPermissionStatus? {
+  public func refresh(onlyIfDenied: Bool, userAction: Bool = false) async -> AudioPermissionStatus?
+  {
     guard !isRefreshing, !onlyIfDenied || status == .denied else { return nil }
     isRefreshing = true
     defer { isRefreshing = false }
     let previous = status
-    let result = await service.request()
+    let result = await service.request(userAction: userAction)
     if result != .notDetermined { status = result }
     if previous == .denied, status == .granted { onGranted() }
     return result

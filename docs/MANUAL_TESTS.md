@@ -147,6 +147,8 @@ Use `build/Volume Manager.app` (gerado por `scripts/build-app.sh`). Para repetir
 ### M5.1 Boas-vindas
 1. Primeira execução: abre uma janela 480×600, só com o botão de fechar (sem minimizar/zoom). Ícone, "Bem-vindo ao Volume Manager", 3 destaques, toggle "Abrir ao iniciar sessão" já ligado, "Permitir…", "Começar" (destaque, largura total). Textos em pt-BR (nenhuma chave tipo `welcome.title`).
 2. Fechar pelo X: nada é registrado; ao abrir o app de novo a janela volta (esperado).
+0. Depois de cada rebuild do `.app` (assinatura ad hoc muda) a permissão volta a "não decidida" no macOS. Para repetir a primeira execução: feche o app, rode `defaults delete com.volumemanager.app onboardingCompleted` **com o app FECHADO** (com ele aberto, a preferência em cache a regrava ao sair) e abra o app. A janela deve abrir **na frente** do terminal.
+3a. Clicar "Permitir…" **sem nada tocando**: o pedido do macOS aparece na hora (o app escuta ~0,5 s um processo de áudio ocioso). Permitir: o texto neutro "Pedido enviado ao macOS. O Volume Manager confirma o acesso sozinho assim que algum app tocar som." pode ficar até algo tocar; depois vira ✓ "Permitido". Nada audível durante o teste.
 3. "Permitir…" **com algo tocando** (Música/Spotify baixinho): aparece o pedido do sistema; ao permitir, vira ✓ "Permitido". Sem nada tocando: mensagem "não deu para confirmar", botão continua e dá para tentar de novo.
 4. Negar: o botão passa a abrir Ajustes do Sistema › Privacidade; o som do app NÃO fica mudo.
 5. "Começar" com o toggle ligado: janela fecha, popover abre uma vez, e o app aparece em Ajustes do Sistema › Geral › Itens de Início. Reabrir o app depois: Boas-vindas não volta.

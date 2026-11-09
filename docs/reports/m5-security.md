@@ -150,3 +150,95 @@ Problemas / desvios da SPEC: nenhum de segurança.
 Precisa do usuário: nada para a segurança. A conferência visual do ícone e da janela real fica com o QA ou o usuário.
 
 **Veredito (volta 2): LIBERA.**
+
+---
+
+## Etapa M5.1 — Segurança
+Resultado: LIBERA COM RESSALVAS (só Baixo/Informativo; nada bloqueia)
+
+Esta avaliação substitui a anterior, que cobria a versão com "Permitido pela marca" (revertida).
+
+O que foi feito: revisão do `git diff main` no branch `etapa/m5.1`: `SystemAudioAccessProbe.swift` (escuta curta também sem nada tocando, `listen(to:)` extraída), `WelcomeModel.swift` (revertido o "Permitido pela marca"), `AppDelegate.swift`, `AppWindows.swift`, `Localizable.xcstrings`, `WelcomeAndLoginItemTests.swift` e o novo `Tests/VolumeAudioTests/AccessProbeIdleTests.swift`. Levantei todos os chamadores de `verify()` e `permission.refresh`. Nenhum código alterado. O app real não foi aberto e nenhum som foi tocado.
+
+Como verificar: `git diff main` · `scripts/check.sh` · `scripts/security-check.sh --app` (bundle de 16:29, mais novo que todas as fontes alteradas)
+
+Verificações: check.sh ✓ (159 testes, 31 suítes) · security-check --app ✓ (análise estática, segredos, dependências zero, entitlements/Info.plist, bundle) · cobertura: portão do check.sh ✓
+
+### Regra S4-M1 (o pedido nunca aparece sozinho): chamadores de `verify()`
+Cadeia: `PermissionMonitor.refresh` (`PermissionMonitor.swift:40-49`, uma por vez via `isRefreshing`) → `AudioPermissionService.request()` (`AudioPermissionService.swift:34`) → `SystemAudioAccessProbe.verify()` (`SystemAudioAccessProbe.swift:108-114`). `verify()` lê a lista de "tocando" **na hora** (`:109`, `ProcessCatalog.playingObjectIDs`, o mesmo critério `IsRunningOutput` que alimenta `groups.isPlaying`). Se a lista vier vazia, agora escuta `testTarget()` com tap, aggregate e IO (`:112-113`), e esse caminho **pode mostrar o pedido** quando o TCC está "não decidido".
+
+| # | Caminho | Disparo | Garante "tocando" na decisão? | Pode chegar a `verify()` com a lista vazia? |
+|---|---|---|---|---|
+| 1 | Início com a marca: `reconcile` → `confirmAccessIfNeeded` (`MixerStore.swift:516-520` → `:371-379`, refresh em `:375`) | automático, exige `audioPermissionConfirmed` | sim (`desired.contains { isPlaying }`, `:517`) | **sim, por corrida**: entre a decisão (`groups`, que só muda com o evento de processos) e a leitura em `:109` há criação de `Task`, salto para o actor e, se outra verificação estiver em curso, espera. Se o app parou nesse meio-tempo, a escuta vai para um alvo ocioso. |
+| 2 | Vigia de silêncio: `Composition.swift:90` → `checkSilentTap` (`MixerStore.swift:170-183`, refresh em `:172`) | automático, sem orçamento | só no evento (o controlador viu `IsRunningOutput`); os eventos vêm em fila (`Composition.swift:86-91`), então pode haver atraso | **sim, por corrida** (o app pausa logo depois dos 5 s de silêncio, cenário típico). Só existe com tap vivo, ou seja, com `status == .granted` nesta sessão. |
+| 3 | Reverificação periódica após "negada" do vigia: `recheckWhileDenied` (`MixerStore.swift:199-211`) → `runAutomaticCheck` (`:215-221`, refresh em `:220`) | automático, orçamento de 3 (`:217`) | sim (`groups.contains(where: \.isPlaying)`, `:207`) | **sim, por corrida** |
+| 4 | Reverificação quando um som volta: `updateGraceTimers` (`MixerStore.swift:444-446`) → `runAutomaticCheck` | automático, mesmo orçamento | sim (som novo começou) | **sim, por corrida** |
+| 5 | Abrir o popover: `MenuBarController.swift:84`, `refresh(onlyIfDenied: true)` | gesto do usuário, só com `status == .denied` (`PermissionMonitor.swift:41`) | **não**: não olha se algo toca | **sim, sem corrida**: com `.denied` e nada tocando, antes era tap sem IO (sem pedido) e agora é escuta. |
+| 6 | Ajustar um app: `update` → `defer confirmAccessIfNeeded` (`MixerStore.swift:355`) | ação do usuário | — | sim; permitido (ação do usuário) |
+| 7 | "Permitir…" das Boas-vindas: `WelcomeView.swift:102` → `WelcomeModel.allow()` (`WelcomeModel.swift:56`) → `MixerStore.requestAccess` (`:384-388`) | ação do usuário | — | sim; é o objetivo da mudança (SPEC §3.4) |
+| 8 | `vmctl probe-permission` (`Sources/vmctl/ReadCommands.swift:57`) | comando do usuário no terminal | — | sim; permitido. A mensagem de `.indeterminate` (`:64`) continua correta. |
+| — | Testes (`candidates`) | — | — | nunca toca processos do usuário (`SystemAudioAccessProbe.swift:112`, `candidates == nil`); provado por `AccessProbeIdleTests` |
+
+Conclusão: **sim, os caminhos automáticos 1 a 4 podem chegar à escuta ociosa por corrida, e o 5 chega sem corrida.** Mas isso **não cria cenário novo de pedido sem ação do usuário**. Os motivos:
+- O pedido só aparece com o TCC "não decidido". Nos caminhos 1 a 4, a mesma condição de partida (marca velha, ou TCC zerado com o app aberto) **sem** a corrida já cai na escuta dos apps tocando (`listen(to: playing)`, que já existia na `main`), e essa escuta também usa tap, aggregate e IO e também mostra o pedido. A corrida só troca o alvo da escuta, não cria a condição. É o risco já aceito em `docs/PROGRESS.md:35` ("na abertura com a marca ligada e o TCC zerado, a sonda automática pode mostrar o pedido") e em S41R-B1 / S41b-B1 (`m4.1-security.md:191,247`).
+- O orçamento de 3 (`MixerStore.swift:217`) continua limitando 3 e 4. O caminho 2 só existe com permissão já concedida nesta sessão.
+- Sem a marca, nenhum caminho automático (1, 3, 4) roda: 1 exige `audioPermissionConfirmed` (`:516`), e 3 e 4 exigem `silenceDenial`, que só nasce de um tap vivo, ou seja, de permissão concedida. A frase da regra "sem a marca, só ação do usuário dispara a verificação" continua valendo.
+
+### Outros pontos verificados
+- **IOProc** (`SignalProbeState.swift:11-30`, sem mudança): só lê, faz OR de bits num `UInt32` local e grava num `Atomic<Bool>` relaxado. Não aloca, não usa lock, não faz log, não usa `async` nem Objective-C. Os limites vêm de `mNumberBuffers` e de `mDataByteSize / 4`. O ponteiro `client` é mantido vivo por `withExtendedLifetime(state)` até o `teardown()` (`SystemAudioAccessProbe.swift:140,145`).
+- **Teardown em todos os caminhos**: falha em qualquer etapa → `teardown()` (`:139-140`). Caminho normal: `try? await clock.sleep` (`:144`) também retorna se a `Task` for cancelada, e o `teardown()` (`:145`) roda sempre. `TapPipeline.teardown()` (`TapPipeline.swift:75-92`) para o IO, destrói o IOProc, o aggregate e o tap, nessa ordem. Não sobra aggregate.
+- **Nenhum som / nunca mudo**: o tap é `.unmuted` e privado (`:125-126`), sobre `monoMixdownOfProcesses` de alvos específicos, **nunca global**. O aggregate é privado, só com a lista de taps, sem subdispositivo de saída (`:128-136`), então não produz som. O processo ocioso escutado continua tocando nativo.
+- **Nada gravado**: só o bit "viu amostra ≠ 0" (SPEC §12.9.3).
+- **Dados de outros processos**: o alvo vem de `catalog.objectIDs()` filtrado por PID ≠ o nosso (`:62`). O único dado usado é o `AudioObjectID`; nome, bundle ID e caminho não são lidos. Um processo que some entre a escolha e o tap dá `.indeterminate` (`verdictAfterFailure` + `exist`, `:95-102,142`), nunca `.denied`. Escutar um alvo ocioso dá `sawSignal == false` e `stillPlaying == false`, ou seja, `.indeterminate` (`:11-14`): um alvo ocioso nunca vira "negada".
+- **Concorrência**: `AudioPermissionService` é actor e reentrante durante o `sleep`, mas o `isRefreshing` do `PermissionMonitor` (MainActor) impede duas escutas do app ao mesmo tempo.
+- **`WelcomeModel`** (`WelcomeModel.swift:63`): o revert fecha o S51-B1 anterior. Só `.granted` desta sessão mostra "Permitido", e a marca não é lida nem gravada pela janela. Os testes novos (`WelcomeAndLoginItemTests.swift:96-116`) provam que, com a marca `true`, um inconclusivo continua inconclusivo e não grava nada.
+- **`AppDelegate`/`AppWindows`**: `Task { @MainActor }` com `menuBar` fraco e sem ciclo. `orderFrontRegardless()` é API pública, chamada só quando o próprio app abre a janela. Não muda `level` nem `collectionBehavior`.
+- **Entitlements, Info.plist, rede, dependências, segredos**: sem mudança. O security-check --app passou.
+
+### Achados
+**Crítico:** nenhum. **Alto:** nenhum. **Médio:** nenhum.
+
+**Baixo**
+- **S51-B1 — a escuta ociosa também vale para os caminhos automáticos e para o popover "negado".**
+  - Evidência: `SystemAudioAccessProbe.swift:110-113` não sabe quem chamou. Os caminhos 1 a 4 da tabela chegam lá por corrida (`MixerStore.swift:375,172,220` depois das decisões em `:517,207,444`). O caminho 5 (`MenuBarController.swift:84`) chega sem corrida quando nada toca.
+  - Impacto: com o TCC "não decidido" (marca velha depois de rebuild ad hoc ou de reset do TCC), o pedido do sistema pode aparecer sem um clique em "Permitir…". Não é cenário novo nos caminhos 1 a 4: com a mesma condição e o app ainda tocando, a escuta da `main` já mostrava o pedido (risco aceito, `PROGRESS.md:35`). No caminho 5 o cenário é novo, mas exige três coisas ao mesmo tempo: "negada" nesta sessão, TCC zerado depois, e o próprio usuário abrir o popover, o que é um gesto dele na tela "sem permissão". Nada disso põe o áudio em risco: o tap é unmuted, nada é gravado e nenhum tap de usuário nasce sem `.granted`. Em release com Developer ID o TCC usa o requisito designado, então rebuilds não zeram a permissão. O caso do teste do usuário é exclusivo de builds ad hoc.
+  - Recomendação (opcional, a mais simples que fecha a regra ao pé da letra): passar um `Bool` só pela cadeia que já existe, sem tipo novo. Por exemplo, `verify(idleTargetAllowed:)` → `request(…)` → `refresh(onlyIfDenied:, userAction:)`, com `true` apenas em `MixerStore.requestAccess` (`MixerStore.swift:385`) e em `update` → `confirmAccessIfNeeded` (`:355`, ação do usuário). Os outros caminhos ficam com o comportamento da `main` (tap sem IO, sem pedido). Se o orquestrador preferir não adicionar o parâmetro agora, aceitar e registrar junto do risco já aceito em `PROGRESS.md:35` e da pendência da marca velha da M6 (`PROGRESS.md:44`).
+- **S51-B2 — o texto inconclusivo promete uma verificação automática que não existe sem a marca.**
+  - Evidência: `Localizable.xcstrings:689`, "O Volume Manager confirma o acesso sozinho assim que algum app tocar som.". Depois de um "Permitir…" inconclusivo a marca continua `false` (`MixerStore.swift:392-400` só a grava com `.granted`), e a auto-verificação ao tocar exige a marca (`MixerStore.swift:516`). Na prática a confirmação só vem quando o usuário ajustar um app (`:355`).
+  - Impacto: só de texto, sem risco de áudio. O risco é de processo: alguém "consertar" o texto tornando a verificação automática sem a marca, e isso violaria a regra S4-M1.
+  - Recomendação: trocar o texto por algo fiel, como "Pedido enviado ao macOS. O acesso é confirmado quando você ajustar um app que esteja tocando.", **sem** mudar o comportamento.
+
+**Informativo**
+- **S51-I1** — `orderFrontRegardless()` põe a janela à frente de outros apps mesmo sem ativação. É o comportamento pedido e não é persistente.
+- **S51-I2** — o teste novo cobre só o ramo do seam (`candidates` vazio). A escuta ociosa real (alvo ≠ nosso PID) não tem teste automatizado, e de propósito: ela tocaria em processos do usuário. Fica para a verificação manual do usuário.
+- I-5 (`refreshAccess` não rebaixa "Permitido") continua válido e não mudou.
+
+Problemas / desvios da SPEC: nenhum de segurança. A mudança cumpre a SPEC §3.4 (o clique dispara o pedido). S51-B1 é uma leitura estrita da regra S4-M1 de `PROGRESS.md:62`, dentro de um risco já aceito.
+
+Precisa do usuário: decidir (via orquestrador) se o S51-B1 é corrigido agora com o parâmetro proposto ou se é aceito junto do `PROGRESS.md:35`. Teste manual do "Permitir…" sem nada tocando (já feito pelo usuário, conforme os logs do `tccd`).
+
+**Veredito (M5.1): LIBERA COM RESSALVAS** (S51-B1 e S51-B2 são Baixo; nenhum bloqueia).
+
+### M5.1 — reavaliação de S51-B1/B2
+
+Escopo: `git diff main` no branch `etapa/m5.1` (sem commit), só a correção de S51-B1 e S51-B2 e o ajuste do teste do QA. Código não alterado.
+
+**(a) Nenhum caminho automático passa `true`, nem por padrão.**
+- Padrões, todos `false`: `PermissionService.request()` → `request(userAction: false)` (`PermissionService.swift:22-26`); `PermissionMonitor.refresh(onlyIfDenied:userAction: Bool = false)` (`PermissionMonitor.swift:40`); `MixerStore.confirmAccessIfNeeded(userAction: Bool = false)` (`MixerStore.swift:371`). `AudioAccessProbe.verify(idleTargetAllowed:)` não tem padrão; a implementação padrão do protocolo ignora o valor e só usa `probe()` (`AudioAccessProbe.swift:33-35`).
+- Caminhos automáticos, todos com o padrão: silêncio do tap `MixerStore.swift:172`; nova verificação depois de negada `:220`; auto-verificação ao tocar com a marca `:519` (`confirmAccessIfNeeded()` sem argumento); popover "negado" `MenuBarController.swift:84`.
+- `false` no probe (`SystemAudioAccessProbe.swift:115-117`): mesmo `probe(target:)` da `main` (tap sem IO, sem aggregate). A única diferença é o `candidates == nil` em `:112`, que só vale para o seam de testes (`SystemAudioAccessProbe.swift:41-50`). Assim, um teste nunca chega a um processo do usuário.
+
+**(b) `true` só nasce de ação do usuário.**
+- `MixerStore.requestAccess()` (`MixerStore.swift:385`), chamado só por `WelcomeModel.allow()` (`WelcomeModel.swift:56`), o botão "Permitir…".
+- `update` → `confirmAccessIfNeeded(userAction: true)` (`MixerStore.swift:355`). `update` é privado e só é chamado por `setVolume`, `toggleMute` e `route` (`:249,254,261`). Esses três só são chamados pela linha do app na UI (`AppRowView.swift:40,117,133,159,181,186`).
+- `vmctl probe-permission` (`ReadCommands.swift:57`): ferramenta de linha de comando, rodada pelo usuário.
+- Agrupamento: se uma verificação automática já está rodando, o `true` de um ajuste é descartado por `accessTask == nil` (`MixerStore.swift:372`). O erro vai para o lado seguro: no pior caso o estado continua inconclusivo.
+- Testes: `onlyTheUsersClickMayListenToAnIdleProcess` e `adjustingAnAppIsAUserActionButTheAutomaticCheckAtStartIsNot` (`WelcomeAndLoginItemTests.swift`) registram `userActions` e provam `[false]` no automático e `[true]` no clique e no ajuste.
+
+**(c) Nada mais mudou de comportamento.** Fora o parâmetro, o diff de `Sources/` é o mesmo da revisão M5.1 acima: `WelcomeModel.swift:63`, `AppDelegate.swift:15-19` e `AppWindows.swift:68` (S51-I1). S51-B2: `Localizable.xcstrings:689` agora diz "Pedido enviado ao macOS. O acesso é confirmado quando você ajustar um app que esteja tocando.". O texto é fiel a (b), e a regra da marca não mudou (`MixerStore.swift:516`). Ajuste do teste do QA (`QAM51WelcomeTests.swift:22`, `welcome.refreshAccess()`): ele simula a reativação da janela, um caminho real. O teste continua exigindo `.allowed`, só deixa de depender da ordem de agendamento. Não enfraquece nada de segurança. Rodei 15 vezes seguidas, 0 falhas.
+
+**(d) Verificações.** `scripts/security-check.sh --app`: OK (análise estática, segredos, dependências zero, entitlements/Info.plist, bundle). `swift test --filter` em WelcomeAndLoginItemTests (16), QAM51WelcomeTests (1), AudioPermissionVerdictTests (3), QAM4PermissionFlowTests (4) e AccessProbeIdleTests (1): todos passaram.
+
+S51-B1: **fechado**. S51-B2: **fechado**. Nenhum achado novo. Proporcionalidade: só um `Bool` pela cadeia que já existia, sem tipo novo, como recomendado.
+
+**Veredito (reavaliação M5.1): LIBERA.**

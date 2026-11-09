@@ -352,7 +352,7 @@ public final class MixerStore {
     // The control already failed quietly: the adjustment cannot apply, so say so now.
     if quietFailures.remove(appID) != nil { failedAppIDs.insert(appID) }
     tapsSuspended = false
-    defer { confirmAccessIfNeeded() }
+    defer { confirmAccessIfNeeded(userAction: true) }
     if settings.rememberVolumes, let bundleID = groups.first(where: { $0.id == appID })?.bundleID {
       if state == .default {
         settings.forget(bundleID)
@@ -368,11 +368,11 @@ public final class MixerStore {
   /// this Mac before and a remembered app is playing (the user already decided, so the system
   /// shows no prompt). An indeterminate result leaves it pending until the next action or
   /// reconciliation.
-  private func confirmAccessIfNeeded() {
+  private func confirmAccessIfNeeded(userAction: Bool = false) {
     guard wantsTaps, permission.status != .granted, accessTask == nil else { return }
     accessTask = Task { [weak self] in
       guard let self else { return }
-      let result = await permission.refresh(onlyIfDenied: false)
+      let result = await permission.refresh(onlyIfDenied: false, userAction: userAction)
       accessTask = nil
       recordUserCheck(result)
     }
@@ -382,7 +382,7 @@ public final class MixerStore {
   /// and the same bookkeeping as before the first tap, so the stored mark follows the same rules.
   /// Returns the result, or `nil` when another check was already running.
   public func requestAccess() async -> AudioPermissionStatus? {
-    let result = await permission.refresh(onlyIfDenied: false)
+    let result = await permission.refresh(onlyIfDenied: false, userAction: true)
     recordUserCheck(result)
     return result
   }

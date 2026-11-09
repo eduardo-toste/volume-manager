@@ -23,13 +23,15 @@ public protocol AudioAccessProbe: Sendable {
 
   /// Confirms the permission by signal: listens for about 500 ms to an unmuted test tap on a
   /// process that reports output. Only zeros while that process is still playing means denied.
-  /// The default implementation trusts `probe()`.
-  func verify() async -> AudioAccessVerdict
+  /// When nothing is playing, `idleTargetAllowed` (only for an action of the user) lets it listen
+  /// to any other audio process, which is what makes the system show its prompt; otherwise it only
+  /// creates and destroys a bare tap. The default implementation trusts `probe()`.
+  func verify(idleTargetAllowed: Bool) async -> AudioAccessVerdict
 }
 
 extension AudioAccessProbe {
-  /// See `AudioAccessProbe.verify()`.
-  public func verify() async -> AudioAccessVerdict {
+  /// See `AudioAccessProbe.verify(idleTargetAllowed:)`.
+  public func verify(idleTargetAllowed: Bool) async -> AudioAccessVerdict {
     probe() ? .granted : .denied
   }
 }

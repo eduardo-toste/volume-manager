@@ -63,7 +63,7 @@ final class FakeLoginItemService: LoginItemService, Sendable {
 final class FakePermissionService: PermissionService, Sendable {
   private let granted = Mutex(AudioPermissionStatus.notDetermined)
 
-  func request() async -> AudioPermissionStatus {
+  func request(userAction: Bool) async -> AudioPermissionStatus {
     granted.withLock { $0 = .granted }
     return .granted
   }
@@ -74,13 +74,18 @@ final class FakePermissionService: PermissionService, Sendable {
 /// Permission double whose answer the test chooses.
 final class ScriptedPermissionService: PermissionService, Sendable {
   private let state = Mutex(
-    (answer: AudioPermissionStatus.notDetermined, requests: 0, opened: 0, conclusive: true))
+    (
+      answer: AudioPermissionStatus.notDetermined, requests: 0, opened: 0, conclusive: true,
+      userActions: [Bool]()
+    ))
 
   var answer: AudioPermissionStatus {
     get { state.withLock { $0.answer } }
     set { state.withLock { $0.answer = newValue } }
   }
   var requests: Int { state.withLock { $0.requests } }
+  /// The `userAction` flag of each check, in order.
+  var userActions: [Bool] { state.withLock { $0.userActions } }
   /// False makes the checks inconclusive (nothing was playing): `request()` answers
   /// `.notDetermined`.
   var conclusive: Bool {
@@ -89,9 +94,10 @@ final class ScriptedPermissionService: PermissionService, Sendable {
   }
   var opened: Int { state.withLock { $0.opened } }
 
-  func request() async -> AudioPermissionStatus {
+  func request(userAction: Bool) async -> AudioPermissionStatus {
     state.withLock {
       $0.requests += 1
+      $0.userActions.append(userAction)
       return $0.conclusive ? $0.answer : .notDetermined
     }
   }

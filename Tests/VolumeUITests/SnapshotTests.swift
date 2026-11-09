@@ -50,7 +50,7 @@ final class MemoryPreferences: PreferencesStore {
 final class ScriptedPermission: PermissionService, Sendable {
   let answer: AudioPermissionStatus
   init(_ answer: AudioPermissionStatus) { self.answer = answer }
-  func request() async -> AudioPermissionStatus { answer }
+  func request(userAction: Bool) async -> AudioPermissionStatus { answer }
   func openPrivacySettings() {}
 }
 

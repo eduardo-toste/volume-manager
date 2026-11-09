@@ -57,10 +57,14 @@ public final class AppWindows {
     return window
   }
 
-  /// The app has no Dock icon, so it must come to the front for the window to be seen.
+  /// The app has no Dock icon, so it must come to the front for the window to be seen. Since
+  /// macOS 14 activation is cooperative and `activate()` may be ignored when the app was opened
+  /// in the background (for example from a terminal), so the window is also ordered in front of
+  /// other apps' windows directly.
   private func bringToFront(_ window: NSWindow) {
     if !window.isVisible { window.center() }
     NSApp.activate()
     window.makeKeyAndOrderFront(nil)
+    window.orderFrontRegardless()
   }
 }

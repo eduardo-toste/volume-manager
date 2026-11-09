@@ -23,6 +23,7 @@
 | M4.2 Nome exibido “Volume Manager” (bundle ID mantido) | ✅ QA PASS (`docs/reports/m4.2-qa.md`) | branch `etapa/m4.2-nome` |
 | M4.3 Testes que travavam/falhavam sob carga (`eventually` com prazo real, sem resultado descartado, `.timeLimit` nas suítes) | ✅ QA PASS (`docs/reports/m4.3-qa.md`) | branch `etapa/m4.3-testes` |
 | M5 Ajustes, Boas-vindas e ícones (app AppKit puro: `main.swift` + `AppDelegate`; ícone do app “Mesa de som”; glifo fixo “Três faders” na barra) | ✅ QA PASS + Segurança LIBERA (2 voltas, `docs/reports/m5-*.md`); teste manual do usuário pendente (`docs/MANUAL_TESTS.md` M5) | branch `etapa/m5` |
+| M5.1 Correções do teste manual da M5 (Boas-vindas na frente com `orderFrontRegardless`; “Permitir…” mostra o pedido do macOS no clique — escuta curta de processo ocioso só por ação do usuário; texto neutro do inconclusivo) | ✅ QA PASS + Segurança LIBERA (`docs/reports/m5.1-qa.md`, `m5-security.md` §M5.1) + teste manual do usuário (pedido apareceu no clique) | branch `etapa/m5.1` |
 | M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
@@ -39,6 +40,9 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 3. **M6 — Ciclo de vida e robustez** (ver PLAN e pendências abaixo).
 
 ### Pendências para a M6 (Robustez)
+- **Build ad hoc perde a permissão a cada rebuild** (o TCC usa o cdhash): a marca `audioPermissionConfirmed` fica velha. Resolvido de fato com certificado próprio estável (M7); a pendência da marca velha abaixo cobre o resto.
+- Clique em “Permitir…” durante a verificação automática do início pode mostrar o texto inconclusivo em vez de “Permitido” (só visual; `PermissionMonitor.refresh` devolve `nil` sem aguardar a verificação em curso).
+- **Para a M7.5**: no clique em “Permitir…”, o `tccd` registrou consultas do próprio app a `kTCCServiceListenEvent` e `kTCCServiceMicrophone` (authValue=1, sem pedido na tela; hardened runtime sem esses entitlements). Conferir a origem (framework) e que nunca vira pedido.
 - **Antes do release (M7)**: rebaixar os logs `.notice` de ciclo de vida de tap (criado/destruído/plano/sondas) para `.debug`/`.info` — hoje persistidos para diagnosticar o reteste (S41-B3, `docs/reports/m4.1-security.md`).
 - S21-B1/S21-B2 (`docs/reports/m2.1-security.md`): conferir a identidade (UID do aggregate, UUID do tap) antes de destruir; cobre também o reinício do coreaudiod no meio de `makeSession`.
 - Marca `audioPermissionConfirmed` velha (permissão zerada no macOS ou app reassinado): auto-verificar só se a marca existir e a última sessão terminou limpa.

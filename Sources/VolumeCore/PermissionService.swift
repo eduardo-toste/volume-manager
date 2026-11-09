@@ -12,7 +12,16 @@ public enum AudioPermissionStatus: Sendable, Hashable {
 public protocol PermissionService: Sendable {
   /// Triggers the system prompt (when it has not been decided) and returns the result of this
   /// check: `.notDetermined` when it could not conclude (nothing was playing).
-  func request() async -> AudioPermissionStatus
+  /// `userAction` is true only when the user asked for it (the "Permitir…" button, adjusting
+  /// an app): then it may listen to an idle process to show the prompt.
+  func request(userAction: Bool) async -> AudioPermissionStatus
   /// Opens System Settings at the audio capture privacy pane.
   func openPrivacySettings()
+}
+
+extension PermissionService {
+  /// An automatic check, not asked for by the user.
+  public func request() async -> AudioPermissionStatus {
+    await request(userAction: false)
+  }
 }
