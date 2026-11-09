@@ -30,8 +30,8 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 
 ## Próxima sessão — ordem sugerida
 
-0. **Pedidos do usuário (2026-11-09) — fazer ANTES da M6.** Os dois mudam a SPEC §3.2: na próxima sessão, confirmar os detalhes com o usuário, atualizar SPEC/PLAN e só então mandar ao Dev.
-   - **Lista de apps estável**: hoje o painel alterna entre a lista de apps, "Nenhum app está reproduzindo áudio" e "O Volume precisa de acesso…" (este aparece mesmo quando só não há app com som). O usuário quer que o painel **já mostre os apps abertos que podem tocar som**, sem ficar trocando de estado. Pontos a decidir com o usuário:
+0. **Pedidos do usuário (2026-11-09) — fazer ANTES da M6.** Os dois são no **popover do mixer** (o painel que abre ao clicar no ícone da barra de menus, §3.2), **não nas Boas-vindas**. Os dois mudam a SPEC §3.2: na próxima sessão, confirmar os detalhes com o usuário, atualizar SPEC/PLAN e só então mandar ao Dev.
+   - **Lista de apps estável**: hoje o painel alterna entre a lista de apps, "Nenhum app está reproduzindo áudio" e "O Volume precisa de acesso…" (este aparece mesmo quando só não há app com som). O usuário quer que o painel **já mostre os apps abertos que podem tocar som**, sem ficar trocando de estado. Palavras do usuário: "às vezes mostra os apps abertos, às vezes não, às vezes fica pedindo permissão — isso deixa o usuário em dúvida". Pontos a decidir com o usuário:
      - quais apps entram (apps abertos com janela/Dock? só os que já têm processo de áudio?);
      - a relação com a opção "Mostrar apps sem áudio" (padrão desligado, §3.3) e com os 5 s antes de sumir (§4.1);
      - o "sem permissão" só deve aparecer quando a falta de permissão estiver confirmada, nunca porque nada toca.
