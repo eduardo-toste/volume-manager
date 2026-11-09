@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-08: M4.1 concluída e integrada na `main` (⏸2 aprovado pelo usuário). Próxima: pendências curtas abaixo e depois a M5.
+> Atualizado em 2026-11-09: M4.1b (pendências curtas da M4.1) concluída e integrada na `main`. Próxima sessão: investigar o processo de teste que não sai e depois a M5.
 
 ## Onde estamos
 
@@ -19,20 +19,17 @@
 | M4 Popover do mixer (`VolumeUI`) | ✅ QA PASS (3 rodadas) + Segurança LIBERA (`docs/reports/m4-*.md`) | branch `etapa/m4` |
 | ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado (2026-11-08, manhã) → ✅ aprovado após a M4.1 (2026-11-08, tarde) | — |
 | M4.1 Correções do ⏸2 (design do FigCraft à risca, painel próprio, sempre controlar, estalo zero) | ✅ QA PASS (6 rodadas) + Segurança LIBERA (reavaliação) + ⏸2 aprovado | branch `etapa/m4.1` |
+| M4.1b Pendências curtas da M4.1 (S41R-M1, S41R-B1, vigia 5 s + "nenhum app", rampa na troca de formato, testes estabilizados) | ✅ QA PASS (2 rodadas, `docs/reports/m4.1b-qa.md`) + Segurança LIBERA (reavaliação, `docs/reports/m4.1-security.md` §M4.1b) | branch `etapa/m4.1b` |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **Pendências curtas da M4.1** (uma rodada Dev → QA, antes da M5):
-   - **S41R-M1 (Médio, `docs/reports/m4.1-security.md`, Reavaliação)**: o "concedida" guardado por 30 s (`recentGrant`) responde também a um silêncio novo; após revogar a permissão com o Volume aberto, um app pode ficar mudo até ~30 s. Correção: usar o resultado guardado só para reverificar um silêncio já verificado, nunca para o primeiro silêncio depois de sinal.
-   - **S41R-B1 (Baixo)**: no estado negado, a reverificação a cada 30 s pode mostrar o pedido do TCC sem ação do usuário se a permissão for zerada (§5).
-   - **Teste intermitente**: `swift test` falhou 1 vez em 5 execuções em 2026-11-08 (provavelmente sob carga, com outros agentes testando em paralelo); identificar e estabilizar (só no teste, sem afrouxar).
-   - Itens do reteste não confirmados explicitamente pelo usuário: pausa → log "tap and aggregate destroyed" ~15 s depois (S41-M2), navegador silencioso sem "sem permissão", estalinho no início da reprodução.
-   - QA M4.1 rodada 6, problema 1 (Média): "sem permissão" falso com navegador silencioso como único áudio (falha aberta; aceito pela SPEC §4.6, sumirá na reverificação com som real).
-   - **Pausa vira "sem permissão" falso (usuário, 2026-11-08, print)**: ao pausar um app, ele manda ~2 s de silêncio antes de fechar o stream; o vigia pede verificação, a sonda só ouve zeros e conclui `.denied` → painel mostra "O Volume precisa de acesso…" em vez de "nenhum app" e todos os taps saem (log 14:35:37, 14:36:38, 14:37:23). Risco extra: app com volume baixo pode voltar em 100% por instantes ao dar play até a reverificação. Decidir com um experimento do usuário (pendente): revogar a permissão com o Volume aberto e Spotify em 50% — o macOS pede para reabrir? o app fica mudo? Se a revogação não silencia taps em uso (ou força reabrir), remover a verificação de permissão disparada por silêncio; se silencia, só verificar após vários segundos de silêncio, mostrar "nenhum app" quando nada toca e reverificar assim que algo voltar a tocar.
-   - **Estalo ao mudar saída/formato (usuário, 2026-11-08)**: `replaceHard` (14:40:11, 14:40:17) e `noAudioFrames` (14:39:55) ao mexer nos Ajustes de Som; a troca é seca. SPEC §4.7 exige rampa para 0 → troca → rampa de volta.
+1. **Processo de teste que não sai (2026-11-09)**: várias execuções de `swift test` deixaram `swiftpm-testing-helper` do `VolumeAudioTests` vivo e ocioso depois de terminar os testes (8 presos, até ~47 min), travando o `.build` e o `check.sh` de todos os agentes; o usuário autorizou `pkill -f swiftpm-testing-helper`. Provável causa do "teste intermitente" de 2026-11-08 (o Dev não reproduziu falha de asserção em ~18 execuções). Investigar qual teste/recurso segura o processo (Task ou listener que não termina, relógio real) e corrigir só no teste. Até lá: se `check.sh` parar, conferir `pgrep -fl swiftpm-testing-helper`.
+   - **Retestes manuais do usuário (sem pressa; o usuário avisa se notar algo)**: trocar saída/taxa nos Ajustes de Som com um app abaixo de 100% (sem estalo nem pico); pausar um app (não deve aparecer "sem permissão"); navegador silencioso como único app "tocando" por > 2 min (painel não fica preso em "sem permissão"). Ainda não confirmados da M4.1: log "tap and aggregate destroyed" ~15 s após pausar (S41-M2), estalinho no início da reprodução.
+   - Experimento de revogação da permissão: **dispensado pelo usuário em 2026-11-09**; adotado o caminho seguro (vigia 5 s, "nenhum app" quando nada toca, reverificação ao voltar a tocar, orçamento de 3 verificações automáticas por episódio).
+   - Abertos e aceitos por ora: S41b-B3 (Informativo, pico ≤ 40 ms em ganho 1 se o número de canais mudar durante a rampa, `RealtimeTapState.swift:109-118`); QA M4.1b problema 2 (Baixo, novo "negada" do vigia reinicia o orçamento); na abertura com a marca ligada e o TCC zerado, a sonda automática pode mostrar o pedido (risco já existente da M4.1).
 
 2. **M5 — Ajustes e Boas-vindas**: substituir a cena `Settings` provisória; seguir o design do FigCraft à risca também nessas telas; "Permitir…" das Boas-vindas é a ação do usuário que dispara o pedido de permissão e grava a marca. Com o painel próprio (`MenuBarController`), conferir que ⌘, / "Ajustes do Volume…" abrem a janela (risco relatado pelo Dev na rodada 4).
 
@@ -72,9 +69,10 @@ Dev e QA: Sonnet · Segurança: Opus · tarefas mecânicas/documentação: Haiku
 2. Ler este arquivo, `CLAUDE.md`, a etapa em `docs/PLAN.md` e os relatórios em `docs/reports/`.
 3. Fluxo de cada etapa:
    - criar o branch `etapa/<id>` a partir da `main`;
-   - **Dev** (subagente Sonnet, papel em `.claude/agents/volume-dev.md`) implementa;
-   - **QA** (Sonnet, `.claude/agents/volume-qa.md`) verifica de forma independente e dá PASS/FAIL. Em FAIL, devolver ao mesmo Dev a lista de problemas, no máximo 3 voltas;
-   - **Segurança** (Opus, `.claude/agents/volume-security.md`) nas etapas de áudio e na M7.5;
+   - **Dev** (subagente Sonnet, papel em `.claude/agents/volume-dev.md`) implementa. O prompt traz critérios de aceite fechados, os arquivos/seções exatos a ler e limite para investigações sem resultado;
+   - **o orquestrador revisa o diff e roda `scripts/check.sh` antes de chamar QA/Segurança**; problema claro volta direto ao Dev (economiza uma volta inteira de revisão);
+   - **QA** (Sonnet, `.claude/agents/volume-qa.md`) e **Segurança** (Opus, `.claude/agents/volume-security.md`, nas etapas de áudio/permissão e na M7.5) rodam **em paralelo**. Em FAIL, devolver ao mesmo Dev a lista de problemas dos dois numa volta só, no máximo 3 voltas;
+   - **reteste proporcional** (decisão do usuário em 2026-11-09): após uma correção, reverifica só quem apontou o problema; a Segurança reentra também se a correção mexer em permissão, thread de áudio ou criação/destruição de tap. Etapas grandes, de áudio novo e a M7.5 têm sempre as duas revisões completas;
    - o orquestrador roda `scripts/check.sh` ele mesmo antes de commitar;
    - commit no branch, `git merge --ff-only` na `main`, atualizar este arquivo.
 4. Os prompts dos agentes devem repetir as regras críticas: nenhum som audível, nunca fazer tap em apps do usuário (só `afplay -v 0` próprio), nada de instalar ou baixar, sem commit/branch/push pelos agentes.

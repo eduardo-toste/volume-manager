@@ -342,7 +342,9 @@ public actor CoreAudioAppController: AppAudioController {
         entries[id]?.health.retryLater()
       case .silent:
         AudioLog.logger.notice("tap carried only silence: permission check requested")
-        emit(AppAudioFailure(appID: id, reason: .onlySilence))
+        emit(
+          AppAudioFailure(
+            appID: id, reason: entry.health.silenceWasChecked ? .stillSilent : .onlySilence))
       case .faulted: fail(id, .ioFault)
       }
     }

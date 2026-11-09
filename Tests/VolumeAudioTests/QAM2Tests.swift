@@ -72,7 +72,7 @@ struct QAFailOpenTests {
     #expect(tap.isStopped == false)
     #expect(rig.engine.created.count == 1)
     await rig.controller.restoreAll()
-    let events = await Self.collect(failures)
+    let events = await Self.collect(failures, expected: 1)
     #expect(events == [AppAudioFailure(appID: "qa.one", reason: .onlySilence)])
   }
 
@@ -81,7 +81,7 @@ struct QAFailOpenTests {
     let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [qaDesired()])
     let tap = rig.engine.created[0]
-    for _ in 0..<4 {
+    for _ in 0..<10 {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
     }
@@ -91,21 +91,25 @@ struct QAFailOpenTests {
       await rig.tick(1)
     }
     await rig.controller.restoreAll()
-    #expect(await Self.collect(failures).count == 1, "nothing more before 30 s")
+    #expect(await Self.collect(failures, expected: 1).count == 1, "nothing more before 30 s")
   }
 
-  /// Events already emitted, without waiting for more.
-  private static func collect(_ stream: AsyncStream<AppAudioFailure>) async -> [AppAudioFailure] {
-    var events: [AppAudioFailure] = []
+  /// The events already emitted. It waits (up to 5 s, so a busy machine cannot make it
+  /// miss them) until `expected` arrived, then briefly for extra
+  /// events that must not exist.
+  private static func collect(
+    _ stream: AsyncStream<AppAudioFailure>, expected: Int
+  ) async -> [AppAudioFailure] {
+    let collected = Mutex<[AppAudioFailure]>([])
     let task = Task {
-      var collected: [AppAudioFailure] = []
-      for await event in stream { collected.append(event) }
-      return collected
+      for await event in stream { collected.withLock { $0.append(event) } }
+    }
+    for _ in 0..<5000 where collected.withLock({ $0.count }) < expected {
+      try? await Task.sleep(for: .milliseconds(1))
     }
     try? await Task.sleep(for: .milliseconds(50))
     task.cancel()
-    events = await task.value
-    return events
+    return collected.withLock { $0 }
   }
 
   @Test func killSwitchActsOnTheNextTick() async {
@@ -258,15 +262,19 @@ struct QAReconcileTests {
     #expect(rig.engine.created[0].targets == [1, 1, 0, 0])
   }
 
-  @Test func newTapStartsAtItsTargetGainAndHardReplacementToo() async {
+  @Test func newTapStartsAtItsTargetGainAndAFormatChangeFadesFromZero() async {
     let rig = QARig()
     await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)])
     #expect(rig.engine.created[0].request.initialGain == 0.2)
     rig.engine.setDevice("SPK", rate: 96_000, id: 1)  // format changed
-    await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)])
-    #expect(rig.engine.created.count == 2)
+    let task = Task { await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)]) }
+    #expect(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
+    #expect(rig.engine.created[1].request.initialGain == 0)
+    #expect(await eventually { rig.engine.created[0].targets.last == 0 })
+    rig.clock.advance(by: .milliseconds(40))
+    await task.value
     #expect(rig.engine.created[0].isStopped)
-    #expect(rig.engine.created[1].request.initialGain == 0.2)
+    #expect(rig.engine.live.count == 1)
   }
 
   @Test func routeChangeCrossfadesThenStopsTheOldOne() async {
@@ -276,7 +284,8 @@ struct QAReconcileTests {
     let task = Task { await rig.controller.reconcile(desired: [wanted]) }
     #expect(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
     #expect(rig.engine.created[1].request.initialGain == 0)
-    #expect(rig.engine.created[0].targets.last == 0)
+    // The watchdog's own sleeper also counts, so wait for the fade-out itself.
+    #expect(await eventually { rig.engine.created[0].targets.last == 0 })
     #expect(rig.engine.created[0].isStopped == false)  // still fading
     rig.clock.advance(by: .milliseconds(40))
     await task.value

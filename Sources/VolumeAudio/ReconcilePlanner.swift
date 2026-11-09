@@ -17,9 +17,11 @@ enum SessionPlan: Sendable, Hashable {
   case create
   /// Keep the tap and only update gain and mute.
   case update
-  /// The old tap is still valid: start the new one beside it and cross-fade.
+  /// Another output or a new format of the same output: start the new tap beside the old one
+  /// (which fades to 0 while the new one fades in from 0, SPEC 4.7), so there is no click and
+  /// the app never plays at full volume in between.
   case replaceGracefully
-  /// The old tap is invalid (format or `coreaudiod` changed): destroy it, then create.
+  /// `coreaudiod` restarted: the old objects are gone, so no fade is possible; create anew.
   case replaceHard
   /// Destroy the tap (the app is no longer wanted).
   case destroy
@@ -34,11 +36,7 @@ enum ReconcilePlanner {
     case (.some, nil): return .destroy
     case (.some(let old), .some(let new)):
       if old == new || isOnlyProcessesGone(old: old, new: new) { return .update }
-      let formatChanged = old.deviceUID == new.deviceUID && old.device != new.device
-      if old.serviceGeneration != new.serviceGeneration || formatChanged {
-        return .replaceHard
-      }
-      return .replaceGracefully
+      return old.serviceGeneration != new.serviceGeneration ? .replaceHard : .replaceGracefully
     }
   }
 

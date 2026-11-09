@@ -94,9 +94,9 @@ struct SessionHealthTests {
     #expect(verdicts == [.healthy, .healthy, .healthy, .stalled])
   }
 
-  /// Round 5b: silence is reported once after 2 s and then latched until signal returns, so a
+  /// Round 5b: silence is reported once after 5 s and then latched until signal returns, so a
   /// browser with a silent stream asks for one permission check per silent period.
-  @Test func silenceIsReportedOnceAfterTwoSecondsAndLatched() {
+  @Test func silenceIsReportedOnceAfterFiveSecondsAndLatched() {
     var health = SessionHealth(policy: policy)
     var frames: UInt64 = 0
     var verdicts: [HealthVerdict] = []
@@ -105,8 +105,18 @@ struct SessionHealthTests {
       verdicts.append(
         health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false))
     }
-    #expect(verdicts.prefix(4) == [.healthy, .healthy, .healthy, .silent])
+    #expect(verdicts.prefix(10) == Array(repeating: .healthy, count: 9) + [.silent])
     #expect(verdicts.filter { $0 == .silent }.count == 1)
+  }
+
+  /// S41R-M1: only a silence that already had a check is a "repeat"; real sound resets it.
+  @Test func aSilenceIsARepeatOnlyAfterItsCheckAndUntilSignalReturns() {
+    var health = SessionHealth(policy: policy)
+    #expect(!health.silenceWasChecked)
+    health.retryLater()
+    #expect(health.silenceWasChecked)
+    _ = health.evaluate(frames: 1, sawSignal: true, appRunning: true, fault: false)
+    #expect(!health.silenceWasChecked)
   }
 
   @Test func signalReArmsTheSilenceReport() {
@@ -186,7 +196,7 @@ struct ReconcilePlannerTests {
     #expect(ReconcilePlanner.plan(current: key(), wanted: key()) == .update)
     #expect(ReconcilePlanner.plan(current: key(), wanted: key(pids: [1, 2])) == .replaceGracefully)
     #expect(ReconcilePlanner.plan(current: key(), wanted: key(uid: "B")) == .replaceGracefully)
-    #expect(ReconcilePlanner.plan(current: key(), wanted: key(rate: 44_100)) == .replaceHard)
+    #expect(ReconcilePlanner.plan(current: key(), wanted: key(rate: 44_100)) == .replaceGracefully)
     #expect(ReconcilePlanner.plan(current: key(), wanted: key(generation: 1)) == .replaceHard)
   }
 }

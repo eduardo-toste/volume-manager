@@ -5,7 +5,7 @@ struct WatchdogPolicy: Sendable, Hashable {
   /// Frames must advance within this time.
   var stallLimit: Duration = .seconds(2)
   /// Digital silence while the app reports output for this long asks for a permission check.
-  var silenceLimit: Duration = .seconds(2)
+  var silenceLimit: Duration = .seconds(5)
   /// While a silence lasts, a new permission check is asked at most this often (after any
   /// result: a "granted" is never trusted forever, SPEC 4.6).
   var recheckAfter: Duration = .seconds(30)
@@ -46,12 +46,17 @@ struct SessionHealth: Sendable {
   private var stalled = 0
   private var silent = 0
   private var reported = false
+  private var checked = false
 
   init(policy: WatchdogPolicy) {
     stallTicks = policy.ticks(for: policy.stallLimit)
     silenceTicks = policy.ticks(for: policy.silenceLimit)
     retryTicks = policy.ticks(for: policy.recheckAfter)
   }
+
+  /// True when this silent period already had a permission check: a new `.silent` is then a
+  /// repeat, not the first silence after real sound.
+  var silenceWasChecked: Bool { checked }
 
   /// Evaluates one tick. `sawSignal` is "a non-zero sample arrived since the last tick";
   /// `appRunning` is the app's `IsRunningOutput`.
@@ -69,6 +74,7 @@ struct SessionHealth: Sendable {
     if sawSignal {
       silent = 0
       reported = false
+      checked = false
     } else if appRunning && stalled == 0 {
       silent += 1
     } else if silent > 0 {
@@ -82,6 +88,7 @@ struct SessionHealth: Sendable {
   /// The permission check after `.silent` ran: report the same silent period again after
   /// `recheckAfter`.
   mutating func retryLater() {
+    checked = true
     reported = false
     silent = silenceTicks - retryTicks
   }

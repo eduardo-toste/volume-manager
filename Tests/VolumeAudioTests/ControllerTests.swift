@@ -107,15 +107,36 @@ struct ControllerReconcileTests {
     #expect(rig.engine.live.count == 1)
   }
 
-  @Test func deviceFormatChangeRebuildsHard() async {
+  /// SPEC 4.7: a new format of the same output fades the old tap out and the new one in from 0;
+  /// the old tap is never destroyed before the new one exists (no moment at full volume).
+  @Test func deviceFormatChangeFadesOutAndInInsteadOfCutting() async {
+    let rig = Rig()
+    await rig.controller.reconcile(desired: [desired()])
+    let first = rig.engine.created[0]
+    rig.engine.setDevice("SPK", rate: 96_000)
+    let task = Task { await rig.controller.reconcile(desired: [desired()]) }
+    #expect(await eventually { rig.engine.created.count == 2 })
+    let second = rig.engine.created[1]
+    #expect(second.request.device.layout.sampleRate == 96_000)
+    #expect(second.request.initialGain == 0, "fades in from silence")
+    #expect(second.request.targetGain == 0.5)
+    _ = await eventually { first.targets.last == 0 }
+    #expect(first.isStopped == false, "still alive while it fades out")
+    _ = await eventually { rig.clock.sleeperCount > 0 }
+    rig.clock.advance(by: .milliseconds(100))
+    await task.value
+    #expect(first.isStopped)
+    #expect(rig.engine.live.count == 1)
+  }
+
+  /// If the new format cannot be tapped, the old tap goes too: the app plays natively again.
+  @Test func deviceFormatChangeThatFailsLeavesNoTap() async {
     let rig = Rig()
     await rig.controller.reconcile(desired: [desired()])
     rig.engine.setDevice("SPK", rate: 96_000)
+    rig.engine.failNext(.incompatibleFormat(.bufferShape))
     await rig.controller.reconcile(desired: [desired()])
-    #expect(rig.engine.created.count == 2)
-    #expect(rig.engine.created[0].isStopped)
-    #expect(rig.engine.created[1].request.device.layout.sampleRate == 96_000)
-    #expect(rig.engine.created[1].request.initialGain == 0.5)
+    #expect(rig.engine.live.isEmpty)
   }
 
   @Test func formatChangeEventReappliesTheLastDesiredState() async {
@@ -124,7 +145,9 @@ struct ControllerReconcileTests {
     rig.engine.setDevice("SPK", rate: 44_100)
     rig.engine.emit(.deviceFormatChanged(uid: "SPK"))
     #expect(await eventually { rig.engine.created.count == 2 })
-    #expect(rig.engine.live.count == 1)
+    #expect(await eventually { rig.clock.sleeperCount > 0 })
+    rig.clock.advance(by: .milliseconds(100))
+    #expect(await eventually { rig.engine.live.count == 1 })
   }
 
   @Test func serviceRestartRebuildsEverything() async {
@@ -237,7 +260,7 @@ struct ControllerWatchdogTests {
     #expect(rig.engine.created.count == 1)
   }
 
-  /// Round 5b: 2 s of zeros while the app plays asks for a permission check (once) and keeps
+  /// Round 5b: 5 s of zeros while the app plays asks for a permission check (once) and keeps
   /// the tap; the decision is the domain's (SPEC 4.6).
   @Test func silenceWhileTheAppPlaysAsksForOneCheckAndKeepsTheTap() async {
     let rig = Rig()

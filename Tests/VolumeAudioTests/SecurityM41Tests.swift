@@ -26,7 +26,7 @@ struct SecurityM41Tests {
       }
     }
     let gaps = zip(reportTicks.dropFirst(), reportTicks).map { $0 - $1 }
-    #expect(reportTicks.first == 3, "first check after 2 s")
+    #expect(reportTicks.first == 9, "first check after 5 s")
     #expect(gaps.allSatisfy { $0 == policy.ticks(for: policy.recheckAfter) }, "every 30 s")
     #expect(reportTicks.count == 20)
   }
@@ -53,11 +53,11 @@ struct SecurityM41Tests {
         for _ in 0..<50 { await Task.yield() }
       }
     }
-    await silentTicks(4)
+    await silentTicks(10)
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
     await controller.silenceChecked(appID: "browser")  // answered "granted"
     await silentTicks(64)  // 32 s
-    #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
+    #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .stillSilent))
     #expect(handle.isStopped == false)
     await controller.reconcile(desired: [])
   }

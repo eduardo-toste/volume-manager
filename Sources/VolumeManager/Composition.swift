@@ -62,8 +62,8 @@ final class Composition {
         // One event at a time, so at most one permission check runs because of silence.
         for await event in failures {
           switch event.reason {
-          case .onlySilence:
-            await store.checkSilentTap()
+          case .onlySilence, .stillSilent:
+            await store.checkSilentTap(mayReuseRecentGrant: event.reason == .stillSilent)
             await controller.silenceChecked(appID: event.appID)
           case .stoppedPlaying:
             store.refreshAudioSystem()

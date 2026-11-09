@@ -90,14 +90,14 @@ public struct MenuBarPopover: View {
           .font(.system(size: 13, weight: .semibold))
           .foregroundStyle(.primary)
         Spacer()
-        if !context.permission.isDenied {
+        if !store.showsPermissionNotice {
           Text("popover.playing \(store.playingCount)", bundle: .main)
             .font(.system(size: 11))
             .foregroundStyle(.secondary)
         }
       }
       .padding(EdgeInsets(top: 2, leading: 4, bottom: 0, trailing: 4))
-      if context.permission.isDenied {
+      if store.showsPermissionNotice {
         PermissionNotice(permission: context.permission)
       } else if store.rows.isEmpty {
         Text("popover.empty", bundle: .main)

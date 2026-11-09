@@ -32,6 +32,8 @@ public final class MixerStore {
   /// "denied" from the silence guard the permission is checked again this often while
   /// something plays (SPEC 4.6).
   public static let permissionRecheckInterval: Duration = .seconds(30)
+  /// Automatic checks after a "denied" from the silence guard (see `recheckWhileDenied`).
+  static let maxDeniedRechecks = 3
 
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
@@ -62,6 +64,11 @@ public final class MixerStore {
   @ObservationIgnored private var quietFailures: Set<String> = []
   /// Running while a silence check's "granted" can still be reused.
   @ObservationIgnored private var recentGrant: Task<Void, Never>?
+  /// True after a "denied" from the silence guard: it is ambiguous (SPEC 4.6), so while nothing
+  /// plays the popover says so instead of showing the permission notice.
+  private var silenceDenial = false
+  /// Automatic checks run since that denial (periodic and "sound returned" share the budget).
+  @ObservationIgnored private var automaticChecks = 0
   /// Running while a "denied" from the silence guard is checked again periodically.
   @ObservationIgnored private var deniedRechecks: Task<Void, Never>?
   /// Master volume not yet written to the system, and whether a writer is queued. Dragging
@@ -93,6 +100,8 @@ public final class MixerStore {
     let previous = permission.onGranted
     permission.onGranted = { [weak self] in
       previous()
+      self?.silenceDenial = false
+      self?.automaticChecks = 0
       self?.settings.audioPermissionConfirmed = true
       self?.retryAll()
     }
@@ -100,6 +109,11 @@ public final class MixerStore {
 
   // MARK: Derived state
 
+  /// True when the popover shows the "no permission" notice: the permission is denied, except
+  /// after the silence guard's ambiguous denial while nothing plays (SPEC 4.6).
+  public var showsPermissionNotice: Bool {
+    permission.isDenied && !(silenceDenial && playingCount == 0)
+  }
   /// Number of apps playing now ("N reproduzindo").
   public var playingCount: Int { rows.filter(\.app.isPlaying).count }
   /// The default output device, if known.
@@ -143,19 +157,25 @@ public final class MixerStore {
     rebuild()
   }
 
-  /// A tap carried only digital silence for 2 s while its app plays (SPEC 4.6): a browser with
+  /// A tap carried only digital silence for 5 s while its app plays (SPEC 4.6): a browser with
   /// a silent stream, or a permission revoked while the Volume runs (which would leave every
   /// tapped app mute). Checks the permission by signal (a test tap that does not change the
-  /// sound); a "granted" from the last `permissionRecheckInterval` is reused. Denied: every tap
+  /// sound); a "granted" from the last `permissionRecheckInterval` is reused only when
+  /// `mayReuseRecentGrant` (the same silence was already checked; never for the first silence
+  /// after real sound, which is how a revocation looks). Denied: every tap
   /// is removed at once, the original sound returns and the popover shows the "no permission"
   /// state; the denial is ambiguous (a silent stream may be the only player), so it is not
   /// stored and the permission is checked again periodically while something plays. At most
   /// one check runs at a time (`PermissionMonitor`); the caller checks again later anyway.
-  public func checkSilentTap() async {
-    guard recentGrant == nil else { return }
+  public func checkSilentTap(mayReuseRecentGrant: Bool = false) async {
+    guard !(mayReuseRecentGrant && recentGrant != nil) else { return }
     switch await permission.refresh(onlyIfDenied: false) {
     case .granted: rememberGrant()
     case .denied:
+      if !silenceDenial {
+        silenceDenial = true
+        automaticChecks = 0
+      }
       recheckWhileDenied()
       rebuild()
     case .notDetermined, nil: break
@@ -169,18 +189,35 @@ public final class MixerStore {
     }
   }
 
-  /// After a "denied" from the silence guard: every `permissionRecheckInterval`, while
-  /// something plays, checks again; a "granted" brings the taps back (`onGranted`).
+  /// After a "denied" from the silence guard (`silenceDenial`): every
+  /// `permissionRecheckInterval`, while something plays, checks again; a "granted" brings the
+  /// taps back (`onGranted`). Together with the check when sound starts again
+  /// (`checkWhenSoundReturns`), at most `maxDeniedRechecks` automatic checks run, so a permission
+  /// reset in System Settings cannot make them show the system prompt again and again (SPEC 5:
+  /// the prompt follows a user action). After that, opening the popover (`onlyIfDenied`) takes
+  /// over.
   private func recheckWhileDenied() {
     guard deniedRechecks == nil else { return }
     deniedRechecks = Task { [weak self, clock] in
       while true {
         do { try await clock.sleep(for: MixerStore.permissionRecheckInterval) } catch { return }
-        guard let self, permission.status == .denied else { break }
-        if groups.contains(where: \.isPlaying) { await permission.refresh(onlyIfDenied: false) }
+        guard let self, silenceDenial, permission.status == .denied,
+          settings.audioPermissionConfirmed, automaticChecks < MixerStore.maxDeniedRechecks
+        else { break }
+        if groups.contains(where: \.isPlaying) { await runAutomaticCheck() }
       }
       self?.deniedRechecks = nil
     }
+  }
+
+  /// The one automatic check after the silence guard's denial; it spends the shared budget,
+  /// which is what limits the checks (the "confirmed before" mark cannot tell a reset apart).
+  private func runAutomaticCheck() async {
+    guard silenceDenial, permission.status == .denied,
+      automaticChecks < MixerStore.maxDeniedRechecks
+    else { return }
+    automaticChecks += 1
+    await permission.refresh(onlyIfDenied: false)
   }
 
   /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6). With
@@ -335,14 +372,16 @@ public final class MixerStore {
     guard wantsTaps, permission.status != .granted, accessTask == nil else { return }
     accessTask = Task { [weak self] in
       guard let self else { return }
-      await permission.refresh(onlyIfDenied: false)
+      let result = await permission.refresh(onlyIfDenied: false)
       accessTask = nil
-      switch permission.status {
+      // Only a check that ran here may store anything, and never the silence guard's
+      // ambiguous denial (SPEC 4.6).
+      switch result {
       case .granted:
         settings.audioPermissionConfirmed = true
         retryAll()
-      case .denied: settings.audioPermissionConfirmed = false
-      case .notDetermined: break
+      case .denied where !silenceDenial: settings.audioPermissionConfirmed = false
+      case .denied, .notDetermined, nil: break
       }
     }
   }
@@ -386,6 +425,11 @@ public final class MixerStore {
         do { try await clock.sleep(for: MixerStore.gracePeriod) } catch { return }
         self?.graceExpired(id)
       }
+    }
+    // After the silence guard's ambiguous denial, the first sound that starts is the signal
+    // for a new check (SPEC 4.6).
+    if silenceDenial, !playing.subtracting(previouslyPlaying).isEmpty {
+      Task { [weak self] in await self?.runAutomaticCheck() }
     }
     previouslyPlaying = playing
   }
@@ -455,8 +499,8 @@ public final class MixerStore {
       )
     }
     wantsTaps = !desired.isEmpty
-    // After a denial from the silence guard, `recheckWhileDenied` does the checking.
-    if settings.audioPermissionConfirmed, deniedRechecks == nil,
+    // After a denial from the silence guard, `runAutomaticCheck` does the checking.
+    if settings.audioPermissionConfirmed, !silenceDenial,
       desired.contains(where: { isPlaying($0.app.id) })
     {
       confirmAccessIfNeeded()

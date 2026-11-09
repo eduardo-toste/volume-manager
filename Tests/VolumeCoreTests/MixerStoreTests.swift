@@ -258,15 +258,15 @@ struct MixerStoreTests {
     h.access.answer = .granted
     let sent = h.controller.reconcileCalls.count
     await h.store.checkSilentTap()
-    await h.store.checkSilentTap()
+    await h.store.checkSilentTap(mayReuseRecentGrant: true)
     await h.settle()
     #expect(h.controller.reconcileCalls.count == sent, "nothing changes")
     #expect(h.permission.status == .granted)
-    #expect(h.access.requests == 1, "the second check reused the recent grant")
+    #expect(h.access.requests == 1, "the repeated check reused the recent grant")
     #expect(await eventually { h.clock.sleeperCount >= 1 })
     h.clock.advance(by: MixerStore.permissionRecheckInterval)
     for _ in 0..<50 { await Task.yield() }
-    await h.store.checkSilentTap()
+    await h.store.checkSilentTap(mayReuseRecentGrant: true)
     #expect(h.access.requests == 2, "a grant older than 30 s is checked again")
   }
 
