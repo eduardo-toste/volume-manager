@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+import VolumeCore
 
 @testable import VolumeUI
 
@@ -70,5 +71,43 @@ struct MenuBarPlacementTests {
     panel.onClose = { closes += 1 }
     panel.close()
     #expect(closes == 0)
+  }
+}
+
+/// The menu bar icon (SPEC 3.1): own, fixed "three faders" drawing, template, 18 x 18 pt.
+@MainActor
+@Suite("Menu bar icon", .timeLimit(.minutes(1)))
+struct MenuBarIconTests {
+  private func alpha(_ rep: NSBitmapImageRep, _ x: Int, _ y: Int) -> CGFloat {
+    rep.colorAt(x: x, y: y)?.alphaComponent ?? -1
+  }
+
+  @Test func isATemplateWithAnAccessibleLabelAndTheRightSize() {
+    let icon = MenuBarController.makeIcon()
+    #expect(icon.isTemplate)
+    #expect(icon.size == NSSize(width: 18, height: 18))
+    #expect(icon.accessibilityDescription == AppIdentity.displayName)
+  }
+
+  @Test func drawsThreeRailsWithKnobsAndNothingElse() throws {
+    let icon = MenuBarController.makeIcon()
+    let rep = try #require(
+      NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: 18, pixelsHigh: 18, bitsPerSample: 8,
+        samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+        bytesPerRow: 0, bitsPerPixel: 0))
+    let context = try #require(NSGraphicsContext(bitmapImageRep: rep))
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    icon.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18))
+    NSGraphicsContext.restoreGraphicsState()
+    // Top-left origin pixels: rail 1 above its knob (y 10) and rail 3 above knob (y 8).
+    #expect(alpha(rep, 4, 5) > 0.5)  // rail x 4.5, between top and knob
+    #expect(alpha(rep, 4, 11) > 0.5)  // knob 1 body
+    #expect(alpha(rep, 8, 5) > 0.5)  // knob 2 body (y 4..7)
+    #expect(alpha(rep, 12, 9) > 0.5)  // knob 3 body (y 8..11)
+    #expect(alpha(rep, 0, 0) == 0)
+    #expect(alpha(rep, 17, 17) == 0)
+    #expect(alpha(rep, 1, 5) == 0)
   }
 }

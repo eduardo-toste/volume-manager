@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-09: M4.1b (pendências curtas da M4.1) concluída e integrada na `main`. M4.2 (nome “Volume Manager”) e M4.3 (testes que travavam) também integradas. **Próxima sessão: M5.**
+> Atualizado em 2026-11-09: **M5 (Ajustes, Boas-vindas e ícones) concluída e integrada na `main`** — QA PASS + Segurança LIBERA (2 voltas). Falta o teste manual do usuário (`docs/MANUAL_TESTS.md`, seção M5). **Próxima sessão: M6.**
 
 ## Onde estamos
 
@@ -22,7 +22,8 @@
 | M4.1b Pendências curtas da M4.1 (S41R-M1, S41R-B1, vigia 5 s + "nenhum app", rampa na troca de formato, testes estabilizados) | ✅ QA PASS (2 rodadas, `docs/reports/m4.1b-qa.md`) + Segurança LIBERA (reavaliação, `docs/reports/m4.1-security.md` §M4.1b) | branch `etapa/m4.1b` |
 | M4.2 Nome exibido “Volume Manager” (bundle ID mantido) | ✅ QA PASS (`docs/reports/m4.2-qa.md`) | branch `etapa/m4.2-nome` |
 | M4.3 Testes que travavam/falhavam sob carga (`eventually` com prazo real, sem resultado descartado, `.timeLimit` nas suítes) | ✅ QA PASS (`docs/reports/m4.3-qa.md`) | branch `etapa/m4.3-testes` |
-| M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
+| M5 Ajustes, Boas-vindas e ícones (app AppKit puro: `main.swift` + `AppDelegate`; ícone do app “Mesa de som”; glifo fixo “Três faders” na barra) | ✅ QA PASS + Segurança LIBERA (2 voltas, `docs/reports/m5-*.md`); teste manual do usuário pendente (`docs/MANUAL_TESTS.md` M5) | branch `etapa/m5` |
+| M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
@@ -33,7 +34,9 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
    - Experimento de revogação da permissão: **dispensado pelo usuário em 2026-11-09**; adotado o caminho seguro (vigia 5 s, "nenhum app" quando nada toca, reverificação ao voltar a tocar, orçamento de 3 verificações automáticas por episódio).
    - Abertos e aceitos por ora: S41b-B3 (Informativo, pico ≤ 40 ms em ganho 1 se o número de canais mudar durante a rampa, `RealtimeTapState.swift:109-118`); QA M4.1b problema 2 (Baixo, novo "negada" do vigia reinicia o orçamento); na abertura com a marca ligada e o TCC zerado, a sonda automática pode mostrar o pedido (risco já existente da M4.1).
 
-2. **M5 — Ajustes e Boas-vindas**: substituir a cena `Settings` provisória; seguir o design do FigCraft à risca também nessas telas; "Permitir…" das Boas-vindas é a ação do usuário que dispara o pedido de permissão e grava a marca. Com o painel próprio (`MenuBarController`), conferir que ⌘, / "Ajustes do Volume…" abrem a janela (risco relatado pelo Dev na rodada 4).
+2. **Teste manual da M5 (usuário)**: roteiro em `docs/MANUAL_TESTS.md` (M5, M5.4) — Boas-vindas, “Permitir…” com algo tocando, “Começar”, ⌘, com o popover, reabrir pelo Finder, toggle × Itens de Início, ícone “Três faders” na barra clara/escura, ícone do app no Finder. Abertos e aceitos: Boas-vindas aparece até “Começar” (não distingue “permissão não decidida” sem sondar); I-5 (linha “Permitido” não volta a “negada” — só visual); chaves órfãs `menuBarIconStyle`/`launchAtLogin` no UserDefaults.
+
+3. **M6 — Ciclo de vida e robustez** (ver PLAN e pendências abaixo).
 
 ### Pendências para a M6 (Robustez)
 - **Antes do release (M7)**: rebaixar os logs `.notice` de ciclo de vida de tap (criado/destruído/plano/sondas) para `.debug`/`.info` — hoje persistidos para diagnosticar o reteste (S41-B3, `docs/reports/m4.1-security.md`).
@@ -58,6 +61,8 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 - **Sem overengineering** (decisão do usuário em 2026-11-07): regra no `CLAUDE.md` e nos três agentes; Dev lista "Abstrações novas"; QA/Segurança julgam proporcionalidade; o orquestrador revisa o diff antes de commitar.
 - **Permissão (M4, S4-M1)**: nenhum tap de usuário sem `verify()` == granted nesta sessão. Sem a marca persistida `audioPermissionConfirmed`, só ação do usuário dispara a verificação (o pedido do sistema nunca aparece sozinho); com a marca e um app lembrado tocando, verifica sozinho ao iniciar e reaplica os lembrados (§14.7). Só um "negada" confirmado por ação do usuário apaga a marca; o "negada" do vigia de silêncio (ambíguo) e "Restaurar áudio original" não a apagam (Restaurar continua zerando estados e esquecendo lembrados, e suspende os taps até a próxima ação do usuário) — M4.1, S41-M1.
 - **Aceitos sem mudança (M4)**: S4-B3 (ícone buscado pelo bundle ID declarado — só visual); monitor de rolagem `NSEvent` local por slider; snapshots de teste mostram chaves em vez de pt-BR (o app real está correto).
+- **Ícone da barra de menus próprio e fixo** (decisão do usuário em 2026-11-09): diferente do alto-falante do volume do macOS, para distinguir os dois apps na barra; sai o pop-up “Ícone da barra de menus” (Alto-falante/Controles) e o ícone dinâmico. Escolhidos pelo usuário na página “Ícones” do FigCraft (2026-11-09): ícone do app **A — Mesa de som** (frame 1255; `Resources/AppIcon-1024.png`) e glifo da barra **1 — Três faders** (frame 2041).
+- **Link do Sobre** (confirmado pelo usuário em 2026-11-09): `https://github.com/eduardo-toste/volume-manager/releases`.
 - **Regra 16**: nada é instalado ou baixado por Claude/agentes — o usuário instala tudo.
 
 ## Pendências do usuário

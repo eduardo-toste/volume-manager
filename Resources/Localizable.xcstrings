@@ -101,6 +101,76 @@
         }
       }
     },
+    "device.kind.airPlay": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AirPlay"
+          }
+        }
+      }
+    },
+    "device.kind.bluetooth": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bluetooth"
+          }
+        }
+      }
+    },
+    "device.kind.builtIn": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integrado"
+          }
+        }
+      }
+    },
+    "device.kind.display": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tela"
+          }
+        }
+      }
+    },
+    "device.kind.other": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saída de áudio"
+          }
+        }
+      }
+    },
+    "device.kind.usb": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "USB"
+          }
+        }
+      }
+    },
+    "device.kind.virtual": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Virtual"
+          }
+        }
+      }
+    },
     "device.unknown": {
       "localizations": {
         "pt-BR": {
@@ -157,6 +227,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Sobre o Volume Manager"
+          }
+        }
+      }
+    },
+    "menu.close": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fechar"
           }
         }
       }
@@ -341,12 +421,402 @@
         }
       }
     },
-    "settings.placeholder": {
+    "settings.about.repository": {
       "localizations": {
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Os Ajustes do Volume Manager chegam na próxima etapa."
+            "value": "Ver versões no GitHub"
+          }
+        }
+      }
+    },
+    "settings.about.version %@ %@": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Versão %1$@ (build %2$@)"
+          }
+        }
+      }
+    },
+    "settings.apps.defaultOutput": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saída padrão do sistema"
+          }
+        }
+      }
+    },
+    "settings.apps.empty": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhum app lembrado ainda. Os apps aparecem aqui depois que você ajusta o volume deles."
+          }
+        }
+      }
+    },
+    "settings.apps.forget": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esquecer"
+          }
+        }
+      }
+    },
+    "settings.apps.forgetAll": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esquecer todos"
+          }
+        }
+      }
+    },
+    "settings.apps.outputMissing": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saída desconectada"
+          }
+        }
+      }
+    },
+    "settings.devices.default": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Padrão"
+          }
+        }
+      }
+    },
+    "settings.devices.empty": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nenhuma saída de áudio disponível"
+          }
+        }
+      }
+    },
+    "settings.devices.makeDefault": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Definir como padrão"
+          }
+        }
+      }
+    },
+    "settings.inactive": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mostrar apps sem áudio"
+          }
+        }
+      }
+    },
+    "settings.login": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir ao iniciar sessão"
+          }
+        }
+      }
+    },
+    "settings.login.approval": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O macOS pede sua aprovação em Ajustes do Sistema › Itens de Início."
+          }
+        }
+      }
+    },
+    "settings.login.failed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi possível alterar. Tente em Ajustes do Sistema › Itens de Início."
+          }
+        }
+      }
+    },
+    "settings.login.open": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Itens de Início…"
+          }
+        }
+      }
+    },
+    "settings.login.subtitle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O Volume Manager abre sozinho na barra de menus quando você liga o Mac"
+          }
+        }
+      }
+    },
+    "settings.pane.about": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sobre"
+          }
+        }
+      }
+    },
+    "settings.pane.apps": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aplicativos"
+          }
+        }
+      }
+    },
+    "settings.pane.devices": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dispositivos"
+          }
+        }
+      }
+    },
+    "settings.pane.general": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geral"
+          }
+        }
+      }
+    },
+    "settings.remember": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lembrar o volume de cada app"
+          }
+        }
+      }
+    },
+    "settings.remember.subtitle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restaura o nível quando o app voltar a tocar"
+          }
+        }
+      }
+    },
+    "settings.step": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Incremento do volume"
+          }
+        }
+      }
+    },
+    "settings.volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume"
+          }
+        }
+      }
+    },
+    "welcome.access": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acesso ao áudio do sistema"
+          }
+        }
+      }
+    },
+    "welcome.access.denied": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acesso negado. Libere em Ajustes do Sistema › Privacidade e Segurança."
+          }
+        }
+      }
+    },
+    "welcome.access.inconclusive": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não deu para confirmar agora. Toque algo e tente de novo."
+          }
+        }
+      }
+    },
+    "welcome.access.subtitle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Necessário para ajustar cada app · nada é gravado"
+          }
+        }
+      }
+    },
+    "welcome.allowed": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Permitido"
+          }
+        }
+      }
+    },
+    "welcome.feature.output": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Saída por app"
+          }
+        }
+      }
+    },
+    "welcome.feature.output.text": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mande um app para o AirPods e o resto para os alto-falantes."
+          }
+        }
+      }
+    },
+    "welcome.feature.system": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Igual ao sistema"
+          }
+        }
+      }
+    },
+    "welcome.feature.system.text": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segue o modo Claro ou Escuro do seu Mac automaticamente."
+          }
+        }
+      }
+    },
+    "welcome.feature.volume": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume de cada app"
+          }
+        }
+      }
+    },
+    "welcome.feature.volume.text": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajuste Spotify, Zoom, Safari e o resto separadamente."
+          }
+        }
+      }
+    },
+    "welcome.login.subtitle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recomendado · pode mudar depois em Ajustes"
+          }
+        }
+      }
+    },
+    "welcome.openPrivacy": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir Ajustes…"
+          }
+        }
+      }
+    },
+    "welcome.start": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Começar"
+          }
+        }
+      }
+    },
+    "welcome.subtitle": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O mixer de volume por app que vive na sua barra de menus."
+          }
+        }
+      }
+    },
+    "welcome.title": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bem-vindo ao Volume Manager"
           }
         }
       }

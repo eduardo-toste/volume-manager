@@ -14,8 +14,6 @@ struct SettingsModelTests {
 
   @Test func defaultsMatchTheSpec() {
     let settings = model(InMemoryPreferencesStore())
-    #expect(settings.launchAtLogin)
-    #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)
     #expect(settings.volumeStep == .five)
@@ -73,7 +71,6 @@ struct SettingsModelTests {
     let store = InMemoryPreferencesStore()
     let settings = model(store)
     settings.rememberVolumes = true
-    settings.menuBarIconStyle = .speaker
     await Task.yield()
     #expect(clock.sleeperCount == 0)
     settings.flush()
@@ -83,10 +80,10 @@ struct SettingsModelTests {
   @Test func flushWritesImmediatelyAndCancelsTheTimer() async {
     let store = InMemoryPreferencesStore()
     let settings = model(store)
-    settings.menuBarIconStyle = .controls
+    settings.volumeStep = .ten
     #expect(await eventually { clock.sleeperCount == 1 })
     settings.flush()
-    #expect(store.values["menuBarIconStyle"] as? String == "controls")
+    #expect(store.values["volumeStepPercent"] as? Int == 10)
     #expect(await eventually { clock.sleeperCount == 0 })
   }
 
@@ -103,8 +100,6 @@ struct SettingsModelTests {
   @Test func valuesRoundTripThroughTheStore() {
     let store = InMemoryPreferencesStore()
     let first = model(store)
-    first.launchAtLogin = false
-    first.menuBarIconStyle = .controls
     first.rememberVolumes = false
     first.showInactiveApps = true
     first.volumeStep = .ten
@@ -113,8 +108,6 @@ struct SettingsModelTests {
       AppAudioState(volume: 0.3, muted: true, preferredOutputUID: "uid-1"), for: "com.a.A")
     first.flush()
     let second = model(store)
-    #expect(!second.launchAtLogin)
-    #expect(second.menuBarIconStyle == .controls)
     #expect(!second.rememberVolumes)
     #expect(second.showInactiveApps)
     #expect(second.volumeStep == .ten)
@@ -176,26 +169,23 @@ struct SettingsModelTests {
 
   @Test func wrongTypesBecomeDefaults() {
     let store = InMemoryPreferencesStore([
-      "launchAtLogin": "yes", "rememberVolumes": [1],
+      "rememberVolumes": [1],
       "showInactiveApps": 5.5, "onboardingCompleted": "true",
-      "menuBarIconStyle": 42, "volumeStepPercent": "ten", "rememberedApps": "nope",
+      "volumeStepPercent": "ten", "rememberedApps": "nope",
     ])
     let settings = model(store)
-    #expect(settings.launchAtLogin)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)
     #expect(!settings.onboardingCompleted)
-    #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.volumeStep == .five)
     #expect(settings.rememberedApps.isEmpty)
   }
 
   @Test func unknownEnumValuesBecomeDefaults() {
     let store = InMemoryPreferencesStore([
-      "menuBarIconStyle": "rainbow", "volumeStepPercent": 7,
+      "volumeStepPercent": 7
     ])
     let settings = model(store)
-    #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.volumeStep == .five)
     let fractional = model(InMemoryPreferencesStore(["volumeStepPercent": 5.5]))
     #expect(fractional.volumeStep == .five)
@@ -250,21 +240,10 @@ struct SettingsModelTests {
   }
 
   @Test func loadingNeverWritesOrSchedules() {
-    let store = InMemoryPreferencesStore(["launchAtLogin": false])
+    let store = InMemoryPreferencesStore(["rememberVolumes": false])
     _ = model(store)
     #expect(store.writeCount == 0)
     #expect(clock.sleeperCount == 0)
-  }
-
-  @Test func menuBarSymbolFollowsTheVolume() {
-    let style = MenuBarIconStyle.speaker
-    #expect(style.symbolName(volume: 0.5, muted: true) == "speaker.slash.fill")
-    #expect(style.symbolName(volume: 0, muted: false) == "speaker.slash.fill")
-    #expect(style.symbolName(volume: 0.33, muted: false) == "speaker.wave.1.fill")
-    #expect(style.symbolName(volume: 0.5, muted: false) == "speaker.wave.2.fill")
-    #expect(style.symbolName(volume: 0.67, muted: false) == "speaker.wave.3.fill")
-    #expect(style.symbolName(volume: .nan, muted: false) == "speaker.wave.3.fill")
-    #expect(MenuBarIconStyle.controls.symbolName(volume: 0, muted: true) == "slider.horizontal.3")
   }
 
   @Test func volumeStepFractions() {

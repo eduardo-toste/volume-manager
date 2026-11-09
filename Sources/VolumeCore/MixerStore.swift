@@ -374,15 +374,28 @@ public final class MixerStore {
       guard let self else { return }
       let result = await permission.refresh(onlyIfDenied: false)
       accessTask = nil
-      // Only a check that ran here may store anything, and never the silence guard's
-      // ambiguous denial (SPEC 4.6).
-      switch result {
-      case .granted:
-        settings.audioPermissionConfirmed = true
-        retryAll()
-      case .denied where !silenceDenial: settings.audioPermissionConfirmed = false
-      case .denied, .notDetermined, nil: break
-      }
+      recordUserCheck(result)
+    }
+  }
+
+  /// "Permitir…" of the welcome window: the user asks for the permission. It is the same check
+  /// and the same bookkeeping as before the first tap, so the stored mark follows the same rules.
+  /// Returns the result, or `nil` when another check was already running.
+  public func requestAccess() async -> AudioPermissionStatus? {
+    let result = await permission.refresh(onlyIfDenied: false)
+    recordUserCheck(result)
+    return result
+  }
+
+  /// Only a check that ran for the user may store anything, and never the silence guard's
+  /// ambiguous denial (SPEC 4.6).
+  private func recordUserCheck(_ result: AudioPermissionStatus?) {
+    switch result {
+    case .granted:
+      settings.audioPermissionConfirmed = true
+      retryAll()
+    case .denied where !silenceDenial: settings.audioPermissionConfirmed = false
+    case .denied, .notDetermined, nil: break
     }
   }
 

@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 import SwiftUI
 import VolumeCore
 
@@ -38,7 +37,7 @@ public final class MenuBarController: NSObject {
     panel.onClose = { [weak self] in self?.didClose() }
     statusItem.button?.target = self
     statusItem.button?.action = #selector(toggle)
-    updateIcon()
+    statusItem.button?.image = Self.makeIcon()
   }
 
   /// Where the panel goes: centered under the icon, just below the menu bar, inside the
@@ -59,6 +58,11 @@ public final class MenuBarController: NSObject {
     } else if ProcessInfo.processInfo.systemUptime - lastClose > Self.reopenDelay {
       show()
     }
+  }
+
+  /// Opens the popover (once, after the welcome window, to show where the app lives).
+  public func showPopover() {
+    if !panel.isVisible { show() }
   }
 
   /// Sizes and places the panel before it appears, so it never moves on its own.
@@ -85,20 +89,31 @@ public final class MenuBarController: NSObject {
     statusItem.button?.highlight(false)
   }
 
-  /// Shows the icon for the current volume and setting, and again whenever they change.
-  private func updateIcon() {
-    let settings = context.settings
-    let store = context.store
-    let name = withObservationTracking {
-      settings.menuBarIconStyle.symbolName(volume: store.masterVolume, muted: store.masterMuted)
-    } onChange: { [weak self] in
-      Task { @MainActor in self?.updateIcon() }
+  /// The "three faders" glyph of the design, a fixed template image: the system draws it in the
+  /// menu bar color and highlights it while the popover is open (18 x 18 pt, origin at the top
+  /// left).
+  static func makeIcon() -> NSImage {
+    let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+      NSColor.black.setStroke()
+      NSColor.black.setFill()
+      for x in [4.5, 9, 13.5] {
+        let rail = NSBezierPath()
+        rail.lineWidth = 1.5
+        rail.lineCapStyle = .round
+        rail.move(to: NSPoint(x: x, y: 2))
+        rail.line(to: NSPoint(x: x, y: 16))
+        rail.stroke()
+      }
+      for (x, y) in [(2.0, 10.0), (6.5, 4.0), (11.0, 8.0)] {
+        NSBezierPath(
+          roundedRect: NSRect(x: x, y: y, width: 5, height: 3), xRadius: 1.3, yRadius: 1.3
+        ).fill()
+      }
+      return true
     }
-    let image = NSImage(
-      systemSymbolName: name,
-      accessibilityDescription: String(localized: "popover.title", bundle: .main))
-    image?.isTemplate = true
-    statusItem.button?.image = image
+    image.isTemplate = true
+    image.accessibilityDescription = AppIdentity.displayName
+    return image
   }
 }
 

@@ -352,8 +352,6 @@ struct QASettingsModelTests {
 
   @Test func defaultsMatchSpec33() {
     let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock)
-    #expect(settings.launchAtLogin == true)
-    #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes == true)
     #expect(settings.showInactiveApps == false)
     #expect(settings.volumeStep == .five)
@@ -362,13 +360,10 @@ struct QASettingsModelTests {
 
   @Test func wrongTypesFallBackToDefaults() {
     let wrong: [String: Any] = [
-      "launchAtLogin": "false", "menuBarIconStyle": 5,
       "rememberVolumes": [true], "showInactiveApps": "yes", "volumeStepPercent": "10",
       "onboardingCompleted": 1, "rememberedApps": ["not", "a", "dict"],
     ]
     let settings = SettingsModel(store: InMemoryPreferencesStore(wrong), clock: clock)
-    #expect(settings.launchAtLogin)
-    #expect(settings.menuBarIconStyle == .speaker)
     #expect(settings.rememberVolumes)
     #expect(!settings.showInactiveApps)
     #expect(settings.volumeStep == .five)
@@ -495,13 +490,11 @@ struct QASettingsModelTests {
     let store = InMemoryPreferencesStore()
     let first = SettingsModel(store: store, clock: clock)
     first.volumeStep = .ten
-    first.menuBarIconStyle = .controls
     first.remember(
       AppAudioState(volume: 0.3, muted: true, preferredOutputUID: "dev1"), for: "com.a.b")
     first.flush()
     let second = SettingsModel(store: store, clock: clock)
     #expect(second.volumeStep == .ten)
-    #expect(second.menuBarIconStyle == .controls)
     #expect(
       second.remembered(for: "com.a.b")
         == RememberedApp(volume: 0.3, muted: true, outputUID: "dev1"))

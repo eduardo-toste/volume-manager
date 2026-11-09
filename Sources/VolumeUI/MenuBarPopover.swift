@@ -6,8 +6,6 @@ import VolumeCore
 public struct MenuBarPopover: View {
   private let context: PopoverContext
 
-  @Environment(\.openSettings) private var openSettings
-
   /// Creates the popover content.
   public init(context: PopoverContext) {
     self.context = context
@@ -42,12 +40,6 @@ public struct MenuBarPopover: View {
     .onExitCommand { NSApp.keyWindow?.close() }
   }
 
-  /// The app has no Dock icon, so it must come to the front for the window to be seen.
-  private func showSettings() {
-    NSApp.activate()
-    openSettings()
-  }
-
   // MARK: Header
 
   private var header: some View {
@@ -57,7 +49,7 @@ public struct MenuBarPopover: View {
         .foregroundStyle(.primary)
       Spacer()
       Menu {
-        Button(action: showSettings) { Text("menu.settings", bundle: .main) }
+        Button(action: context.showSettings) { Text("menu.settings", bundle: .main) }
         Button(action: store.restoreOriginalAudio) { Text("menu.restore", bundle: .main) }
         Button(action: context.showAbout) { Text("menu.about", bundle: .main) }
         Divider()
@@ -143,7 +135,7 @@ public struct MenuBarPopover: View {
       MenuItemRow(title: "footer.sound", shortcut: nil, action: context.openSoundSettings)
       MenuItemRow(
         title: "footer.settings", shortcut: KeyboardShortcut(",", modifiers: .command),
-        action: showSettings)
+        action: context.showSettings)
       MenuItemRow(
         title: "footer.quit", shortcut: KeyboardShortcut("q", modifiers: .command),
         action: context.quit)

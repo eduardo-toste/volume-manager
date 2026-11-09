@@ -167,6 +167,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 - Janela de Ajustes (uma instância, ⌘,): Geral (todas as opções), Aplicativos (lembrados, esquecer), Dispositivos (lista, definir padrão), Sobre (versão/build, link de Releases). Barra lateral de vidro no 26+, `NavigationSplitView` padrão no 15.
 - Boas-vindas na primeira execução: destaques, toggle “Abrir ao iniciar sessão” ligado, “Permitir…” → ✓, “Começar” registra login item e abre o popover.
 - Reabrir o app já em execução → abre Ajustes. O ícone da barra de menus é sempre visível (sem opção para escondê-lo).
+- Ícones (decisão do usuário em 2026-11-09): ícone da barra de menus **próprio e fixo**, diferente do alto-falante do macOS (remove o pop-up “Ícone da barra de menus” e o estilo dinâmico); ícone do app. Ambos escolhidos pelo usuário na página “Ícones” do FigCraft.
 
 **QA**
 - Testes de fluxo de primeira execução (flag persistida, registro do login item via fake).

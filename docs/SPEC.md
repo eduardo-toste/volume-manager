@@ -25,7 +25,7 @@
 | Sistema mínimo | **macOS 15 (Sequoia)** — tem Core Audio process taps (base do volume por app), `@Observable` e `Synchronization.Atomic` (atômicos nativos do Swift para o thread de áudio, sem código C). Cobre Sequoia, Tahoe e posteriores. Decisão do usuário (M0.5). |
 | Liquid Glass | Usado no **macOS 26+** (`glassEffect`, materiais novos). No 15.x, cai automaticamente para os materiais translúcidos nativos da época (`.regularMaterial`/`NSVisualEffectView`), de modo que o app parece nativo **em cada versão**. Ver §12.6. |
 | Linguagem / UI | Swift 6 (modo de linguagem 6, concorrência estrita), **SwiftUI** (AppKit só onde o SwiftUI não alcança). |
-| Barra de menus | `MenuBarExtra` com `.menuBarExtraStyle(.window)`. |
+| Barra de menus | `NSStatusItem` + painel próprio sem moldura (§3.1); app AppKit (`main.swift` + `AppDelegate`) com janelas de Ajustes e Boas-vindas em `NSWindow` + SwiftUI (M5). |
 | Áudio | **Core Audio**: Process Taps (`CATapDescription`, `AudioHardwareCreateProcessTap`) + Aggregate Devices + IOProc. |
 | Login item | `SMAppService.mainApp` (ServiceManagement). |
 | Atalhos globais | **Nenhum** (decisão do usuário, 2026-11-07): o app é um gerenciador de volume e não registra atalhos globais. **Zero dependências externas.** |
@@ -41,7 +41,7 @@
 Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos** (Slider, Toggle, Picker, `.glassEffect`/materiais do sistema, SF Symbols, SF Pro) sempre que eles reproduzirem o design; quando um controle nativo não reproduzir o design (ex.: o slider), usar um componente próprio pequeno e acessível. **O popover segue o design do FigCraft à risca** (decisão do usuário em 2026-11-08, após o ⏸2): layout, hierarquia, espaçamentos, tamanhos, cores, cantos e translucidez como em `design/VolumeManager.figcraft` (imagens de referência em `design/reference/`). Exceções já decididas: sem atalhos globais, sem “Mostrar na barra de menus” e sem “⌘,”/“⌘Q” escritos no rodapé.
 
 ### 3.1 Item da barra de menus
-- Ícone SF Symbol de alto-falante. Com estilo “Alto-falante”, reflete o volume geral: `speaker.slash.fill` (mudo/0%), `speaker.wave.1.fill` (≤33%), `speaker.wave.2.fill` (≤66%), `speaker.wave.3.fill` (>66%).
+- Ícone **próprio e fixo** do Volume Manager (glifo monocromático *template*, claro/escuro automáticos), **claramente diferente do alto-falante do volume do macOS**, para que o usuário distinga os dois na barra de menus — é outro app rodando ali (decisão do usuário em 2026-11-09). O glifo é escolhido pelo usuário entre as opções da página “Ícones” de `design/VolumeManager.figcraft`. Não muda com o volume e não há opção de estilo.
 - Clique abre/fecha o popover. Fica destacado enquanto o popover está aberto. O popover é uma **janela própria sem moldura** (`NSStatusItem` + painel transparente), presa ao ícone, para reproduzir exatamente os cantos e a translucidez do design — a janela padrão do `MenuBarExtra` desenha fundo e cantos próprios por trás (decisão do usuário em 2026-11-08). Fecha ao clicar fora, com Esc ou ao clicar de novo no ícone; não usa monitor global de eventos nem pede permissão nova.
 
 ### 3.2 Popover do mixer (largura ~320pt)
@@ -76,7 +76,7 @@ Barra lateral: **Geral, Aplicativos, Dispositivos, Sobre** (campo “Buscar” f
 - **Geral** (como no design)
   - Abrir ao iniciar sessão — toggle, **padrão ligado**. Subtítulo: “O Volume abre sozinho na barra de menus quando você liga o Mac”. Reflete o estado real de `SMAppService` (se o usuário desligar em Ajustes do Sistema › Itens de Início, o toggle mostra desligado). Se o sistema exigir aprovação (`.requiresApproval`), mostrar dica com botão para abrir Itens de Início.
   - (Sem opção para esconder o ícone: o ícone na barra de menus é a única porta de entrada do mixer e fica **sempre visível**. Decisão do usuário, 2026-11-07.)
-  - Ícone da barra de menus — pop-up: “Alto-falante” (dinâmico, §3.1) ou “Controles” (`slider.horizontal.3`, fixo).
+  - (Sem opção “Ícone da barra de menus”: o ícone é próprio e fixo, §3.1. Decisão do usuário, 2026-11-09.)
   - **Volume**: Lembrar o volume de cada app (padrão ligado; subtítulo “Restaura o nível quando o app voltar a tocar”); Mostrar apps sem áudio (padrão desligado); Incremento do volume (1%, 5%, 10%; padrão 5%).
 - **Aplicativos**: lista de apps lembrados (ícone, nome, volume salvo, saída salva) com botão “Esquecer” por app e “Esquecer todos”.
 - **Dispositivos**: lista de saídas disponíveis (nome, tipo, padrão ✓). Ação: definir como padrão. (Somente leitura + ação; sem configuração extra na v1.)
@@ -198,7 +198,7 @@ O código deve ser **bem arquitetado, legível, performático e confiável** —
 Camadas com dependência em **um sentido só** (de cima para baixo):
 
 ```
-App (composição)        VolumeManagerApp, AppDelegate, Composition root
+App (composição)        main.swift, AppDelegate, Composition root
   │
 UI (SwiftUI)            MenuBarPopover, AppRowView, OutputPicker, SettingsWindow, OnboardingWindow
   │  lê estado / envia intenções
@@ -273,7 +273,7 @@ volume-manager/
 ├── Package.swift                 # módulos do §12.1 + testes; platforms: .macOS(.v15)
 ├── Sources/
 │   ├── VolumeCore/  VolumeAudio/  VolumeSystem/  VolumeUI/
-│   └── VolumeManager/            # @main, composition root
+│   └── VolumeManager/            # main.swift, AppDelegate, composition root
 ├── Tests/
 │   ├── VolumeCoreTests/          # domínio com dublês (maior parte dos testes)
 │   ├── VolumeAudioTests/         # testes de integração Core Audio (marcados, podem pular em CI sem áudio)

@@ -12,6 +12,12 @@ final class Composition {
   let settings: SettingsModel
   let store: MixerStore
   let context: PopoverContext
+  let windows: AppWindows
+  /// Quits after every tap was destroyed (SPEC 8).
+  let quit: @MainActor () -> Void
+
+  private let loginItem: LoginItemModel
+  private let permission: PermissionMonitor
 
   private let safety: SafetyPolicy
   private let controller: CoreAudioAppController
@@ -36,7 +42,24 @@ final class Composition {
       appInfo: provider, settings: settings, safety: safety, clock: clock,
       permission: permission, ownPID: ProcessInfo.processInfo.processIdentifier)
 
+    let loginItem = LoginItemModel(service: SMAppLoginItemService())
+    let quit: @MainActor () -> Void = {
+      Composition.quit(controller: controller, settings: settings, safety: safety)
+    }
+    let windows = AppWindows(
+      settings: SettingsContext(
+        settings: settings, store: store, loginItem: loginItem,
+        icon: { provider.icon(forBundleID: $0) },
+        appName: { provider.displayName(forBundleID: $0) },
+        version: Self.bundleText("CFBundleShortVersionString"),
+        build: Self.bundleText("CFBundleVersion"),
+        openRepository: Self.openRepository))
+
     self.controller = controller
+    self.loginItem = loginItem
+    self.permission = permission
+    self.windows = windows
+    self.quit = quit
     self.settings = settings
     self.safety = safety
     self.store = store
@@ -44,8 +67,9 @@ final class Composition {
       store: store, settings: settings, permission: permission,
       icon: { provider.icon(forBundleID: $0) },
       openSoundSettings: Self.openSoundSettings,
+      showSettings: { windows.showSettings() },
       showAbout: Self.showAbout,
-      quit: { Composition.quit(controller: controller, settings: settings, safety: safety) })
+      quit: quit)
   }
 
   /// Starts listening to the audio system. Called once, at launch.
@@ -78,7 +102,29 @@ final class Composition {
     ]
   }
 
+  /// Shows the welcome window on the first run. `onStart` runs after "Começar".
+  func showWelcomeIfNeeded(onStart: @escaping @MainActor () -> Void) {
+    guard !settings.onboardingCompleted else { return }
+    windows.showWelcome(
+      model: WelcomeModel(
+        settings: settings, loginItem: loginItem, store: store, permission: permission),
+      onStart: onStart)
+  }
+
   // MARK: Actions
+
+  /// Version or build from the app's own Info.plist (set by `scripts/build-app.sh`).
+  private static func bundleText(_ key: String) -> String {
+    Bundle.main.object(forInfoDictionaryKey: key) as? String ?? "-"
+  }
+
+  /// Fixed URL (SPEC 13.4): the Releases page of the project. The only link the app opens;
+  /// the app itself never touches the network.
+  private static func openRepository() {
+    guard let url = URL(string: "https://github.com/eduardo-toste/volume-manager/releases")
+    else { return }
+    NSWorkspace.shared.open(url)
+  }
 
   /// Fixed URL (SPEC 12.9.2): System Settings > Sound.
   private static func openSoundSettings() {

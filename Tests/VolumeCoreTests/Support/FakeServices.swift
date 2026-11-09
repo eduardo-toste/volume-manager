@@ -30,17 +30,30 @@ final class FakeLoginItemService: LoginItemService, Sendable {
   private struct State {
     var status = LoginItemStatus.disabled
     var openedSettings = 0
+    var changes: [Bool] = []
+    var failing = false
   }
 
   struct Failure: Error {}
 
   private let state = Mutex(State())
   var openedSettingsCount: Int { state.withLock { $0.openedSettings } }
+  /// Registrations asked for, in order (`true` register, `false` unregister).
+  var changes: [Bool] { state.withLock { $0.changes } }
+
+  /// What the system reports from now on (the user changed it in System Settings).
+  func setStatus(_ status: LoginItemStatus) { state.withLock { $0.status = status } }
+  /// Makes the next changes fail, as when the system refuses.
+  func failChanges(_ fail: Bool) { state.withLock { $0.failing = fail } }
 
   func status() -> LoginItemStatus { state.withLock { $0.status } }
 
   func setEnabled(_ enabled: Bool) throws {
-    state.withLock { $0.status = enabled ? .enabled : .disabled }
+    try state.withLock {
+      if $0.failing { throw Failure() }
+      $0.changes.append(enabled)
+      $0.status = enabled ? .enabled : .disabled
+    }
   }
 
   func openLoginItemsSettings() { state.withLock { $0.openedSettings += 1 } }

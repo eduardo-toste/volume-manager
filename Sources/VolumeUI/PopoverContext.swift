@@ -10,6 +10,7 @@ public struct PopoverContext {
   let permission: PermissionMonitor
   let icon: @MainActor (String) -> NSImage?
   let openSoundSettings: @MainActor () -> Void
+  let showSettings: @MainActor () -> Void
   let showAbout: @MainActor () -> Void
   let quit: @MainActor () -> Void
 
@@ -18,6 +19,7 @@ public struct PopoverContext {
     store: MixerStore, settings: SettingsModel, permission: PermissionMonitor,
     icon: @escaping @MainActor (String) -> NSImage?,
     openSoundSettings: @escaping @MainActor () -> Void,
+    showSettings: @escaping @MainActor () -> Void,
     showAbout: @escaping @MainActor () -> Void,
     quit: @escaping @MainActor () -> Void
   ) {
@@ -26,6 +28,7 @@ public struct PopoverContext {
     self.permission = permission
     self.icon = icon
     self.openSoundSettings = openSoundSettings
+    self.showSettings = showSettings
     self.showAbout = showAbout
     self.quit = quit
   }

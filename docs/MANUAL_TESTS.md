@@ -137,3 +137,35 @@ Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra 
 5. **Pausa**: pause um app controlado, espere cerca de 20 segundos e rode o comando do log: deve aparecer "tap and aggregate destroyed" mais ou menos 15 s depois da pausa. Dar play de novo antes disso não deve causar nada.
 6. **Navegador silencioso**: deixe uma aba com vídeo mudo/pausado como único áudio e abra o painel: não deve aparecer "sem permissão". Se aparecer, anote; ele deve sumir sozinho em até ~30 s depois que algo tocar de verdade.
 7. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora e nenhum app fica mudo.
+
+---
+
+## M5 — Ajustes e Boas-vindas (o QA não abriu o app: mexeria em preferências, Itens de Início e permissão)
+
+Use `build/Volume Manager.app` (gerado por `scripts/build-app.sh`). Para repetir a primeira execução: `defaults delete com.volumemanager.app onboardingCompleted` (só essa chave) e, se quiser ver o pedido de permissão de novo, revogue em Ajustes do Sistema › Privacidade. Nada deve tocar alto: use música baixa ou `afplay -v 0.1`.
+
+### M5.1 Boas-vindas
+1. Primeira execução: abre uma janela 480×600, só com o botão de fechar (sem minimizar/zoom). Ícone, "Bem-vindo ao Volume Manager", 3 destaques, toggle "Abrir ao iniciar sessão" já ligado, "Permitir…", "Começar" (destaque, largura total). Textos em pt-BR (nenhuma chave tipo `welcome.title`).
+2. Fechar pelo X: nada é registrado; ao abrir o app de novo a janela volta (esperado).
+3. "Permitir…" **com algo tocando** (Música/Spotify baixinho): aparece o pedido do sistema; ao permitir, vira ✓ "Permitido". Sem nada tocando: mensagem "não deu para confirmar", botão continua e dá para tentar de novo.
+4. Negar: o botão passa a abrir Ajustes do Sistema › Privacidade; o som do app NÃO fica mudo.
+5. "Começar" com o toggle ligado: janela fecha, popover abre uma vez, e o app aparece em Ajustes do Sistema › Geral › Itens de Início. Reabrir o app depois: Boas-vindas não volta.
+6. Repetir com o toggle desligado: "Começar" NÃO cria item em Itens de Início.
+
+### M5.2 Ajustes
+1. Clicar no ícone da barra › "Ajustes do Volume Manager…" e também o item de rodapé; ⌘, com o popover aberto: a janela vem para a frente com foco, mesmo se estava atrás de outra. Repetir várias vezes: sempre a mesma janela (uma instância). ⌘W fecha.
+2. Barra lateral: Geral, Aplicativos, Dispositivos, Sobre; o item selecionado aparece legível (os snapshots mostram a seleção preta, provavelmente artefato de renderização fora de janela — conferir de verdade).
+3. Geral: toggle reflete Itens de Início. Desligue o item em Ajustes do Sistema, volte ao app: toggle desliga sozinho (relido ao ativar). Se aparecer "requer aprovação", a dica e o botão abrem Itens de Início.
+4. Lembrar volumes, Mostrar apps sem áudio, Incremento 1/5/10 refletem no popover (setas do teclado mudam no incremento escolhido). Fechar e reabrir o app: valores mantidos.
+5. Aplicativos: apps lembrados com ícone, nome, volume e saída; "Esquecer" remove um, "Esquecer todos" limpa e mostra o estado vazio.
+6. Dispositivos: lista com tipo, ✓ no padrão; "Definir como padrão" em outra saída (atenção: muda a saída do sistema — só se quiser testar; volte depois).
+7. Sobre: ícone, "Volume Manager", "Versão 1.0.0 (build 1)", link abre a página de Releases no navegador (confirmar a URL; ainda pendente de confirmação do usuário).
+
+### M5.4 Ícones
+1. Ícone da barra de menus "Três faders" (fixo, sem opção nos Ajustes): conferir na barra clara e na escura. Tamanho e alinhamento vertical iguais aos dos outros ícones, nítido em tela Retina, cor segue a barra (template). Com o popover aberto o botão fica destacado. Deve ser visivelmente diferente do alto-falante do macOS.
+2. Ícone do app "Mesa de som" (azul com 3 faders): aparece em `build/Volume Manager.app` no Finder (tamanho grande e pequeno), em Sobre e em Boas-vindas, sem borda/quadrado extra. Se o Finder mostrar o ícone antigo/genérico, é cache de ícones (copie o app para outra pasta para conferir).
+
+### M5.3 Ciclo
+1. Com o app rodando, abrir `Volume Manager.app` de novo pelo Finder (duplo clique): abre Ajustes, sem segunda instância no Monitor de Atividade.
+2. ⌘Q com a janela de Ajustes em foco: mesmo caminho do "Sair" do popover; apps ajustados voltam ao som original (conferir com algo tocando e volume reduzido).
+3. Aparência: alternar Claro/Escuro em Ajustes do Sistema com as janelas abertas; ambas acompanham, texto legível.

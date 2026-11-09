@@ -94,6 +94,16 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
     return clean.isEmpty ? nil : clean
   }
 
+  /// Display name of the installed app with `bundleID`, sanitized, or `nil` if it is not
+  /// installed (for the list of remembered apps).
+  public func displayName(forBundleID bundleID: String) -> String? {
+    let key = TextSanitizer.clean(bundleID)
+    guard !key.isEmpty,
+      let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: key)
+    else { return nil }
+    return appName(atAppPath: url.path)
+  }
+
   // MARK: Icons
 
   /// Icon of the app with `bundleID`, cached by bundle ID (at most `iconCacheLimit` entries,

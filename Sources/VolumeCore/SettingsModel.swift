@@ -7,8 +7,6 @@ import Observation
 public final class SettingsModel {
   /// Storage keys.
   enum Key {
-    static let launchAtLogin = "launchAtLogin"
-    static let menuBarIconStyle = "menuBarIconStyle"
     static let rememberVolumes = "rememberVolumes"
     static let showInactiveApps = "showInactiveApps"
     static let volumeStep = "volumeStepPercent"
@@ -20,12 +18,6 @@ public final class SettingsModel {
   /// Time without changes before the preferences are written (SPEC 12.4).
   public static let saveDelay: Duration = .milliseconds(500)
 
-  /// Open the app when the user logs in. Default on.
-  public var launchAtLogin = true { didSet { changed(oldValue != launchAtLogin) } }
-  /// Style of the menu bar icon. Default speaker.
-  public var menuBarIconStyle = MenuBarIconStyle.speaker {
-    didSet { changed(oldValue != menuBarIconStyle) }
-  }
   /// Remember the volume of each app. Default on.
   public var rememberVolumes = true { didSet { changed(oldValue != rememberVolumes) } }
   /// Keep apps that are not playing in the list. Default off.
@@ -117,7 +109,6 @@ public final class SettingsModel {
   }
 
   private func load() {
-    launchAtLogin = PreferenceValidation.bool(store.object(forKey: Key.launchAtLogin)) ?? true
     rememberVolumes = PreferenceValidation.bool(store.object(forKey: Key.rememberVolumes)) ?? true
     showInactiveApps =
       PreferenceValidation.bool(store.object(forKey: Key.showInactiveApps)) ?? false
@@ -125,9 +116,6 @@ public final class SettingsModel {
       PreferenceValidation.bool(store.object(forKey: Key.onboardingCompleted)) ?? false
     audioPermissionConfirmed =
       PreferenceValidation.bool(store.object(forKey: Key.permissionConfirmed)) ?? false
-    menuBarIconStyle =
-      PreferenceValidation.string(store.object(forKey: Key.menuBarIconStyle))
-      .flatMap(MenuBarIconStyle.init(rawValue:)) ?? .speaker
     volumeStep =
       PreferenceValidation.integer(store.object(forKey: Key.volumeStep))
       .flatMap(VolumeStep.init(rawValue:)) ?? .five
@@ -148,8 +136,6 @@ public final class SettingsModel {
   }
 
   private func save() {
-    store.set(launchAtLogin, forKey: Key.launchAtLogin)
-    store.set(menuBarIconStyle.rawValue, forKey: Key.menuBarIconStyle)
     store.set(rememberVolumes, forKey: Key.rememberVolumes)
     store.set(showInactiveApps, forKey: Key.showInactiveApps)
     store.set(volumeStep.rawValue, forKey: Key.volumeStep)

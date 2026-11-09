@@ -10,7 +10,7 @@ import VolumeCore
 // no sound, the real app is never opened. The views are drawn by AppKit in an off-screen
 // window that is never shown. Set VM_WRITE_SNAPSHOTS=1 to rewrite Tests/Snapshots/*.png.
 
-private final class QuietAudioSystem: AudioSystem, Sendable {
+final class QuietAudioSystem: AudioSystem, Sendable {
   func events() -> AsyncStream<AudioSystemEvent> { AsyncStream { _ in } }
   func currentState() async -> AudioSystemSnapshot { AudioSystemSnapshot() }
   func refresh() async {}
@@ -19,14 +19,14 @@ private final class QuietAudioSystem: AudioSystem, Sendable {
   func setDefaultOutput(uid: String) async {}
 }
 
-private final class QuietController: AppAudioController, Sendable {
+final class QuietController: AppAudioController, Sendable {
   func reconcile(desired: [DesiredAppAudio]) async {}
   func restoreAll() async {}
   func retry(appID: String) async {}
   func retryAll() async {}
 }
 
-private final class FixedAppInfo: AppInfoProvider, Sendable {
+final class FixedAppInfo: AppInfoProvider, Sendable {
   static let apps: [(name: String, bundleID: String)] = [
     ("Spotify", "com.spotify.client"), ("Safari", "com.apple.Safari"),
     ("Música", "com.apple.Music"), ("Zoom", "us.zoom.xos"), ("Discord", "com.hnc.Discord"),
@@ -41,13 +41,13 @@ private final class FixedAppInfo: AppInfoProvider, Sendable {
   }
 }
 
-private final class MemoryPreferences: PreferencesStore {
+final class MemoryPreferences: PreferencesStore {
   private var values: [String: Any] = [:]
   func object(forKey key: String) -> Any? { values[key] }
   func set(_ value: Any?, forKey key: String) { values[key] = value }
 }
 
-private final class ScriptedPermission: PermissionService, Sendable {
+final class ScriptedPermission: PermissionService, Sendable {
   let answer: AudioPermissionStatus
   init(_ answer: AudioPermissionStatus) { self.answer = answer }
   func request() async -> AudioPermissionStatus { answer }
@@ -55,10 +55,11 @@ private final class ScriptedPermission: PermissionService, Sendable {
 }
 
 @MainActor
-private struct Fixture {
+struct Fixture {
   let store: MixerStore
   let context: PopoverContext
   let permission: PermissionMonitor
+  let settings: SettingsModel
 
   static let speakers = OutputDevice(id: 1, uid: "speakers", name: "Alto-falantes", kind: .builtIn)
   static let airpods = OutputDevice(id: 2, uid: "airpods", name: "AirPods Pro", kind: .bluetooth)
@@ -89,10 +90,11 @@ private struct Fixture {
     if denied { await permission.refresh(onlyIfDenied: false) }
     self.store = store
     self.permission = permission
+    self.settings = settings
     context = PopoverContext(
       store: store, settings: settings, permission: permission,
       icon: { Self.icon(for: $0) },
-      openSoundSettings: {}, showAbout: {}, quit: {})
+      openSoundSettings: {}, showSettings: {}, showAbout: {}, quit: {})
   }
 
   private static func icon(for bundleID: String) -> NSImage? {
@@ -110,7 +112,7 @@ private struct Fixture {
 }
 
 @MainActor
-private func render<V: View>(_ view: V, dark: Bool, width: CGFloat) -> NSBitmapImageRep? {
+func render<V: View>(_ view: V, dark: Bool, width: CGFloat) -> NSBitmapImageRep? {
   _ = NSApplication.shared
   let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
   let backdrop = dark ? Color(white: 0.16) : Color(white: 0.93)
@@ -133,18 +135,18 @@ private func render<V: View>(_ view: V, dark: Bool, width: CGFloat) -> NSBitmapI
   return rep
 }
 
-private func isBlank(_ rep: NSBitmapImageRep) -> Bool {
+func isBlank(_ rep: NSBitmapImageRep) -> Bool {
   guard let data = rep.bitmapData else { return true }
   let count = rep.bytesPerRow * rep.pixelsHigh
   let first = data[0]
   return !(0..<count).contains { data[$0] != first }
 }
 
-private let snapshotsDirectory = URL(fileURLWithPath: #filePath)
+let snapshotsDirectory = URL(fileURLWithPath: #filePath)
   .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Snapshots")
 
 @MainActor
-private func snapshot<V: View>(_ name: String, _ view: V, width: CGFloat = 320) {
+func snapshot<V: View>(_ name: String, _ view: V, width: CGFloat = 320) {
   for dark in [false, true] {
     guard let rep = render(view, dark: dark, width: width) else {
       Issue.record("could not render \(name)")
