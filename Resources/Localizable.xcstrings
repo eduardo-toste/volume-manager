@@ -136,7 +136,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajustes do Volume…"
+            "value": "Ajustes do Volume Manager…"
           }
         }
       }
@@ -156,7 +156,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sobre o Volume"
+            "value": "Sobre o Volume Manager"
           }
         }
       }
@@ -196,7 +196,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ajustes do Volume…"
+            "value": "Ajustes do Volume Manager…"
           }
         }
       }
@@ -246,7 +246,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "O Volume precisa de acesso ao áudio do sistema para ajustar cada app"
+            "value": "O Volume Manager precisa de acesso ao áudio do sistema para ajustar cada app"
           }
         }
       }
@@ -296,7 +296,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Volume"
+            "value": "Volume Manager"
           }
         }
       }
@@ -346,7 +346,7 @@
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Os Ajustes do Volume chegam na próxima etapa."
+            "value": "Os Ajustes do Volume Manager chegam na próxima etapa."
           }
         }
       }

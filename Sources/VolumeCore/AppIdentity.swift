@@ -7,5 +7,5 @@ public enum AppIdentity {
   public static let logSubsystem = bundleIdentifier
 
   /// Name shown to the user.
-  public static let displayName = "Volume"
+  public static let displayName = "Volume Manager"
 }

@@ -4,11 +4,11 @@ Roteiros curtos para as pausas em que só o usuário pode validar (app real, áu
 
 ## M4 — ⏸2: popover do mixer
 
-Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume.app` com duplo clique. Na primeira vez que você mexer num app, o macOS vai pedir a permissão "Gravação de Áudio do Sistema" — pode permitir. Toque música em algum app para os testes.
+Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume Manager.app` com duplo clique. Na primeira vez que você mexer num app, o macOS vai pedir a permissão "Gravação de Áudio do Sistema" — pode permitir. Toque música em algum app para os testes.
 
 ### 1. Abrir e olhar
 1. Clique no ícone de alto-falante na barra de menus. O painel deve abrir de imediato (sem demora perceptível).
-2. Confira de cima para baixo: título "Volume" e botão `•••`; cartão "Saída" com o nome do dispositivo atual; seção "Aplicativos" com "N reproduzindo"; rodapé com "Ajustes de Som…", "Ajustes do Volume…" e "Sair".
+2. Confira de cima para baixo: título "Volume Manager" e botão `•••`; cartão "Saída" com o nome do dispositivo atual; seção "Aplicativos" com "N reproduzindo"; rodapé com "Ajustes de Som…", "Ajustes do Volume Manager…" e "Sair".
 3. Atenção: o cartão "Saída" deve mostrar o **nome do dispositivo** (ex.: "Alto-falantes do MacBook"). Se mostrar só "Saída" e o ícone, anote — é um defeito conhecido do QA.
 4. Não deve existir "Mostrar na barra de menus" nem atalhos globais em lugar nenhum.
 5. Feche com Esc. Abra de novo.
@@ -23,9 +23,9 @@ Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume.ap
 ### 2b. Permissão, primeira ação e reabrir (novo)
 1. Antes de mexer em qualquer app, abrir o painel NÃO deve mostrar o pedido de permissão do macOS. O pedido só aparece quando você mexe no volume, no mudo ou na saída de um app tocando pela primeira vez. Permita.
 2. Depois de permitir, o volume daquele app deve passar a mudar (a primeira ação grava a marca "permissão confirmada").
-3. Deixe um app com volume baixo, com música tocando, e escolha "Sair". Abra o Volume de novo com a música ainda tocando: o volume baixo deve voltar **sozinho**, sem você mexer em nada e sem novo pedido de permissão.
-4. Abra o Volume com o app lembrado parado (sem tocar): nada acontece até ele tocar. Ao tocar, o volume lembrado é aplicado.
-5. Se o pedido de permissão aparecer **sozinho** ao abrir o Volume (sem você ter mexido em nada), anote — não deveria.
+3. Deixe um app com volume baixo, com música tocando, e escolha "Sair". Abra o Volume Manager de novo com a música ainda tocando: o volume baixo deve voltar **sozinho**, sem você mexer em nada e sem novo pedido de permissão.
+4. Abra o Volume Manager com o app lembrado parado (sem tocar): nada acontece até ele tocar. Ao tocar, o volume lembrado é aplicado.
+5. Se o pedido de permissão aparecer **sozinho** ao abrir o Volume Manager (sem você ter mexido em nada), anote — não deveria.
 
 ### 3. Saída por app
 1. Clique no nome ou ícone de um app: abre "SAÍDA DESTE APP" com "Padrão do sistema (…)" e os dispositivos; o atual tem ✓.
@@ -45,8 +45,8 @@ Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume.ap
 3. Abra o app, baixe um app, e force o encerramento (Monitor de Atividade): o som volta ao normal sozinho.
 
 ### 6. Sem permissão (opcional, mexe em Ajustes do Sistema)
-1. Em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema, desligue o "Volume" com um app tocando e baixe o volume dele.
-2. O app deve voltar ao som normal; a linha desse app, se aparecer, mostra só o aviso "Não foi possível controlar este app". O painel mostra "O Volume precisa de acesso…" com "Permitir…" (o cartão "Saída" continua funcionando).
+1. Em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema, desligue o "Volume Manager" com um app tocando e baixe o volume dele.
+2. O app deve voltar ao som normal; a linha desse app, se aparecer, mostra só o aviso "Não foi possível controlar este app". O painel mostra "O Volume Manager precisa de acesso…" com "Permitir…" (o cartão "Saída" continua funcionando).
 3. Ligue a permissão de novo e reabra o painel: o aviso some sozinho e o app volta a ser controlável sem reiniciar.
 
 ### 7. Claro e escuro, acessibilidade
@@ -57,7 +57,7 @@ Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume.ap
 ### 8. Matriz de apps (SPEC 4.1) — uma linha por app, nome e ícone corretos (nunca "Helper")
 Para cada app, toque áudio, baixe o volume, silencie e volte:
 
-| App | Aparece 1 linha? | Volume muda só ele? | Mudo ok? | Ao fechar o Volume o som volta? |
+| App | Aparece 1 linha? | Volume muda só ele? | Mudo ok? | Ao fechar o Volume Manager o som volta? |
 |---|---|---|---|---|
 | Safari (vídeo/YouTube) | | | | |
 | Chrome | | | | |
@@ -67,7 +67,7 @@ Para cada app, toque áudio, baixe o volume, silencie e volte:
 | Música | | | | |
 
 ### 9. Orçamentos (SPEC 12.4) — o QA não pôde medir sem abrir o app
-- CPU ocioso: com o painel fechado e nenhum app ajustado, no Terminal: `top -l 5 -pid $(pgrep -x Volume) -stats cpu,mem` — esperado ~0% de CPU e memória < 60 MB.
+- CPU ocioso: com o painel fechado e nenhum app ajustado, no Terminal: `top -l 5 -pid $(pgrep -x VolumeManager) -stats cpu,mem` — esperado ~0% de CPU e memória < 60 MB.
 - CPU com um app ajustado: mesmo comando; esperado < 1% de um núcleo (Apple Silicon).
 - Abertura do painel: grave a tela (⇧⌘5) abrindo o painel e conte os quadros até o primeiro desenho; esperado < 100 ms (cerca de 6 quadros a 60 fps). Se a abertura parecer lenta a olho, avise.
 - Medição prévia do QA (só montar a visão com dados falsos, sem áudio): cerca de 70 ms para criar e desenhar o painel completo.
@@ -76,10 +76,10 @@ Ao terminar, avise se algo falhou ou pareceu estranho (em especial os itens 1.3 
 
 ## M4.1 — reteste do ⏸2
 
-Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/Volume.app` de novo. Só confira o que mudou.
+Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra `build/Volume Manager.app` de novo. Só confira o que mudou.
 
 1. **Textos com acento**: abra o painel. Deve estar escrito "Saída", "Aplicativos", "Não foi possível controlar este app" (nada de "SaÃ­da").
-2. **Rodapé**: "Ajustes do Volume…" e "Sair" sem "⌘," nem "⌘Q" escritos. Com o painel aberto, ⌘, ainda abre os Ajustes e ⌘Q ainda sai.
+2. **Rodapé**: "Ajustes do Volume Manager…" e "Sair" sem "⌘," nem "⌘Q" escritos. Com o painel aberto, ⌘, ainda abre os Ajustes e ⌘Q ainda sai.
 3. **Volume geral rápido**: arraste o controle largo do cartão "Saída" de ponta a ponta, bem rápido, várias vezes. Ele deve acompanhar o dedo sem travar nem voltar sozinho. Solte no meio: o valor onde você soltou é o que fica (confira em Ajustes do Sistema › Som).
 4. **Volume de um app rápido**: mesma coisa num app tocando; o som muda sem engasgar e fica no último valor.
 5. **Sem anel azul**: clique numa linha: aparece só o fundo suave, sem anel azul. Com "Navegação por teclado" ligada, Tab percorre cartão e linhas com o mesmo fundo suave; setas ajustam e Espaço silencia.
@@ -88,10 +88,10 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
 8. **Painel alto**: com 5 apps ou menos, abra a saída de um app (clique no nome) e veja se o painel continua inteiro dentro da tela. Anote se passar da borda de baixo.
 9. **Play com o painel aberto**: com o painel aberto e nenhum app tocando, dê play num app. A linha deve aparecer sozinha em até ~1 s. Repita com **outro app já tocando** e um segundo app que estava aberto e pausado: anote se a linha do segundo demora ou só aparece ao reabrir o painel (limitação conhecida).
 10. **Spotify com AirPods**: com a permissão já concedida, deixe o Spotify tocando nos AirPods e baixe o volume dele: deve mudar. Se aparecer "Não foi possível controlar este app", anote e mande o texto de: `log show --last 2m --predicate 'subsystem == "com.volumemanager.app"' --info`.
-11. **Permissão no lançamento**: com o Volume fechado, abra-o sem mexer em nada. Se aparecer sozinho o pedido de permissão, anote (o orquestrador diz que vem do sistema, não do app).
+11. **Permissão no lançamento**: com o Volume Manager fechado, abra-o sem mexer em nada. Se aparecer sozinho o pedido de permissão, anote (o orquestrador diz que vem do sistema, não do app).
 12. **VoiceOver** (⌘F5): o controle geral e o de cada app são lidos com nome e porcentagem e ajustam com Ctrl+Opt+↑/↓; o botão de mudo do cartão continua sendo lido como botão.
 13. **Estalo ao baixar o Spotify** (use fones ou volume geral baixo; ouça com atenção):
-    a. Feche o Volume e abra de novo. Deixe o Spotify tocando com o controle dele em 100% (sem ter mexido antes). Arraste o controle do Spotify de 100% para cerca de 10% de uma vez. Este é o **primeiro movimento** (o Volume ainda não estava controlando o Spotify). Anote: estalou? (sim/não)
+    a. Feche o Volume Manager e abra de novo. Deixe o Spotify tocando com o controle dele em 100% (sem ter mexido antes). Arraste o controle do Spotify de 100% para cerca de 10% de uma vez. Este é o **primeiro movimento** (o Volume Manager ainda não estava controlando o Spotify). Anote: estalou? (sim/não)
     b. Agora, com o Spotify já controlado, faça mudanças grandes: arraste de 80% para 10%, depois de 10% para 80%, e repita 2 vezes. Anote: estalou? Em qual direção (descendo, subindo)?
     c. Resultado esperado: nenhum estalo em (a) nem em (b). Se houver, diga em qual das duas (a ou b) apareceu. Ajuda dizer se foi no começo da música/trecho alto ou também em trechos calmos.
 14. **Painel e lista**: com 5 apps ou menos, abrir a saída de um app não deve passar da borda da tela (a lista passa a rolar). Dar play num app com outro já tocando e o painel aberto: se não aparecer sozinho, feche e abra o painel; a linha deve aparecer ao abrir.
@@ -101,7 +101,7 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
     c. Linhas dos apps: ícone, nome, porcentagem à direita, controle embaixo do nome e botão redondo de mudo à direita. Uma linha silenciada fica com o controle cinza e o botão vermelho. Anote a diferença que você achar: no design o botão de mudo mostra um alto-falante com "×"; no app é o alto-falante com uma barra.
     d. Linha expandida (clique no nome): "SAÍDA DESTE APP" com a lista e ✓ no atual, num bloco com fundo suave, como em `popover-app-output-*.png`.
     e. Ligue "Reduzir transparência" (Acessibilidade › Vídeo): o painel fica opaco, sem quebrar o visual.
-16. **Apps que já estavam tocando antes de abrir o Volume**: toque música em 2 apps, **depois** abra o Volume, clique no ícone da barra. Os dois apps devem aparecer na lista na hora, sem você mexer em nada. Se faltar algum, diga qual e se ele estava tocando antes ou começou depois.
+16. **Apps que já estavam tocando antes de abrir o Volume Manager**: toque música em 2 apps, **depois** abra o Volume, clique no ícone da barra. Os dois apps devem aparecer na lista na hora, sem você mexer em nada. Se faltar algum, diga qual e se ele estava tocando antes ou começou depois.
 17. **Altura**: com 1, 2, 4 e 6 apps tocando o painel cresce junto, sem barra de rolagem; com 7 ou mais, a lista passa a rolar e o painel para de crescer (nunca passa de ~70% da altura da tela). O painel não deve "pular" depois de abrir.
 18. **Painel novo (janela própria)**: o painel agora abre ao clicar no ícone, colado sob a barra de menus. Confira:
     a. Clicar no ícone abre; clicar de novo no ícone fecha (não reabre sozinho). Esc fecha. Clicar fora (na área de trabalho, em outra janela ou em outro ícone da barra) fecha.
@@ -116,18 +116,18 @@ Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/V
 21. **Restaurar e Sair com o app em 100%**: baixe um app, volte a 100% e, antes de passar 2 segundos, use "Restaurar áudio original" ou "Sair": o som continua normal e nada fica mudo.
 22. **Sempre controlado (Rodada 5)**: agora todo app que está tocando é controlado, mesmo em 100%. Confira, ouvindo com atenção:
     a. Mudanças de volume (arrastar, passar por 100%, silenciar e voltar, trocar a saída do app): **zero estalos**. Esse é o objetivo.
-    b. Pode haver um estalinho **só no instante em que um app começa a tocar** (quando o Volume passa a controlá-lo). Anote se ouvir, e com quais apps.
+    b. Pode haver um estalinho **só no instante em que um app começa a tocar** (quando o Volume Manager passa a controlá-lo). Anote se ouvir, e com quais apps.
     c. Pausar e dar play dentro de ~15 segundos não deve causar nada. Depois de ~15 s parado, o app deixa de ser controlado sozinho.
-    d. **Som idêntico em 100%**: com o app em 100%, o som não deve mudar de timbre nem de volume em relação a antes de abrir o Volume.
+    d. **Som idêntico em 100%**: com o app em 100%, o som não deve mudar de timbre nem de volume em relação a antes de abrir o Volume Manager.
     e. **Vídeo**: veja um vídeo (YouTube/Safari) com fones Bluetooth e com o alto-falante: a imagem e a fala continuam sincronizadas (sem atraso perceptível) e o som não falha.
     f. **Navegador silencioso**: abra uma aba com vídeo pausado/mudo (ou um site que mantém áudio aberto em silêncio) como único áudio e abra o painel. O painel **não** deve passar a dizer "sem permissão". Se disser, anote (limitação conhecida); tocar música de verdade e reabrir o painel deve resolver.
     g. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora, nenhum app fica mudo, e nenhum app é controlado de novo até você mexer em um volume.
-    h. **Revogar permissão com o Volume aberto** (opcional): com 2 apps tocando, desligue o "Volume" em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema. Em poucos segundos os apps devem voltar a tocar normalmente (nunca ficar mudos) e o painel mostrar "sem permissão".
+    h. **Revogar permissão com o Volume Manager aberto** (opcional): com 2 apps tocando, desligue o "Volume Manager" em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema. Em poucos segundos os apps devem voltar a tocar normalmente (nunca ficar mudos) e o painel mostrar "sem permissão".
     i. **Apps com saída especial** (HDMI/monitor, interface multicanal): se aparecer "Não foi possível controlar este app" num app que você nem mexeu, anote — o som deve continuar normal.
 
 ## Reteste agora (versão curta, vale mais que os itens acima)
 
-Antes: `scripts/build-app.sh`, feche o Volume que estiver aberto e abra `build/Volume.app`. Se algo falhar, rode logo depois:
+Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra `build/Volume Manager.app`. Se algo falhar, rode logo depois:
 `/usr/bin/log show --last 10m --info --predicate 'subsystem == "com.volumemanager.app"'` e mande o resultado, com o horário aproximado do problema.
 
 1. **Visual**: abra o painel ao lado de `design/reference/popover-light.png` (e `-dark`). Deve ser igual ao design: fundo borrado translúcido, cantos bem arredondados, sem retângulo nem sombra quadrada em volta, controles com botão branco em pílula. Claro e escuro.

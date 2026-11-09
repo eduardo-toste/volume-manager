@@ -70,7 +70,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 - `Package.swift` com os módulos da SPEC §12.1: `VolumeCore`, `VolumeAudio`, `VolumeSystem`, `VolumeUI`, executável `VolumeManager`, executável de desenvolvimento `vmctl` (ver M2), e alvos de teste. `platforms: [.macOS(.v15)]`, Swift 6, concorrência estrita, zero dependências externas.
 - `Resources/`: `Info.plist` (`LSUIElement`, `LSMinimumSystemVersion 15.0`, bundle ID `com.volumemanager.app`, `NSAudioCaptureUsageDescription`), entitlements, `Localizable.xcstrings`, `Version` (versão em um só lugar).
 - `.swift-format`, `.gitignore`.
-- `scripts/check.sh` (lint de formatação + build sem avisos + `swift test` + `security-check.sh`), `scripts/build-app.sh` (release build → monta `Volume.app` sem `vmctl` → Hardened Runtime → assina com `VOLUME_SIGN_IDENTITY` ou ad-hoc).
+- `scripts/check.sh` (lint de formatação + build sem avisos + `swift test` + `security-check.sh`), `scripts/build-app.sh` (release build → monta `Volume Manager.app` sem `vmctl` → Hardened Runtime → assina com `VOLUME_SIGN_IDENTITY` ou ad-hoc).
 - `scripts/security-check.sh` com todas as verificações da SPEC §12.9.7 desde o primeiro dia.
 - Entitlements de release mínimos (nenhuma exceção proibida). Zero dependências (o security-check falha se houver alguma).
 - App mínimo: ícone de alto-falante na barra de menus abrindo um popover vazio “Volume”.
@@ -78,7 +78,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 **QA**
 - `check.sh` verde do zero (clone limpo).
-- `build-app.sh` gera `Volume.app`; `codesign --verify --strict` ok; Hardened Runtime ativo; Info.plist contém as chaves; app abre sem ícone no Dock (verificar via `lsappinfo`/processo).
+- `build-app.sh` gera `Volume Manager.app`; `codesign --verify --strict` ok; Hardened Runtime ativo; Info.plist contém as chaves; app abre sem ícone no Dock (verificar via `lsappinfo`/processo).
 - Regras de dependência entre módulos: `VolumeCore` não importa CoreAudio/AppKit/SwiftUI; `VolumeUI` não importa `VolumeAudio`/`VolumeSystem` (teste/script que inspeciona os `import`).
 - **Segurança**: `security-check.sh` passa e **também falha quando deveria** (QA injeta temporariamente um entitlement proibido e um `URLSession` num branch de teste e confirma que o script pega — depois descarta).
 

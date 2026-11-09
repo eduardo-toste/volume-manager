@@ -1,7 +1,7 @@
 import Foundation
 import VolumeCore
 
-/// Development-only command line tool. It is never shipped inside Volume.app.
+/// Development-only command line tool. It is never shipped inside Volume Manager.app.
 let usage = """
   vmctl \(AppIdentity.displayName) development tool
 

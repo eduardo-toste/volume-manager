@@ -22,7 +22,7 @@ public enum ProcessGrouping {
   /// 2. the `.app` of the process the system holds responsible for it;
   /// 3. the first three components of its bundle ID.
   ///
-  /// Excluded: the app itself (by bundle ID, by `Volume.app` path or by `excludedPID`, also as
+  /// Excluded: the app itself (by bundle ID, by `Volume Manager.app` path or by `excludedPID`, also as
   /// responsible process) and system daemons without an app.
   public static func group(
     _ processes: [AudioProcessInfo],

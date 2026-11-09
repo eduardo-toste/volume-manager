@@ -229,10 +229,12 @@ struct QARound2StoreTests {
   @Test func volumePathIsExcludedWithoutAnyPlistOrBundleID() {
     let info = FakeAppInfoProvider()
     let processes = [
-      AudioProcessInfo(pid: 1, executablePath: "/Users/me/Build/Volume.app/Contents/MacOS/V"),
+      AudioProcessInfo(
+        pid: 1, executablePath: "/Users/me/Build/Volume Manager.app/Contents/MacOS/V"),
       AudioProcessInfo(
         pid: 2,
-        executablePath: "/Applications/Volume.app/Contents/Frameworks/x/Helper.app/Contents/MacOS/h"
+        executablePath:
+          "/Applications/Volume Manager.app/Contents/Frameworks/x/Helper.app/Contents/MacOS/h"
       ),
       AudioProcessInfo(pid: 3, executablePath: "/Applications/Other.app/Contents/MacOS/o"),
     ]

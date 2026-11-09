@@ -117,12 +117,13 @@ struct ProcessGroupingTests {
   }
 
   @Test func excludesOurselvesAndOurHelpers() {
-    info.setApp("/Applications/Volume.app", name: "Volume", bundleID: "com.volumemanager.app")
+    info.setApp(
+      "/Applications/Volume Manager.app", name: "Volume Manager", bundleID: "com.volumemanager.app")
     let result = group([
       AudioProcessInfo(pid: 1, bundleID: "com.volumemanager.app"),
       AudioProcessInfo(pid: 2, bundleID: "com.volumemanager.app.helper"),
       AudioProcessInfo(
-        pid: 3, executablePath: "/Applications/Volume.app/Contents/MacOS/VolumeManager"),
+        pid: 3, executablePath: "/Applications/Volume Manager.app/Contents/MacOS/VolumeManager"),
       AudioProcessInfo(pid: 4, bundleID: "com.volumemanager.appX"),
     ])
     #expect(result.map(\.id) == ["com.volumemanager.appX"])

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Security checks of SPEC 12.9.7. Exits non-zero on ANY violation.
 # Usage: scripts/security-check.sh [--app]
-#   --app  require the built bundle (build/Volume.app, or $VOLUME_APP) and fail if it is missing.
+#   --app  require the built bundle (build/Volume Manager.app, or $VOLUME_APP) and fail if it is missing.
 #          Without it, binary checks are skipped with a warning when the bundle does not exist.
 #
 # Search scope: tracked project files only. These are deliberately EXCLUDED from the searches:
@@ -20,7 +20,7 @@ for arg in "$@"; do
   esac
 done
 
-APP="${VOLUME_APP:-build/Volume.app}"
+APP="${VOLUME_APP:-build/Volume Manager.app}"
 FAILURES=0
 
 fail() { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Builds build/Volume.app (release), signs with Hardened Runtime and verifies the signature.
+# Builds build/Volume Manager.app (release), signs with Hardened Runtime and verifies the signature.
 # Signing identity: $VOLUME_SIGN_IDENTITY, otherwise ad-hoc ("-", development only; SPEC 13.2).
 # vmctl is a development tool and is NEVER copied into the bundle (SPEC 12.9.6).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-APP="build/Volume.app"
+APP="build/Volume Manager.app"
 IDENTITY="${VOLUME_SIGN_IDENTITY:--}"
 # Only this warning may be ignored: harmless Command Line Tools linker noise.
 IGNORED_WARNING='ld: warning: search path .* not found'

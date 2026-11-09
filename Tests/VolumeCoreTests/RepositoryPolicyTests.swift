@@ -32,7 +32,7 @@ struct RepositoryPolicyTests {
   @Test func infoPlistMatchesSpec() throws {
     let info = try plist("Resources/Info.plist")
     #expect(info["CFBundleIdentifier"] as? String == "com.volumemanager.app")
-    #expect(info["CFBundleName"] as? String == "Volume")
+    #expect(info["CFBundleName"] as? String == "Volume Manager")
     #expect(info["LSUIElement"] as? Bool == true)
     #expect(info["LSMinimumSystemVersion"] as? String == "15.0")
     #expect(info["CFBundleExecutable"] as? String == "VolumeManager")

@@ -20,6 +20,7 @@
 | ⏸2 Teste do app real (roteiro em `docs/MANUAL_TESTS.md`, seção M4) | ❌ reprovado (2026-11-08, manhã) → ✅ aprovado após a M4.1 (2026-11-08, tarde) | — |
 | M4.1 Correções do ⏸2 (design do FigCraft à risca, painel próprio, sempre controlar, estalo zero) | ✅ QA PASS (6 rodadas) + Segurança LIBERA (reavaliação) + ⏸2 aprovado | branch `etapa/m4.1` |
 | M4.1b Pendências curtas da M4.1 (S41R-M1, S41R-B1, vigia 5 s + "nenhum app", rampa na troca de formato, testes estabilizados) | ✅ QA PASS (2 rodadas, `docs/reports/m4.1b-qa.md`) + Segurança LIBERA (reavaliação, `docs/reports/m4.1-security.md` §M4.1b) | branch `etapa/m4.1b` |
+| M4.2 Nome exibido “Volume Manager” (bundle ID mantido) | ✅ QA PASS (`docs/reports/m4.2-qa.md`) | branch `etapa/m4.2-nome` |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
@@ -42,7 +43,7 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 ## Decisões tomadas (resumo)
 - macOS mínimo **15**; atômicos com `Synchronization.Atomic`.
 - API privada `responsibility_get_pid_responsible_for_pid` só via `weak_import` em `CSystemShims` (ver M-1).
-- Bundle ID `com.volumemanager.app`, nome exibido "Volume"; distribuição pelo GitHub Releases, sem conta Apple, certificado próprio; sem atualização automática no MVP.
+- Bundle ID `com.volumemanager.app`, nome exibido "Volume Manager" (renomeado em 2026-11-09, decisão do usuário; bundle ID mantido para não perder a permissão); distribuição pelo GitHub Releases, sem conta Apple, certificado próprio; sem atualização automática no MVP.
 - Pânico ("Restaurar áudio original") = lousa limpa total (zera estados + esquece lembrados).
 - ZWJ/ZWNJ preservados só entre caracteres visíveis.
 - Vigia de silêncio fica como na SPEC; a UI confirma com `verify()`.

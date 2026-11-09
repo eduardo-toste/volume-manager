@@ -136,7 +136,8 @@ enum TapCommands {
       "stopped \(stopped) other vmctl process(es); their taps are destroyed and the apps are back to normal"
     )
     print(
-      "(Volume itself restores through its own menu; killing a process always returns the sound.)")
+      "(Volume Manager itself restores through its own menu; killing a process always returns the sound.)"
+    )
   }
 
   // MARK: Helpers

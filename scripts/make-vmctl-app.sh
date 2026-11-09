@@ -2,7 +2,7 @@
 # Development only: wraps vmctl in build/vmctl-dev.app so macOS can ask for the "System Audio
 # Recording" permission for this tool. A command line tool without an Info.plist never gets the
 # request: taps are created without any error and deliver only zeros (SPEC 4.6).
-# vmctl is NEVER part of Volume.app or the DMG (SPEC 12.9.6); this bundle lives in build/ only.
+# vmctl is NEVER part of Volume Manager.app or the DMG (SPEC 12.9.6); this bundle lives in build/ only.
 #
 # Usage: scripts/make-vmctl-app.sh
 # Then:  open -W --stdout "$PWD/build/vmctl-dev.out" --stderr "$PWD/build/vmctl-dev.out" \
@@ -44,7 +44,7 @@ cat >"$APP/Contents/Info.plist" <<'PLIST'
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Ferramenta de desenvolvimento do Volume: ajustar o volume de um app. Nada é gravado ou enviado.</string>
+	<string>Ferramenta de desenvolvimento do Volume Manager: ajustar o volume de um app. Nada é gravado ou enviado.</string>
 </dict>
 </plist>
 PLIST

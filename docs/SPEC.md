@@ -4,7 +4,7 @@
 
 ## 1. Visão geral
 
-**Volume** (nome exibido; projeto `VolumeManager`) é um mixer de volume por aplicativo para macOS, no espírito do Mixer de Volume do Windows, mas com aparência e comportamento de um app feito pela própria Apple.
+**Volume Manager** (nome exibido; projeto `VolumeManager`; decisão do usuário em 2026-11-09: “Volume” sozinho confundia com o volume do sistema) é um mixer de volume por aplicativo para macOS, no espírito do Mixer de Volume do Windows, mas com aparência e comportamento de um app feito pela própria Apple.
 
 - Vive **só na barra de menus** (sem ícone no Dock).
 - **Abre automaticamente** quando o Mac liga (login item, ligado por padrão).
@@ -32,7 +32,7 @@
 | Persistência | `UserDefaults` (preferências e volumes lembrados por bundle ID). |
 | Build | **Swift Package Manager** (`Package.swift`) + script `scripts/build-app.sh` que monta e assina o `.app`. Compila e testa só com as Command Line Tools; o Xcode abre o `Package.swift` diretamente quando instalado. Ver §12.7. |
 | Testes | **Swift Testing** (`swift test`). |
-| Identificação | Nome exibido **Volume** · bundle ID **`com.volumemanager.app`** · produto `VolumeManager`. |
+| Identificação | Nome exibido **Volume Manager** · bundle ID **`com.volumemanager.app`** · produto `VolumeManager`. |
 | Info.plist | `LSUIElement = YES`, `LSMinimumSystemVersion = 15.0`, `NSAudioCaptureUsageDescription` com texto em pt-BR. |
 | Assinatura | Hardened Runtime ligado; App Sandbox **desligado** na v1 (ver §10). **Sem Apple Developer Program**: assinatura com certificado próprio estável (§13.2). |
 
@@ -47,7 +47,7 @@ Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos*
 ### 3.2 Popover do mixer (largura ~320pt)
 De cima para baixo:
 
-1. **Cabeçalho** — título “Volume” e botão `•••` (menu com: Ajustes do Volume…, **Restaurar áudio original**, Sobre o Volume, Sair). “Restaurar áudio original” destrói todos os taps na hora e volta todos os apps a 100%/saída padrão, sem fechar o app (botão de pânico; ver §4.6).
+1. **Cabeçalho** — título “Volume Manager” e botão `•••` (menu com: Ajustes do Volume Manager…, **Restaurar áudio original**, Sobre o Volume Manager, Sair). “Restaurar áudio original” destrói todos os taps na hora e volta todos os apps a 100%/saída padrão, sem fechar o app (botão de pânico; ver §4.6).
 2. **Card “Saída principal”**
    - Ícone do dispositivo + rótulo “Saída” + nome do dispositivo de saída padrão do sistema + chevron `›`.
    - Clicar abre a lista de dispositivos de saída; escolher um muda a **saída padrão do sistema**.
@@ -62,7 +62,7 @@ De cima para baixo:
    - **Expandir linha** (clique no nome/ícone ou no rótulo de rota): mostra “SAÍDA DESTE APP” com a lista de dispositivos; o atual tem ✓. Primeira opção: “Padrão do sistema (‹nome›)”. Só uma linha expandida por vez.
    - Hover: fundo levemente destacado na linha.
    - Lista rola se passar de ~6 apps; o popover não cresce além de ~70% da altura da tela.
-5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume…”, “Sair”. ⌘, e ⌘Q funcionam com o popover aberto, mas **não aparecem escritos** (decisão do usuário em 2026-11-08, como na Central de Controle).
+5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume Manager…”, “Sair”. ⌘, e ⌘Q funcionam com o popover aberto, mas **não aparecem escritos** (decisão do usuário em 2026-11-08, como na Central de Controle).
 
 **Estados especiais do popover**
 - **Sem permissão de áudio**: no lugar da lista de apps, um aviso “O Volume precisa de acesso ao áudio do sistema para ajustar cada app” + botão “Permitir…” (ver §5). O card de saída principal continua funcionando.
@@ -85,7 +85,7 @@ Barra lateral: **Geral, Aplicativos, Dispositivos, Sobre** (campo “Buscar” f
 ### 3.4 Boas-vindas (primeiro uso)
 Janela 480×600, só botão fechar ativo. Aparece **apenas na primeira execução** (ou se a permissão de áudio ainda não foi decidida).
 
-- Ícone do app, “Bem-vindo ao Volume”, subtítulo.
+- Ícone do app, “Bem-vindo ao Volume Manager”, subtítulo.
 - 3 destaques: Volume de cada app · Saída por app · Igual ao sistema.
 - Grupo:
   - Abrir ao iniciar sessão — toggle **já ligado**; ao clicar em “Começar” com ele ligado, registra o login item.
@@ -107,10 +107,10 @@ Janela 480×600, só botão fechar ativo. Aparece **apenas na primeira execuçã
 
 ### 4.2 Volume e mudo por app
 - Para cada app da lista (§4.1) **enquanto ele reproduz áudio**, criar um **process tap** (`CATapDescription` com os PIDs do grupo, `muteBehavior = .mutedWhenTapped`) e um **aggregate device** privado que contém o tap como entrada e o dispositivo de saída alvo como saída. Um IOProc copia o áudio do tap para a saída multiplicando pelo ganho.
-- **Sempre controlar** (decisão do usuário em 2026-11-08, para estalo zero): o tap do app existe enquanto ele reproduz, **inclusive em 100%** — em 100% sem mudo o ganho é exatamente 1 (amostras copiadas bit a bit, §4.7), então o som é idêntico ao original. Assim nunca há troca entre o caminho nativo e o tap durante uma mudança de volume. O tap é criado quando o app começa a reproduzir (`IsRunningOutput`) e removido algum tempo depois que ele para (para não religar entre faixas). Sem permissão confirmada (§4.6), nenhum tap. Se o Volume fechar ou travar, o macOS devolve o som original.
+- **Sempre controlar** (decisão do usuário em 2026-11-08, para estalo zero): o tap do app existe enquanto ele reproduz, **inclusive em 100%** — em 100% sem mudo o ganho é exatamente 1 (amostras copiadas bit a bit, §4.7), então o som é idêntico ao original. Assim nunca há troca entre o caminho nativo e o tap durante uma mudança de volume. O tap é criado quando o app começa a reproduzir (`IsRunningOutput`) e removido algum tempo depois que ele para (para não religar entre faixas). Sem permissão confirmada (§4.6), nenhum tap. Se o Volume Manager fechar ou travar, o macOS devolve o som original.
 - Ganho: curva perceptual (ex.: `gain = v²` ou dB), não linear pura; mudanças de ganho com **rampa** de ~20 ms para não estalar.
 - Mudo = ganho 0 mantendo o valor do slider.
-- Se o Volume fechar ou travar, os taps morrem junto e o áudio original volta sozinho — comportamento esperado e seguro.
+- Se o Volume Manager fechar ou travar, os taps morrem junto e o áudio original volta sozinho — comportamento esperado e seguro.
 
 ### 4.6 Princípio “falhar abrindo” (nunca quebrar o áudio do usuário)
 O pior resultado aceitável de qualquer falha é **“o app volta ao som normal”** — nunca “o app ficou mudo” ou “o som parou”.
@@ -120,11 +120,11 @@ O pior resultado aceitável de qualquer falha é **“o app volta ao som normal�
 - Falha ao criar tap ou aggregate device → não tenta de novo em laço; deixa o app no som original.
 - **Tap silencioso por falta de permissão (descoberto no ⏸0)**: sem a permissão “Gravação de Áudio do Sistema”, o macOS **não retorna erro** — o tap é criado, o app original é silenciado e o tap entrega **somente zeros**. O vigia de frames não detecta isso. Regras:
   - **Antes** de criar qualquer tap de usuário, a permissão precisa ter sido confirmada por uma verificação de sinal (tap de teste sobre um processo que esteja tocando: se só chegar silêncio digital absoluto por ~500 ms enquanto o processo reporta `IsRunningOutput`, considerar **negada**).
-  - **Durante** o uso, um **vigia de silêncio**: o IOProc registra (atômico, sem alocação) se recebeu alguma amostra ≠ 0. Se por **5 s seguidos** (decisão do usuário em 2026-11-09: um app que pausa manda ~2 s de silêncio antes de fechar o stream, e isso não pode virar “sem permissão”) só chegar zero absoluto enquanto o app reporta `IsRunningOutput = true`, o app roda a verificação de sinal (tap de teste que não altera o som): **negada** → todos os taps são destruídos na hora (som original volta) e o app passa ao estado “sem permissão” (§3.2/§5); **concedida** → é silêncio legítimo (ex.: navegador com stream aberto em silêncio): o tap é mantido e, enquanto o silêncio durar, verificado de novo no máximo a cada 30 s (nunca um silêncio sem prazo); **indeterminada** → mantém e tenta de novo depois, no máximo a cada 30 s. Um “negada” é **ambíguo** e não vale se outro tap vivo recebeu sinal ≠ 0 nos últimos segundos (prova de que a permissão existe), nem quando o processo verificado sumiu (= indeterminada); um “negada” vindo do vigia nunca é gravado como estado persistente — após a falha aberta, o app reverifica sozinho, no máximo a cada 30 s, enquanto algo tocar. Enquanto, após um “negada” do vigia, nenhum app estiver tocando, o popover mostra “Nenhum app está reproduzindo áudio” (não “sem permissão”), e a reverificação roda assim que algo voltar a tocar. No máximo uma verificação por vez; um “concedida” recente (≤ 30 s) só é reaproveitado para reverificar um silêncio que já foi verificado, nunca para o primeiro silêncio depois de sinal (achado S41R-M1). Como todo app que reproduz tem tap (§4.2), isso garante que revogar a permissão com o Volume aberto nunca deixa apps mudos. É uma checagem binária (zero ou não), não análise de conteúdo: nada é guardado (§12.9.3).
+  - **Durante** o uso, um **vigia de silêncio**: o IOProc registra (atômico, sem alocação) se recebeu alguma amostra ≠ 0. Se por **5 s seguidos** (decisão do usuário em 2026-11-09: um app que pausa manda ~2 s de silêncio antes de fechar o stream, e isso não pode virar “sem permissão”) só chegar zero absoluto enquanto o app reporta `IsRunningOutput = true`, o app roda a verificação de sinal (tap de teste que não altera o som): **negada** → todos os taps são destruídos na hora (som original volta) e o app passa ao estado “sem permissão” (§3.2/§5); **concedida** → é silêncio legítimo (ex.: navegador com stream aberto em silêncio): o tap é mantido e, enquanto o silêncio durar, verificado de novo no máximo a cada 30 s (nunca um silêncio sem prazo); **indeterminada** → mantém e tenta de novo depois, no máximo a cada 30 s. Um “negada” é **ambíguo** e não vale se outro tap vivo recebeu sinal ≠ 0 nos últimos segundos (prova de que a permissão existe), nem quando o processo verificado sumiu (= indeterminada); um “negada” vindo do vigia nunca é gravado como estado persistente — após a falha aberta, o app reverifica sozinho, no máximo a cada 30 s, enquanto algo tocar. Enquanto, após um “negada” do vigia, nenhum app estiver tocando, o popover mostra “Nenhum app está reproduzindo áudio” (não “sem permissão”), e a reverificação roda assim que algo voltar a tocar. No máximo uma verificação por vez; um “concedida” recente (≤ 30 s) só é reaproveitado para reverificar um silêncio que já foi verificado, nunca para o primeiro silêncio depois de sinal (achado S41R-M1). Como todo app que reproduz tem tap (§4.2), isso garante que revogar a permissão com o Volume Manager aberto nunca deixa apps mudos. É uma checagem binária (zero ou não), não análise de conteúdo: nada é guardado (§12.9.3).
   - Ferramentas sem `Info.plist` (CLI) nunca recebem o pedido de permissão; testes com áudio real usam um bundle `.app` com `NSAudioCaptureUsageDescription`.
 
 ### 4.7 Qualidade de áudio (requisito central)
-O áudio de um app controlado pelo Volume deve soar **exatamente como soaria sem o Volume**, só que no volume escolhido. Nenhuma perda de qualidade é aceitável.
+O áudio de um app controlado pelo Volume Manager deve soar **exatamente como soaria sem o Volume Manager**, só que no volume escolhido. Nenhuma perda de qualidade é aceitável.
 - **Transparência**: o processamento é **apenas** multiplicar cada amostra pelo ganho, em Float32. Proibido: compressão, limitador, equalização, dither, normalização, mixagem de canais, qualquer efeito.
 - **Em ganho 1.0 a saída é idêntica bit a bit à entrada** (e, na saída padrão sem mudo, nem há tap — §4.2).
 - **Formato preservado**: mesma taxa de amostragem, mesmo número e ordem de canais (estéreo, 5.1, espacial quando o dispositivo suportar), sem conversão para formatos de menor resolução.
@@ -321,7 +321,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 #### 12.9.1 Modelo de ameaças
 | Ativo | Ameaça | Controle |
 |---|---|---|
-| Permissão de áudio concedida ao Volume | Código malicioso injetado no Volume herdar o acesso | Hardened Runtime sem exceções (§12.9.2) |
+| Permissão de áudio concedida ao Volume Manager | Código malicioso injetado no Volume Manager herdar o acesso | Hardened Runtime sem exceções (§12.9.2) |
 | Identidade de assinatura | Chave privada vazada → app falso assinado como Volume herda a permissão | Chave só na máquina do mantenedor (§12.9.5) |
 | Áudio do usuário (chamadas, música) | Ser gravado, guardado ou enviado | Áudio só em memória, sem rede, sem disco (§12.9.3) |
 | Integridade do download | DMG adulterado redistribuído | SHA-256 publicado, canal oficial único (§13) |
@@ -361,7 +361,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 - Dependências: **nenhuma**. `Package.swift` sem `dependencies` e sem `Package.resolved`.
 - **Sem CI** (decisão do usuário, 2026-11-07): o repositório não tem `.github/workflows`; as verificações rodam localmente com `scripts/check.sh` antes de cada commit/merge. Um teste de política impede que um workflow seja adicionado.
 - Repositório: 2FA na conta, proteção da branch `main`, tags de release assinadas.
-- Ferramentas de desenvolvimento (`vmctl`) **não** são incluídas no `Volume.app` nem no DMG.
+- Ferramentas de desenvolvimento (`vmctl`) **não** são incluídas no `Volume Manager.app` nem no DMG.
 
 #### 12.9.7 Verificações de segurança (executadas pelo QA a cada etapa; bloqueantes)
 Script `scripts/security-check.sh`, chamado pelo `check.sh` (as verificações de binário rodam no `.app` gerado):
@@ -392,7 +392,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 
 ### 13.3 Instalação para quem baixa (README)
 - Passo a passo com imagens: abrir o DMG → arrastar para Aplicativos → primeira abertura bloqueada → Ajustes do Sistema › Privacidade e Segurança › **Abrir Mesmo Assim** (só na primeira vez).
-- Alternativa no Terminal: `xattr -dr com.apple.quarantine /Applications/Volume.app`.
+- Alternativa no Terminal: `xattr -dr com.apple.quarantine "/Applications/Volume Manager.app"`.
 - Requisitos: macOS 15+, permissão de áudio do sistema no primeiro uso.
 - Para atualizar: baixar o novo DMG e substituir o app (permissões são mantidas graças ao §13.2).
 
@@ -411,12 +411,12 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 7. Com “Lembrar volume” ligado, fechar e reabrir o Spotify restaura 72%/rota.
 8. Permissão negada → aviso no popover; conceder em Ajustes do Sistema → lista aparece ao reabrir o popover.
 9. O app não registra nenhum atalho global; no popover, Tab/setas/Espaço/Esc funcionam e ⌘, / ⌘Q respondem.
-10. Sair do Volume → todos os apps voltam ao áudio original.
+10. Sair do Volume Manager → todos os apps voltam ao áudio original.
 11. Testes unitários cobrem `MixerStore`, `PreferencesStore`, agrupamento de processos e a lógica de fallback de rota, usando mocks (cobertura ≥ 85% em `VolumeCore`).
 12. `scripts/check.sh` passa: formatação, build sem avisos (concorrência estrita) e todos os testes.
 13. App roda no **macOS 15+** com materiais nativos e no **macOS 26+** com Liquid Glass.
 14. Orçamentos de performance do §12.4 verificados com Instruments/Activity Monitor (registrar números no roteiro manual).
-15. Princípio “falhar abrindo” (§4.6): vigia, “Restaurar áudio original” e modo seguro funcionam; Forçar Encerramento do Volume devolve o áudio original de todos os apps.
+15. Princípio “falhar abrindo” (§4.6): vigia, “Restaurar áudio original” e modo seguro funcionam; Forçar Encerramento do Volume Manager devolve o áudio original de todos os apps.
 16. `scripts/security-check.sh` passa sem nenhum item (§12.9.7).
 17. Auditoria independente de segurança (§12.9.8) sem achados Críticos ou Altos em aberto.
 19. Qualidade de áudio (§4.7): testes de §12.8.2 passam (teste nulo bit a bit, ganho exato, formato preservado, 10 min sem falhas, latência ≤ 20 ms), e na escuta do usuário não há diferença perceptível em relação a não ter o app.

@@ -133,7 +133,8 @@ struct QAProcessGroupingTests {
     info.setApp("/Applications/Spotify.app", name: "Spotify", bundleID: "com.spotify.client")
     info.setApp(
       "/Applications/Google Chrome.app", name: "Google Chrome", bundleID: "com.google.Chrome")
-    info.setApp("/Applications/Volume.app", name: "Volume", bundleID: "com.volumemanager.app")
+    info.setApp(
+      "/Applications/Volume Manager.app", name: "Volume Manager", bundleID: "com.volumemanager.app")
     return info
   }
 
@@ -258,10 +259,11 @@ struct QAProcessGroupingTests {
   @Test func volumeItselfAndItsHelpersAreExcluded() {
     let processes = [
       AudioProcessInfo(
-        pid: 1, executablePath: "/Applications/Volume.app/Contents/MacOS/VolumeManager"),
+        pid: 1, executablePath: "/Applications/Volume Manager.app/Contents/MacOS/VolumeManager"),
       AudioProcessInfo(
         pid: 2, bundleID: "com.volumemanager.app.helper",
-        executablePath: "/Applications/Volume.app/Contents/XPCServices/H.xpc/Contents/MacOS/H"),
+        executablePath:
+          "/Applications/Volume Manager.app/Contents/XPCServices/H.xpc/Contents/MacOS/H"),
       AudioProcessInfo(pid: 3, bundleID: "com.volumemanager.app.xpc"),
       AudioProcessInfo(pid: 4, bundleID: "com.volumemanager.app"),
     ]
@@ -270,7 +272,7 @@ struct QAProcessGroupingTests {
 
   @Test func helperWhoseResponsibleProcessIsVolumeIsExcluded() {
     let fake = info()
-    fake.setPath("/Applications/Volume.app/Contents/MacOS/VolumeManager", forPID: 1)
+    fake.setPath("/Applications/Volume Manager.app/Contents/MacOS/VolumeManager", forPID: 1)
     let processes = [AudioProcessInfo(pid: 9, bundleID: "com.apple.WebKit.GPU", responsiblePID: 1)]
     #expect(ProcessGrouping.group(processes, info: fake).isEmpty)
   }
@@ -281,7 +283,7 @@ struct QAProcessGroupingTests {
     let fake = FakeAppInfoProvider()
     let processes = [
       AudioProcessInfo(
-        pid: 1, executablePath: "/Applications/Volume.app/Contents/MacOS/VolumeManager",
+        pid: 1, executablePath: "/Applications/Volume Manager.app/Contents/MacOS/VolumeManager",
         isRunningOutput: true)
     ]
     #expect(ProcessGrouping.group(processes, info: fake).isEmpty)
