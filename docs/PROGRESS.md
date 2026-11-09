@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-09: M4.1b (pendências curtas da M4.1) concluída e integrada na `main`. Próxima sessão: investigar o processo de teste que não sai e depois a M5.
+> Atualizado em 2026-11-09: M4.1b (pendências curtas da M4.1) concluída e integrada na `main`. M4.2 (nome “Volume Manager”) e M4.3 (testes que travavam) também integradas. **Próxima sessão: M5.**
 
 ## Onde estamos
 
@@ -21,13 +21,14 @@
 | M4.1 Correções do ⏸2 (design do FigCraft à risca, painel próprio, sempre controlar, estalo zero) | ✅ QA PASS (6 rodadas) + Segurança LIBERA (reavaliação) + ⏸2 aprovado | branch `etapa/m4.1` |
 | M4.1b Pendências curtas da M4.1 (S41R-M1, S41R-B1, vigia 5 s + "nenhum app", rampa na troca de formato, testes estabilizados) | ✅ QA PASS (2 rodadas, `docs/reports/m4.1b-qa.md`) + Segurança LIBERA (reavaliação, `docs/reports/m4.1-security.md` §M4.1b) | branch `etapa/m4.1b` |
 | M4.2 Nome exibido “Volume Manager” (bundle ID mantido) | ✅ QA PASS (`docs/reports/m4.2-qa.md`) | branch `etapa/m4.2-nome` |
+| M4.3 Testes que travavam/falhavam sob carga (`eventually` com prazo real, sem resultado descartado, `.timeLimit` nas suítes) | ✅ QA PASS (`docs/reports/m4.3-qa.md`) | branch `etapa/m4.3-testes` |
 | M5 Ajustes/Boas-vindas · M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-1. **Processo de teste que não sai (2026-11-09)**: várias execuções de `swift test` deixaram `swiftpm-testing-helper` do `VolumeAudioTests` vivo e ocioso depois de terminar os testes (8 presos, até ~47 min), travando o `.build` e o `check.sh` de todos os agentes; o usuário autorizou `pkill -f swiftpm-testing-helper`. Provável causa do "teste intermitente" de 2026-11-08 (o Dev não reproduziu falha de asserção em ~18 execuções). Investigar qual teste/recurso segura o processo (Task ou listener que não termina, relógio real) e corrigir só no teste. Até lá: se `check.sh` parar, conferir `pgrep -fl swiftpm-testing-helper`.
+1. **Resolvido em 2026-11-09 (M4.3)**: o "teste intermitente" e os `swiftpm-testing-helper` presos tinham a mesma causa — `eventually` desistia por contagem de `Task.yield()` sob carga, e resultados descartados antes de `clock.advance` + `await task.value` deixavam o processo esperando para sempre. Se um `check.sh` parar de novo, conferir `pgrep -fl swiftpm-testing-helper` (o `.timeLimit` de 1 min deve transformar qualquer espera eterna em falha).
    - **Retestes manuais do usuário (sem pressa; o usuário avisa se notar algo)**: trocar saída/taxa nos Ajustes de Som com um app abaixo de 100% (sem estalo nem pico); pausar um app (não deve aparecer "sem permissão"); navegador silencioso como único app "tocando" por > 2 min (painel não fica preso em "sem permissão"). Ainda não confirmados da M4.1: log "tap and aggregate destroyed" ~15 s após pausar (S41-M2), estalinho no início da reprodução.
    - Experimento de revogação da permissão: **dispensado pelo usuário em 2026-11-09**; adotado o caminho seguro (vigia 5 s, "nenhum app" quando nada toca, reverificação ao voltar a tocar, orçamento de 3 verificações automáticas por episódio).
    - Abertos e aceitos por ora: S41b-B3 (Informativo, pico ≤ 40 ms em ganho 1 se o número de canais mudar durante a rampa, `RealtimeTapState.swift:109-118`); QA M4.1b problema 2 (Baixo, novo "negada" do vigia reinicia o orçamento); na abertura com a marca ligada e o TCC zerado, a sonda automática pode mostrar o pedido (risco já existente da M4.1).

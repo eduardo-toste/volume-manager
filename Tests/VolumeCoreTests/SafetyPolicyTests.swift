@@ -3,7 +3,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("SafetyPolicy")
+@Suite("SafetyPolicy", .timeLimit(.minutes(1)))
 struct SafetyPolicyTests {
   let clock = FakeClock()
   let store = InMemoryPreferencesStore()

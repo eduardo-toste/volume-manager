@@ -4,7 +4,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("SettingsModel")
+@Suite("SettingsModel", .timeLimit(.minutes(1)))
 struct SettingsModelTests {
   let clock = FakeClock()
 

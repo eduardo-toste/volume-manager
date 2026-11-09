@@ -13,7 +13,7 @@ private final class ScriptedProbe: AudioAccessProbe {
 
 /// QA M4: the popover's `PermissionMonitor` on top of the real `AudioPermissionService`.
 @MainActor
-@Suite("QA M4: permission flow end to end (fake probe)")
+@Suite("QA M4: permission flow end to end (fake probe)", .timeLimit(.minutes(1)))
 struct QAM4PermissionFlowTests {
   @Test func deniedIsNotCancelledByAnIndeterminateRecheck() async {
     let probe = ScriptedProbe()

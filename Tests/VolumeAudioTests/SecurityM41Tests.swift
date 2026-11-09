@@ -5,7 +5,7 @@ import VolumeCore
 
 /// Security audit M4.1: adversarial proofs for the silence guard and the reconcile planner,
 /// updated in round 6 to prove the fixes.
-@Suite("Security M4.1")
+@Suite("Security M4.1", .timeLimit(.minutes(1)))
 struct SecurityM41Tests {
   private let policy = WatchdogPolicy()
 
@@ -48,7 +48,7 @@ struct SecurityM41Tests {
     func silentTicks(_ count: Int) async {
       for _ in 0..<count {
         handle.deliver(frames: 24_000, signal: false)
-        _ = await eventually { clock.sleeperCount > 0 }
+        #expect(await eventually { clock.sleeperCount > 0 })
         clock.advance(by: .milliseconds(500))
         for _ in 0..<50 { await Task.yield() }
       }
@@ -81,7 +81,7 @@ struct SecurityM41Tests {
     for _ in 0..<20 {
       browser.deliver(frames: 24_000, signal: false)
       music.deliver(frames: 24_000, signal: true)
-      _ = await eventually { clock.sleeperCount > 0 }
+      #expect(await eventually { clock.sleeperCount > 0 })
       clock.advance(by: .milliseconds(500))
       for _ in 0..<50 { await Task.yield() }
     }
@@ -111,7 +111,7 @@ struct SecurityM41Tests {
     engine.setRunning(false)
     for _ in 0..<3 {
       handle.deliver(frames: 24_000, signal: false)
-      _ = await eventually { clock.sleeperCount > 0 }
+      #expect(await eventually { clock.sleeperCount > 0 })
       clock.advance(by: .milliseconds(500))
       for _ in 0..<50 { await Task.yield() }
     }
@@ -123,7 +123,7 @@ struct SecurityM41Tests {
 
   /// S41-B1 (fixed): `.update` for "only processes gone" stores the new key, so a PID that
   /// comes back (reused by a new process of the same app) gets a new tap that covers it.
-  @Test func pidThatComesBackAfterAnUpdateIsRetapped() async {
+  @Test func pidThatComesBackAfterAnUpdateIsRetapped() async throws {
     let engine = FakeTapEngine()
     let clock = FakeClock()
     engine.setDevice("SPK")
@@ -139,9 +139,9 @@ struct SecurityM41Tests {
     await controller.reconcile(desired: want([10]))
     #expect(engine.created.count == 1, "a process that left keeps the tap")
     let back = Task { await controller.reconcile(desired: want([10, 11])) }
-    #expect(await eventually { engine.created.count == 2 })
+    try #require(await eventually { engine.created.count == 2 })
     #expect(engine.created[1].request.pids == [10, 11])
-    _ = await eventually { clock.sleeperCount > 0 }
+    try #require(await eventually { clock.sleeperCount > 0 })
     clock.advance(by: policy.crossfade)
     await back.value
     await controller.reconcile(desired: [])

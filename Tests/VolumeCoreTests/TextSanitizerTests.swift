@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("TextSanitizer")
+@Suite("TextSanitizer", .timeLimit(.minutes(1)))
 struct TextSanitizerTests {
   @Test func keepsPlainText() {
     #expect(TextSanitizer.clean("Spotify") == "Spotify")

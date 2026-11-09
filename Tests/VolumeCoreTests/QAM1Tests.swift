@@ -14,7 +14,7 @@ private func scalar(_ value: UInt32) -> String {
 
 // MARK: - TextSanitizer (SPEC 12.9.4)
 
-@Suite("QA M1: TextSanitizer")
+@Suite("QA M1: TextSanitizer", .timeLimit(.minutes(1)))
 struct QATextSanitizerTests {
   @Test func everyC0C1ScalarIsRemovedOrBecomesSpace() {
     for value in UInt32(0)...0x9F {
@@ -126,7 +126,7 @@ struct QATextSanitizerTests {
 
 // MARK: - ProcessGrouping with hostile input
 
-@Suite("QA M1: ProcessGrouping")
+@Suite("QA M1: ProcessGrouping", .timeLimit(.minutes(1)))
 struct QAProcessGroupingTests {
   private func info() -> FakeAppInfoProvider {
     let info = FakeAppInfoProvider()
@@ -346,7 +346,7 @@ struct QAProcessGroupingTests {
 // MARK: - SettingsModel and corrupted preferences
 
 @MainActor
-@Suite("QA M1: SettingsModel")
+@Suite("QA M1: SettingsModel", .timeLimit(.minutes(1)))
 struct QASettingsModelTests {
   let clock = FakeClock()
 
@@ -511,7 +511,7 @@ struct QASettingsModelTests {
 // MARK: - SafetyPolicy
 
 @MainActor
-@Suite("QA M1: SafetyPolicy")
+@Suite("QA M1: SafetyPolicy", .timeLimit(.minutes(1)))
 struct QASafetyPolicyTests {
   let clock = FakeClock()
 
@@ -594,7 +594,7 @@ struct QASafetyPolicyTests {
 // MARK: - MixerStore behavior
 
 @MainActor
-@Suite("QA M1: MixerStore")
+@Suite("QA M1: MixerStore", .timeLimit(.minutes(1)))
 struct QAMixerStoreTests {
   private func lastDesired(_ h: MixerHarness) async -> [DesiredAppAudio] {
     await h.settle()

@@ -3,7 +3,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("Control failures (SPEC 4.6)")
+@Suite("Control failures (SPEC 4.6)", .timeLimit(.minutes(1)))
 struct ControlFailureTests {
   let h = MixerHarness()
   private let spotify = "com.spotify.client"

@@ -17,7 +17,7 @@ private func clickDesired(gain: Float, muted: Bool = false, pids: [Int32] = [10,
   DesiredAppAudio(app: clickApp(pids: pids), gain: gain, muted: muted, targetDeviceUID: "SPK")
 }
 
-@Suite("Volume changes never restart the audio (fakes)")
+@Suite("Volume changes never restart the audio (fakes)", .timeLimit(.minutes(1)))
 struct VolumeChangeClickTests {
   private let engine = FakeTapEngine()
   private let clock = FakeClock()
@@ -48,15 +48,15 @@ struct VolumeChangeClickTests {
     #expect(engine.created[0].targets.last == 0.3)
   }
 
-  @Test func aProcessThatJoinsStillGetsANewTap() async {
+  @Test func aProcessThatJoinsStillGetsANewTap() async throws {
     await controller.reconcile(desired: [clickDesired(gain: 0.5, pids: [10])])
     let controller = controller
     let joined = Task {
       await controller.reconcile(desired: [clickDesired(gain: 0.5, pids: [10, 11])])
     }
-    #expect(await eventually { engine.created.count == 2 })
+    try #require(await eventually { engine.created.count == 2 })
     #expect(engine.created[1].request.pids == [10, 11])
-    _ = await eventually { clock.sleeperCount > 0 }
+    try #require(await eventually { clock.sleeperCount > 0 })
     clock.advance(by: WatchdogPolicy().crossfade)
     await joined.value
   }

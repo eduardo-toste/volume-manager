@@ -6,7 +6,7 @@ import VolumeCore
 @testable import VolumeAudio
 
 /// Adversarial checks of the M2.1 fixes (security review, docs/reports/m2.1-security.md).
-@Suite("Security M2.1: restart window and UID lookup")
+@Suite("Security M2.1: restart window and UID lookup", .timeLimit(.minutes(1)))
 struct SecurityM21Tests {
   private func desired() -> DesiredAppAudio {
     DesiredAppAudio(

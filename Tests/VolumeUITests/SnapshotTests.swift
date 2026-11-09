@@ -164,7 +164,7 @@ private func snapshot<V: View>(_ name: String, _ view: V, width: CGFloat = 320) 
 }
 
 @MainActor
-@Suite("Popover snapshots (fakes only)", .serialized)
+@Suite("Popover snapshots (fakes only)", .serialized, .timeLimit(.minutes(1)))
 struct SnapshotTests {
   private let sample = ["Spotify", "Safari", "Música", "Zoom", "Discord"]
 

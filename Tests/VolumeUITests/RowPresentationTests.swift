@@ -3,7 +3,7 @@ import VolumeCore
 
 @testable import VolumeUI
 
-@Suite("RowPresentation")
+@Suite("RowPresentation", .timeLimit(.minutes(1)))
 struct RowPresentationTests {
   private let airpods = OutputDevice(id: 2, uid: "airpods", name: "AirPods Pro", kind: .bluetooth)
   private let speakers = OutputDevice(id: 1, uid: "speakers", name: "Alto-falantes")

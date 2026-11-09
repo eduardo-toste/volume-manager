@@ -28,14 +28,14 @@ private struct Rig {
   /// Runs `ticks` watchdog ticks, giving the controller time to react to each.
   func tick(_ ticks: Int = 1) async {
     for _ in 0..<ticks {
-      _ = await eventually { clock.sleeperCount > 0 }
+      #expect(await eventually { clock.sleeperCount > 0 || engine.live.isEmpty })
       clock.advance(by: .milliseconds(500))
       for _ in 0..<50 { await Task.yield() }
     }
   }
 }
 
-@Suite("CoreAudioAppController reconciliation (fakes)")
+@Suite("CoreAudioAppController reconciliation (fakes)", .timeLimit(.minutes(1)))
 struct ControllerReconcileTests {
   @Test func createsOneTapPerAppWithTheWholeGroup() async {
     let rig = Rig()
@@ -76,31 +76,31 @@ struct ControllerReconcileTests {
     #expect(rig.engine.live.isEmpty)
   }
 
-  @Test func newHelperProcessRebuildsWithACrossfade() async {
+  @Test func newHelperProcessRebuildsWithACrossfade() async throws {
     let rig = Rig()
     await rig.controller.reconcile(desired: [desired(app(pids: [10]))])
     let first = rig.engine.created[0]
     let task = Task { await rig.controller.reconcile(desired: [desired(app(pids: [10, 12]))]) }
-    _ = await eventually { rig.engine.created.count == 2 }
+    try #require(await eventually { rig.engine.created.count == 2 })
     let second = rig.engine.created[1]
     #expect(second.request.pids == [10, 12])
     #expect(second.request.initialGain == 0)
     #expect(second.isStopped == false)
-    _ = await eventually { first.targets.last == 0 }
+    try #require(await eventually { first.targets.last == 0 })
     #expect(first.isStopped == false)
-    _ = await eventually { rig.clock.sleeperCount > 0 }
+    try #require(await eventually { rig.clock.sleeperCount > 0 })
     rig.clock.advance(by: .milliseconds(100))
     await task.value
     #expect(first.isStopped)
     #expect(rig.engine.live.count == 1)
   }
 
-  @Test func deviceChangeRecreatesButGainChangeDoesNot() async {
+  @Test func deviceChangeRecreatesButGainChangeDoesNot() async throws {
     let rig = Rig()
     await rig.controller.reconcile(desired: [desired(device: "SPK")])
     let task = Task { await rig.controller.reconcile(desired: [desired(device: "PODS")]) }
-    _ = await eventually { rig.engine.created.count == 2 }
-    _ = await eventually { rig.clock.sleeperCount > 0 }
+    try #require(await eventually { rig.engine.created.count == 2 })
+    try #require(await eventually { rig.clock.sleeperCount > 0 })
     rig.clock.advance(by: .milliseconds(100))
     await task.value
     #expect(rig.engine.created[1].request.device.uid == "PODS")
@@ -109,20 +109,20 @@ struct ControllerReconcileTests {
 
   /// SPEC 4.7: a new format of the same output fades the old tap out and the new one in from 0;
   /// the old tap is never destroyed before the new one exists (no moment at full volume).
-  @Test func deviceFormatChangeFadesOutAndInInsteadOfCutting() async {
+  @Test func deviceFormatChangeFadesOutAndInInsteadOfCutting() async throws {
     let rig = Rig()
     await rig.controller.reconcile(desired: [desired()])
     let first = rig.engine.created[0]
     rig.engine.setDevice("SPK", rate: 96_000)
     let task = Task { await rig.controller.reconcile(desired: [desired()]) }
-    #expect(await eventually { rig.engine.created.count == 2 })
+    try #require(await eventually { rig.engine.created.count == 2 })
     let second = rig.engine.created[1]
     #expect(second.request.device.layout.sampleRate == 96_000)
     #expect(second.request.initialGain == 0, "fades in from silence")
     #expect(second.request.targetGain == 0.5)
-    _ = await eventually { first.targets.last == 0 }
+    try #require(await eventually { first.targets.last == 0 })
     #expect(first.isStopped == false, "still alive while it fades out")
-    _ = await eventually { rig.clock.sleeperCount > 0 }
+    try #require(await eventually { rig.clock.sleeperCount > 0 })
     rig.clock.advance(by: .milliseconds(100))
     await task.value
     #expect(first.isStopped)
@@ -229,7 +229,7 @@ struct ControllerReconcileTests {
   }
 }
 
-@Suite("CoreAudioAppController watchdog (fake clock)")
+@Suite("CoreAudioAppController watchdog (fake clock)", .timeLimit(.minutes(1)))
 struct ControllerWatchdogTests {
   @Test func noTimerExistsWithoutTaps() async {
     let rig = Rig()
@@ -313,7 +313,7 @@ struct ControllerWatchdogTests {
   }
 }
 
-@Suite("CoreAudioAppController restoreAll")
+@Suite("CoreAudioAppController restoreAll", .timeLimit(.minutes(1)))
 struct ControllerRestoreTests {
   @Test func destroysEverythingAndForgetsTheDesiredState() async {
     let rig = Rig()
@@ -357,7 +357,7 @@ struct ControllerRestoreTests {
   }
 }
 
-@Suite("restoreAll ordering and identity")
+@Suite("restoreAll ordering and identity", .timeLimit(.minutes(1)))
 struct ControllerOrderingTests {
   @Test func aReconcileIssuedAfterRestoreSurvivesALateCleanup() async {
     let rig = Rig()

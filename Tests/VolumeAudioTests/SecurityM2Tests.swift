@@ -61,7 +61,7 @@ private struct SplitMix: RandomNumberGenerator {
   }
 }
 
-@Suite("Security M2: IOProc memory (exact-size buffers)")
+@Suite("Security M2: IOProc memory (exact-size buffers)", .timeLimit(.minutes(1)))
 struct SecurityM2MemoryTests {
   /// Random shapes, odd byte sizes, missing data, channel mismatches and hostile offsets:
   /// `render` must never touch a byte outside the declared buffers (ASan run).
@@ -141,7 +141,8 @@ private final class CountingHandle: TapHandle {
   }
 }
 
-@Suite("Security M2: races between reconcile, restoreAll and the kill list")
+@Suite(
+  "Security M2: races between reconcile, restoreAll and the kill list", .timeLimit(.minutes(1)))
 struct SecurityM2RaceTests {
   private func app(_ index: Int) -> ControlledApp {
     ControlledApp(id: "sec.app\(index)", bundleID: "sec.app\(index)", pids: [Int32(100 + index)])
@@ -202,7 +203,7 @@ private struct NoInfo: AppInfoProvider {
   func bundleID(atAppPath appPath: String) -> String? { nil }
 }
 
-@Suite("Security M2: text from other processes")
+@Suite("Security M2: text from other processes", .timeLimit(.minutes(1)))
 struct SecurityM2TextTests {
   /// Core Audio hands over the bundle ID exactly as the process declared it (reproduced with a
   /// bundle whose CFBundleIdentifier contains ESC sequences). The domain must drop it.

@@ -38,7 +38,7 @@ func run(
   return (output, ramp, signal)
 }
 
-@Suite("GainKernel (real kernel, no hardware)")
+@Suite("GainKernel (real kernel, no hardware)", .timeLimit(.minutes(1)))
 struct GainKernelTests {
   @Test(arguments: [1, 2, 6])
   func nullTestAtUnityIsBitExact(channels: Int) {
@@ -186,7 +186,7 @@ struct GainKernelTests {
 
 /// No clicks: a large gain drop never changes the gain by more than one ramp step per frame,
 /// across buffer boundaries and when the target changes in the middle of a ramp (SPEC 12.8.2).
-@Suite("Gain ramp continuity")
+@Suite("Gain ramp continuity", .timeLimit(.minutes(1)))
 struct GainRampContinuityTests {
   private let step = GainKernel.rampStep(sampleRate: 48_000)
 

@@ -27,7 +27,7 @@ private final class URLBox: @unchecked Sendable {
   var all: [URL] { lock.withLock { urls } }
 }
 
-@Suite("AudioPermissionService")
+@Suite("AudioPermissionService", .timeLimit(.minutes(1)))
 struct AudioPermissionServiceTests {
   @Test func requestMapsProbeResult() async {
     let probe = FakeProbe(result: true)

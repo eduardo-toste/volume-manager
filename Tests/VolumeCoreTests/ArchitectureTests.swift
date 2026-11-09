@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// Enforces the dependency direction of SPEC 12.1 by inspecting `import` lines.
-@Suite("Architecture")
+@Suite("Architecture", .timeLimit(.minutes(1)))
 struct ArchitectureTests {
   /// Frameworks and modules each layer must never import.
   private static let forbidden: [String: Set<String>] = [

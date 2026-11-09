@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 /// Independent QA checks of repository-level policy (SPEC 12.1, 12.3, 12.9.2, 12.9.6).
-@Suite("Repository policy")
+@Suite("Repository policy", .timeLimit(.minutes(1)))
 struct RepositoryPolicyTests {
   private func text(_ path: String) throws -> String {
     try String(

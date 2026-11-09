@@ -5,12 +5,12 @@ import Testing
 /// Security re-audit M4.1b: the shared budget of automatic checks after the silence guard's
 /// "denied", mixing its sources, and the way out of that state.
 @MainActor
-@Suite("Security M4.1b re-audit: shared automatic budget")
+@Suite("Security M4.1b re-audit: shared automatic budget", .timeLimit(.minutes(1)))
 struct SecurityM41bReauditTests {
   /// Periodic timer and play starts together never exceed the budget; after it, a user action
   /// still checks (allowed: it follows the user) but stores no ambiguous denial, and a later
   /// "granted" brings the taps back and opens a fresh budget for a new episode.
-  @Test func mixedSourcesShareTheBudgetAndAUserActionRecovers() async {
+  @Test func mixedSourcesShareTheBudgetAndAUserActionRecovers() async throws {
     let h = MixerHarness(permission: .granted)
     h.settings.audioPermissionConfirmed = true
     h.start([h.process("Safari", pid: 10, playing: true)])
@@ -21,7 +21,7 @@ struct SecurityM41bReauditTests {
     h.store.handle(.processes([h.process("Safari", pid: 10, playing: false)]))
     h.store.handle(.processes([h.process("Safari", pid: 10, playing: true)]))
     for _ in 0..<50 { await Task.yield() }
-    _ = await eventually { h.clock.sleeperCount >= 1 }
+    try #require(await eventually { h.clock.sleeperCount >= 1 })
     h.clock.advance(by: MixerStore.permissionRecheckInterval)
     for _ in 0..<50 { await Task.yield() }
     for _ in 0..<5 {

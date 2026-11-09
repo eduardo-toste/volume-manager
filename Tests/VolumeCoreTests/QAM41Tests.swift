@@ -5,7 +5,7 @@ import Testing
 /// QA M4.1: coalesced writes (master volume and reconcile) never lose the last value and keep
 /// the order retry -> reconcile.
 @MainActor
-@Suite("QA M4.1: coalescing")
+@Suite("QA M4.1: coalescing", .timeLimit(.minutes(1)))
 struct QAM41Tests {
   private let spotify = "com.spotify.client"
 
@@ -87,7 +87,7 @@ struct QAM41Tests {
 /// QA M4.1 round 5: "always controlled" must not hide an app without a tap behind an empty
 /// "unchanged" check, and the panic / revoked paths stay off.
 @MainActor
-@Suite("QA M4.1: always controlled")
+@Suite("QA M4.1: always controlled", .timeLimit(.minutes(1)))
 struct QAM41AlwaysControlledTests {
   private let spotify = "com.spotify.client"
 

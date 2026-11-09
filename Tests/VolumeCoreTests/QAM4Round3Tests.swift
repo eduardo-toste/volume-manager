@@ -5,7 +5,7 @@ import Testing
 
 /// QA M4 round 3: the permission mark and the gate before taps, with hostile input.
 @MainActor
-@Suite("QA M4: permission mark and gate")
+@Suite("QA M4: permission mark and gate", .timeLimit(.minutes(1)))
 struct QAM4Round3Tests {
   private let spotify = "com.spotify.client"
 

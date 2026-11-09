@@ -10,7 +10,7 @@ private func layout(_ rate: Double = 48_000, _ channels: UInt32 = 2, interleaved
   StreamLayout(sampleRate: rate, channels: channels, isInterleaved: interleaved)
 }
 
-@Suite("Format policy (M0.5 recommendation 1)")
+@Suite("Format policy (M0.5 recommendation 1)", .timeLimit(.minutes(1)))
 struct FormatPolicyTests {
   @Test func acceptsMatchingStereoAndReturnsTheTapOffset() throws {
     #expect(
@@ -74,7 +74,7 @@ struct FormatPolicyTests {
   }
 }
 
-@Suite("Session health (watchdog logic)")
+@Suite("Session health (watchdog logic)", .timeLimit(.minutes(1)))
 struct SessionHealthTests {
   let policy = WatchdogPolicy()
 
@@ -176,7 +176,7 @@ struct SessionHealthTests {
   }
 }
 
-@Suite("Reconcile planner (recommendations 9 and 11)")
+@Suite("Reconcile planner (recommendations 9 and 11)", .timeLimit(.minutes(1)))
 struct ReconcilePlannerTests {
   func key(
     pids: [Int32] = [1], uid: String = "A", rate: Double = 48_000, generation: Int = 0,
@@ -201,7 +201,7 @@ struct ReconcilePlannerTests {
   }
 }
 
-@Suite("Small pieces")
+@Suite("Small pieces", .timeLimit(.minutes(1)))
 struct SmallPieceTests {
   @Test func transportTypesMapToKinds() {
     #expect(OutputDeviceKind(transportType: kAudioDeviceTransportTypeBuiltIn) == .builtIn)

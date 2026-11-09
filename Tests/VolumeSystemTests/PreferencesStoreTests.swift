@@ -5,7 +5,7 @@ import VolumeCore
 @testable import VolumeSystem
 
 @MainActor
-@Suite("UserDefaultsPreferencesStore")
+@Suite("UserDefaultsPreferencesStore", .timeLimit(.minutes(1)))
 struct PreferencesStoreTests {
   /// Runs `body` over an in-memory backend, so no preferences file is ever created.
   private func withStore(

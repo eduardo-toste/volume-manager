@@ -3,7 +3,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("Resources/Version")
+@Suite("Resources/Version", .timeLimit(.minutes(1)))
 struct VersionFileTests {
   private func values() throws -> [String: String] {
     let url = RepositoryFiles.root.appendingPathComponent("Resources/Version")

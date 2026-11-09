@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("VolumeCurve")
+@Suite("VolumeCurve", .timeLimit(.minutes(1)))
 struct VolumeCurveTests {
   @Test func endpointsAreExact() {
     #expect(VolumeCurve.gain(forVolume: 0) == 0)

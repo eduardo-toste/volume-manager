@@ -11,7 +11,7 @@ private func qaDesired(_ pids: [Int32]) -> DesiredAppAudio {
     targetDeviceUID: "SPK")
 }
 
-@Suite("QA M2.1: coreaudiod restart (M-2)")
+@Suite("QA M2.1: coreaudiod restart (M-2)", .timeLimit(.minutes(1)))
 struct QAServiceRestartM21Tests {
   private func rig() -> (FakeTapEngine, FakeClock, CoreAudioAppController) {
     let engine = FakeTapEngine()
@@ -69,7 +69,7 @@ struct QAServiceRestartM21Tests {
   }
 }
 
-@Suite("QA M2.1: access probe never taps globally (B-5)")
+@Suite("QA M2.1: access probe never taps globally (B-5)", .timeLimit(.minutes(1)))
 struct QAProbeM21Tests {
   @Test func noTargetMeansNoTapAndNoGlobalFallback() {
     // Fake catalog is not injectable; with an empty candidate list the probe must still never
@@ -97,7 +97,7 @@ struct QAProbeM21Tests {
   }
 }
 
-@Suite("QA M2.1: device UID resolution (B-2)")
+@Suite("QA M2.1: device UID resolution (B-2)", .timeLimit(.minutes(1)))
 struct QADeviceUIDM21Tests {
   private func entry(_ id: UInt32, _ raw: String) -> DeviceUIDEntry {
     DeviceUIDEntry(id: id, rawUID: raw)

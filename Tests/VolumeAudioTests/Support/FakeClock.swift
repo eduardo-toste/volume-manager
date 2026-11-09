@@ -69,11 +69,19 @@ final class FakeClock: Clock, Sendable {
   }
 }
 
-/// Lets queued tasks run until `condition` holds (or gives up after many turns).
+/// Lets queued tasks run until `condition` holds; gives up after a real-time deadline (5 s).
+/// Returns as soon as the condition holds, so the happy path stays instant.
 func eventually(_ condition: () -> Bool) async -> Bool {
-  for _ in 0..<3000 {
+  let deadline = ContinuousClock.now + .seconds(5)
+  var turns = 0
+  while ContinuousClock.now < deadline {
     if condition() { return true }
-    await Task.yield()
+    turns += 1
+    if turns < 200 {
+      await Task.yield()
+    } else {
+      try? await Task.sleep(for: .milliseconds(1))
+    }
   }
   return condition()
 }

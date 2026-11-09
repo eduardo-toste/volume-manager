@@ -6,7 +6,7 @@ import Testing
 /// an open silent stream may be the only player). The fix keeps the fail-open behaviour and
 /// removes the lasting harm.
 @MainActor
-@Suite("Security M4.1: ambiguous denied after silence")
+@Suite("Security M4.1: ambiguous denied after silence", .timeLimit(.minutes(1)))
 struct SecurityM41StoreTests {
   private let safari = "com.apple.Safari"
 

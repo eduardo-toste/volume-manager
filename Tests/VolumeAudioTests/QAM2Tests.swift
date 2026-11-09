@@ -32,18 +32,18 @@ private struct QARig {
 
   func tick(_ ticks: Int = 1) async {
     for _ in 0..<ticks {
-      _ = await eventually { clock.sleeperCount > 0 }
+      #expect(await eventually { clock.sleeperCount > 0 || engine.live.isEmpty })
       clock.advance(by: .milliseconds(500))
       // The watchdog has handled this tick once it sleeps again (or nothing is left to watch);
       // a fixed number of yields is not enough when the test runs alone.
-      _ = await eventually { clock.sleeperCount > 0 || engine.live.isEmpty }
+      #expect(await eventually { clock.sleeperCount > 0 || engine.live.isEmpty })
     }
   }
 }
 
 // MARK: Never leave an app muted (rule 9, SPEC 4.6)
 
-@Suite("QA M2: fail open")
+@Suite("QA M2: fail open", .timeLimit(.minutes(1)))
 struct QAFailOpenTests {
   @Test func stallGuardFiresExactlyAtTwoSeconds() async {
     let rig = QARig()
@@ -209,10 +209,10 @@ struct QAFailOpenTests {
     #expect(rig.engine.live.isEmpty)
   }
 
-  @Test func watchdogHasNoTimerWhenTheLastTapIsRemoved() async {
+  @Test func watchdogHasNoTimerWhenTheLastTapIsRemoved() async throws {
     let rig = QARig()
     await rig.controller.reconcile(desired: [qaDesired()])
-    _ = await eventually { rig.clock.sleeperCount > 0 }
+    try #require(await eventually { rig.clock.sleeperCount > 0 })
     await rig.controller.reconcile(desired: [])
     for _ in 0..<50 { await Task.yield() }
     // SPEC 4.6/12.4: the check exists only while taps exist. (Finding: it lingers until the
@@ -232,7 +232,7 @@ struct QAFailOpenTests {
 
 // MARK: Reconciliation idempotence
 
-@Suite("QA M2: reconciliation")
+@Suite("QA M2: reconciliation", .timeLimit(.minutes(1)))
 struct QAReconcileTests {
   @Test func differentOrderOfTheSamePIDsDoesNotRebuild() async {
     let rig = QARig()
@@ -262,13 +262,13 @@ struct QAReconcileTests {
     #expect(rig.engine.created[0].targets == [1, 1, 0, 0])
   }
 
-  @Test func newTapStartsAtItsTargetGainAndAFormatChangeFadesFromZero() async {
+  @Test func newTapStartsAtItsTargetGainAndAFormatChangeFadesFromZero() async throws {
     let rig = QARig()
     await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)])
     #expect(rig.engine.created[0].request.initialGain == 0.2)
     rig.engine.setDevice("SPK", rate: 96_000, id: 1)  // format changed
     let task = Task { await rig.controller.reconcile(desired: [qaDesired(gain: 0.2)]) }
-    #expect(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
+    try #require(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
     #expect(rig.engine.created[1].request.initialGain == 0)
     #expect(await eventually { rig.engine.created[0].targets.last == 0 })
     rig.clock.advance(by: .milliseconds(40))
@@ -277,12 +277,12 @@ struct QAReconcileTests {
     #expect(rig.engine.live.count == 1)
   }
 
-  @Test func routeChangeCrossfadesThenStopsTheOldOne() async {
+  @Test func routeChangeCrossfadesThenStopsTheOldOne() async throws {
     let rig = QARig()
     await rig.controller.reconcile(desired: [qaDesired(gain: 0.4)])
     let wanted = qaDesired(gain: 0.4, device: "PODS")
     let task = Task { await rig.controller.reconcile(desired: [wanted]) }
-    #expect(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
+    try #require(await eventually { rig.clock.sleeperCount > 0 && rig.engine.created.count == 2 })
     #expect(rig.engine.created[1].request.initialGain == 0)
     // The watchdog's own sleeper also counts, so wait for the fade-out itself.
     #expect(await eventually { rig.engine.created[0].targets.last == 0 })
@@ -321,7 +321,7 @@ private func randomFloats(_ count: Int, seed: UInt64) -> [Float] {
   }
 }
 
-@Suite("QA M2: render bounds and quality")
+@Suite("QA M2: render bounds and quality", .timeLimit(.minutes(1)))
 struct QARenderTests {
   @Test func unityIsBitExactForEveryBitPatternAcrossManyCycles() {
     let state = RealtimeTapState(initialGain: 1, target: 1, step: 0.001)

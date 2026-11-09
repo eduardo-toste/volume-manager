@@ -44,7 +44,7 @@ final class BufferListFixture {
   }
 }
 
-@Suite("RealtimeTapState.render (real IOProc body)")
+@Suite("RealtimeTapState.render (real IOProc body)", .timeLimit(.minutes(1)))
 struct RenderTests {
   @Test func interleavedStereoAppliesGainAndCounts() {
     let state = RealtimeTapState(initialGain: 0.5, target: 0.5, step: 0.001)

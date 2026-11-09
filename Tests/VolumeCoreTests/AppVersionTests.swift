@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("AppVersion")
+@Suite("AppVersion", .timeLimit(.minutes(1)))
 struct AppVersionTests {
   @Test func parsesValidVersion() throws {
     let version = try #require(AppVersion("1.2.3"))

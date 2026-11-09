@@ -36,7 +36,7 @@ private final class FakeController: AppServiceControlling, @unchecked Sendable {
   func openSettings() { lock.withLock { settingsCalls += 1 } }
 }
 
-@Suite("SMAppLoginItemService")
+@Suite("SMAppLoginItemService", .timeLimit(.minutes(1)))
 struct LoginItemServiceTests {
   @Test(arguments: [
     (AppServiceState.enabled, LoginItemStatus.enabled),

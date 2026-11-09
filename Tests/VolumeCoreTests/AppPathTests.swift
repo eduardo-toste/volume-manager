@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("AppPath")
+@Suite("AppPath", .timeLimit(.minutes(1)))
 struct AppPathTests {
   @Test func canonicalizesDotsAndSlashes() {
     #expect(

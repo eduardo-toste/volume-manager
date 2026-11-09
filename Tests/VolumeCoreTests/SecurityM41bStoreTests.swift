@@ -7,10 +7,10 @@ import Testing
 /// decided") a test tap shows the system prompt without a user action (SPEC 5). These tests
 /// count those automatic checks.
 @MainActor
-@Suite("Security M4.1b: automatic checks after an ambiguous denied")
+@Suite("Security M4.1b: automatic checks after an ambiguous denied", .timeLimit(.minutes(1)))
 struct SecurityM41bStoreTests {
   private func waitAndAdvance(_ h: MixerHarness) async {
-    _ = await eventually { h.clock.sleeperCount >= 1 }
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
     for _ in 0..<50 { await Task.yield() }
     h.clock.advance(by: MixerStore.permissionRecheckInterval)
     for _ in 0..<50 { await Task.yield() }

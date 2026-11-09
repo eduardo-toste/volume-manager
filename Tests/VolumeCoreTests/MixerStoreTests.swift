@@ -3,7 +3,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("MixerStore")
+@Suite("MixerStore", .timeLimit(.minutes(1)))
 struct MixerStoreTests {
   let h = MixerHarness()
 

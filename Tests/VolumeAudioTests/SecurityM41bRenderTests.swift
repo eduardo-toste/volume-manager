@@ -5,7 +5,7 @@ import Testing
 /// Security audit M4.1b: a format change of the same output is now replaced gracefully, so the
 /// old tap keeps rendering for the cross-fade after the format already changed. The IOProc must
 /// stay in bounds whatever buffers it now receives.
-@Suite("Security M4.1b: old tap rendering after a format change")
+@Suite("Security M4.1b: old tap rendering after a format change", .timeLimit(.minutes(1)))
 struct SecurityM41bRenderTests {
   /// Output goes from stereo to mono while the tap still delivers stereo: no overrun, the kill
   /// switch is raised, and the samples are copied unchanged (unity, not the fade) until the old

@@ -9,7 +9,7 @@ private func entry(_ id: UInt32, _ raw: String) -> DeviceUIDEntry {
   DeviceUIDEntry(id: id, rawUID: raw)
 }
 
-@Suite("M2.1: device UID lookup (B-2)")
+@Suite("M2.1: device UID lookup (B-2)", .timeLimit(.minutes(1)))
 struct DeviceUIDResolutionTests {
   @Test func exactMatchWinsOverASanitizedLookalikeThatComesFirst() {
     let list = [entry(1, "ab\u{200B}"), entry(2, "ab")]
@@ -41,7 +41,7 @@ struct DeviceUIDResolutionTests {
   }
 }
 
-@Suite("M2.1: access probe (B-5, B-8)")
+@Suite("M2.1: access probe (B-5, B-8)", .timeLimit(.minutes(1)))
 struct AccessProbeM21Tests {
   @Test func noOtherAudioProcessMeansNoTapAtAll() {
     #expect(SystemAudioAccessProbe.chooseTarget(among: [], isPlaying: { _ in true }) == nil)
@@ -65,7 +65,7 @@ struct AccessProbeM21Tests {
   }
 }
 
-@Suite("M2.1: PID is converted to an object once (B-4)")
+@Suite("M2.1: PID is converted to an object once (B-4)", .timeLimit(.minutes(1)))
 struct ObjectResolvedOnceTests {
   @Test func theTapRequestCarriesTheObjectsOfTheConfirmedProcesses() async {
     let engine = FakeTapEngine()
@@ -108,7 +108,7 @@ private struct RejectAllIdentity: ProcessIdentityChecking {
   func confirm(pid: Int32, belongsTo app: ControlledApp) -> Bool { false }
 }
 
-@Suite("M2.1: coreaudiod restart forgets instead of destroying (M-2)")
+@Suite("M2.1: coreaudiod restart forgets instead of destroying (M-2)", .timeLimit(.minutes(1)))
 struct ServiceRestartTests {
   private func desired(_ id: String) -> DesiredAppAudio {
     DesiredAppAudio(
@@ -134,7 +134,7 @@ struct ServiceRestartTests {
     #expect(engine.live.isEmpty)
   }
 
-  @Test func theKillListNoLongerHoldsAbandonedTaps() async {
+  @Test func theKillListNoLongerHoldsAbandonedTaps() async throws {
     let engine = FakeTapEngine()
     engine.setDevice("SPK")
     let controller = CoreAudioAppController(
@@ -142,7 +142,7 @@ struct ServiceRestartTests {
     await controller.reconcile(desired: [desired("a")])
     #expect(controller.killList.count == 1)
     engine.emit(.serviceRestarted)
-    #expect(await eventually { engine.created.count == 2 })
+    try #require(await eventually { engine.created.count == 2 })
     #expect(controller.killList.count == 1)  // only the rebuilt tap
     #expect(engine.created[0].stopCalls == 0)
     await controller.restoreAll()

@@ -5,7 +5,7 @@ import Testing
 @testable import VolumeSystem
 
 @MainActor
-@Suite("SessionLifecycleObserver")
+@Suite("SessionLifecycleObserver", .timeLimit(.minutes(1)))
 struct SessionLifecycleObserverTests {
   @Test func firesOnPowerOffAndTerminate() async {
     let workspace = NotificationCenter()

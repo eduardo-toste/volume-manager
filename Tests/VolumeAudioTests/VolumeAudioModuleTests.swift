@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeAudio
 
-@Suite("VolumeAudio")
+@Suite("VolumeAudio", .timeLimit(.minutes(1)))
 struct VolumeAudioModuleTests {
   @Test func logCategoryIsStable() {
     #expect(VolumeAudioModule.logCategory == "audio")

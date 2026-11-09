@@ -61,7 +61,7 @@ final class OrderedSpyController: AppAudioController, Sendable {
 }
 
 @MainActor
-@Suite("QA M1 round 2: panic ordering")
+@Suite("QA M1 round 2: panic ordering", .timeLimit(.minutes(1)))
 struct QAPanicOrderingTests {
   private func makeStore(_ controller: OrderedSpyController) -> (MixerStore, FakeClock) {
     let clock = FakeClock()
@@ -170,7 +170,7 @@ struct QAPanicOrderingTests {
 }
 
 @MainActor
-@Suite("QA M1 round 2: idempotence and exclusion")
+@Suite("QA M1 round 2: idempotence and exclusion", .timeLimit(.minutes(1)))
 struct QARound2StoreTests {
   @Test func playPauseNameChangeAndIdleTransitionsDoNotResend() async {
     let h = MixerHarness()
@@ -243,7 +243,7 @@ struct QARound2StoreTests {
   }
 }
 
-@Suite("QA M1 round 2: sanitizer by category")
+@Suite("QA M1 round 2: sanitizer by category", .timeLimit(.minutes(1)))
 struct QASanitizerCategoryTests {
   @Test func noControlOrFormatScalarSurvivesExceptTheTwoJoiners() {
     var offenders: [UInt32] = []

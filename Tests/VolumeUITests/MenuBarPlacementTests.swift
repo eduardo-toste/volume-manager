@@ -6,7 +6,7 @@ import Testing
 /// Where the popover panel opens (SPEC 3.1): under the icon, just below the menu bar, inside
 /// the screen. Pure geometry, plus the panel keeping its top when the content changes size.
 @MainActor
-@Suite("Menu bar panel placement")
+@Suite("Menu bar panel placement", .timeLimit(.minutes(1)))
 struct MenuBarPlacementTests {
   private let screen = CGRect(x: 0, y: 0, width: 1512, height: 944)
   private let size = CGSize(width: 320, height: 500)

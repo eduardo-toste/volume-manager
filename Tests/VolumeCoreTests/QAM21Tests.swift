@@ -3,7 +3,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("QA M2.1: hostile text (B-1)")
+@Suite("QA M2.1: hostile text (B-1)", .timeLimit(.minutes(1)))
 struct QAHostileTextM21Tests {
   /// Every scalar that must never reach a terminal or a path decision.
   private static let hostileScalars: [(String, Unicode.Scalar)] = [
@@ -51,7 +51,7 @@ struct QAHostileTextM21Tests {
   }
 }
 
-@Suite("QA M2.1: removed features stay removed")
+@Suite("QA M2.1: removed features stay removed", .timeLimit(.minutes(1)))
 struct QARemovedFeaturesM21Tests {
   private func sources(_ sub: String) throws -> [(String, String)] {
     let dir = RepositoryFiles.root.appendingPathComponent(sub)

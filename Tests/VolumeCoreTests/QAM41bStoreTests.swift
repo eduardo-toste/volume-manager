@@ -4,7 +4,7 @@ import Testing
 
 /// QA M4.1b: edge cases of the ambiguous denial (SPEC 4.6, S41R-B1).
 @MainActor
-@Suite("QA M4.1b: ambiguous denial edges")
+@Suite("QA M4.1b: ambiguous denial edges", .timeLimit(.minutes(1)))
 struct QAM41bStoreTests {
   /// A permission that was never confirmed on this Mac is not checked again by the timer.
   @Test func noAutomaticRecheckWhenThePermissionWasNeverConfirmed() async {

@@ -12,7 +12,7 @@ private final class VerdictProbe: AudioAccessProbe {
   func verify() async -> AudioAccessVerdict { verdict.withLock { $0 } }
 }
 
-@Suite("AudioPermissionService with signal verdicts (SPEC 4.6)")
+@Suite("AudioPermissionService with signal verdicts (SPEC 4.6)", .timeLimit(.minutes(1)))
 struct AudioPermissionVerdictTests {
   @Test func verdictsMapToStatuses() async {
     let probe = VerdictProbe()

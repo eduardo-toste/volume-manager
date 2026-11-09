@@ -4,7 +4,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("PermissionMonitor")
+@Suite("PermissionMonitor", .timeLimit(.minutes(1)))
 struct PermissionMonitorTests {
   private let service = ScriptedPermissionService()
 

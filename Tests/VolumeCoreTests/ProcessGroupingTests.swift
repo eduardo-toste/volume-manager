@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("ProcessGrouping")
+@Suite("ProcessGrouping", .timeLimit(.minutes(1)))
 struct ProcessGroupingTests {
   let info = FakeAppInfoProvider()
 

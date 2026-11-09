@@ -5,7 +5,7 @@ import VolumeCore
 
 @testable import VolumeSystem
 
-@Suite("LRUCache")
+@Suite("LRUCache", .timeLimit(.minutes(1)))
 struct LRUCacheTests {
   @Test func evictsLeastRecentlyUsed() {
     var cache = LRUCache<String, Int>(capacity: 2)
@@ -45,7 +45,7 @@ struct LRUCacheTests {
   }
 }
 
-@Suite("WorkspaceAppInfoProvider")
+@Suite("WorkspaceAppInfoProvider", .timeLimit(.minutes(1)))
 struct AppInfoProviderTests {
   private let provider = WorkspaceAppInfoProvider()
 

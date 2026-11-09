@@ -80,7 +80,7 @@ private func forbiddenScalars(in text: String) -> Bool {
 
 // MARK: Process / PID
 
-@Suite("QA M3: PIDs and paths")
+@Suite("QA M3: PIDs and paths", .timeLimit(.minutes(1)))
 struct QAPIDTests {
   private let provider = WorkspaceAppInfoProvider()
 
@@ -149,7 +149,7 @@ struct QAPIDTests {
 
 // MARK: Hostile bundles
 
-@Suite("QA M3: hostile app bundles")
+@Suite("QA M3: hostile app bundles", .timeLimit(.minutes(1)))
 struct QAHostileBundleTests {
   private let provider = WorkspaceAppInfoProvider()
   private let hostile = "A\u{202E}B\u{200B}C\u{0007}D\u{2066}E\nF\u{FEFF}"
@@ -228,7 +228,7 @@ struct QAHostileBundleTests {
 
 // MARK: LRU
 
-@Suite("QA M3: LRU under concurrency")
+@Suite("QA M3: LRU under concurrency", .timeLimit(.minutes(1)))
 struct QALRUTests {
   @Test func limitHoldsUnderConcurrentInsertsThroughMutex() async {
     let cache = Mutex(LRUCache<Int, Int>(capacity: WorkspaceAppInfoProvider.iconCacheLimit))
@@ -267,7 +267,7 @@ struct QALRUTests {
 // MARK: Preferences
 
 @MainActor
-@Suite("QA M3: preferences hostile input")
+@Suite("QA M3: preferences hostile input", .timeLimit(.minutes(1)))
 struct QAPreferencesTests {
   private func withStore(
     _ body: (UserDefaultsPreferencesStore, InMemoryPreferencesBackend) throws -> Void
@@ -331,7 +331,7 @@ struct QAPreferencesTests {
 
 // MARK: Login item
 
-@Suite("QA M3: login item")
+@Suite("QA M3: login item", .timeLimit(.minutes(1)))
 struct QALoginItemTests {
   @Test func enableFromRequiresApprovalDoesNotReRegister() throws {
     let fake = QAController(.requiresApproval)
@@ -385,7 +385,7 @@ struct QALoginItemTests {
 
 // MARK: Permission service
 
-@Suite("QA M3: permission service")
+@Suite("QA M3: permission service", .timeLimit(.minutes(1)))
 struct QAPermissionTests {
   @Test func concurrentRequestsAreSerializedAndEndConsistent() async {
     let probe = QAProbe()
@@ -408,7 +408,7 @@ struct QAPermissionTests {
 // MARK: Session lifecycle
 
 @MainActor
-@Suite("QA M3: session lifecycle")
+@Suite("QA M3: session lifecycle", .timeLimit(.minutes(1)))
 struct QALifecycleTests {
   @Test func stopIsIdempotentAndNothingFiresAfterIt() {
     let workspace = NotificationCenter()

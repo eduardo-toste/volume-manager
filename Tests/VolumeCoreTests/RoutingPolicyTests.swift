@@ -2,7 +2,7 @@ import Testing
 
 @testable import VolumeCore
 
-@Suite("RoutingPolicy")
+@Suite("RoutingPolicy", .timeLimit(.minutes(1)))
 struct RoutingPolicyTests {
   let speakers = OutputDevice(id: 1, uid: "speakers", name: "Speakers", kind: .builtIn)
   let airpods = OutputDevice(id: 2, uid: "airpods", name: "AirPods", kind: .bluetooth)

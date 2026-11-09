@@ -4,7 +4,7 @@ import Testing
 
 /// SPEC 4.6: no user tap exists before a signal check confirmed the permission this session.
 @MainActor
-@Suite("Permission gate before taps")
+@Suite("Permission gate before taps", .timeLimit(.minutes(1)))
 struct AccessGateTests {
   private let spotify = "com.spotify.client"
   private let remembered: [String: Any] = [
@@ -83,7 +83,7 @@ struct AccessGateTests {
 }
 
 @MainActor
-@Suite("Permission verified at launch after a past confirmation")
+@Suite("Permission verified at launch after a past confirmation", .timeLimit(.minutes(1)))
 struct LaunchVerificationTests {
   private let marked: [String: Any] = [
     "audioPermissionConfirmed": true,

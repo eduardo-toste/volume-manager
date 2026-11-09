@@ -3,7 +3,7 @@ import Testing
 @testable import VolumeCore
 
 @MainActor
-@Suite("Models and doubles")
+@Suite("Models and doubles", .timeLimit(.minutes(1)))
 struct ModelTests {
   @Test func outputDeviceSanitizesSystemText() {
     let device = OutputDevice(
