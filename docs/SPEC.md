@@ -47,7 +47,7 @@ Todas existem em Claro e Escuro no design. Usar **controles e materiais nativos*
 ### 3.2 Popover do mixer (largura ~320pt)
 De cima para baixo:
 
-1. **Cabeçalho** — título “Volume Manager” e botão `•••` (menu com: Ajustes do Volume Manager…, **Restaurar áudio original**, Sobre o Volume Manager, Sair). “Restaurar áudio original” destrói todos os taps na hora e volta todos os apps a 100%/saída padrão, sem fechar o app (botão de pânico; ver §4.6).
+1. **Cabeçalho** — só o título “Volume Manager” (sem botão `•••`; decisão do usuário em 2026-11-09: o menu duplicava o rodapé e suas opções foram para o rodapé, item 5).
 2. **Card “Saída principal”**
    - Ícone do dispositivo + rótulo “Saída” + nome do dispositivo de saída padrão do sistema + chevron `›`.
    - Clicar abre a lista de dispositivos de saída; escolher um muda a **saída padrão do sistema**.
@@ -62,7 +62,7 @@ De cima para baixo:
    - **Expandir linha** (clique no nome/ícone ou no rótulo de rota): mostra “SAÍDA DESTE APP” com a lista de dispositivos; o atual tem ✓. Primeira opção: “Padrão do sistema (‹nome›)”. Só uma linha expandida por vez.
    - Hover: fundo levemente destacado na linha.
    - Lista rola se passar de ~6 apps; o popover não cresce além de ~70% da altura da tela.
-5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume Manager…”, “Sair”. ⌘, e ⌘Q funcionam com o popover aberto, mas **não aparecem escritos** (decisão do usuário em 2026-11-08, como na Central de Controle).
+5. **Rodapé** (estilo item de menu): “Ajustes de Som…” (abre Ajustes do Sistema › Som), “Ajustes do Volume Manager…”, **“Restaurar áudio original”**, “Sobre o Volume Manager”, “Sair”. “Restaurar áudio original” destrói todos os taps na hora e volta todos os apps a 100%/saída padrão, sem fechar o app (botão de pânico, a um clique; ver §4.6). ⌘, e ⌘Q funcionam com o popover aberto, mas **não aparecem escritos** (decisão do usuário em 2026-11-08, como na Central de Controle).
 
 **Estados especiais do popover**
 - **Sem permissão de áudio**: no lugar da lista de apps, um aviso “O Volume precisa de acesso ao áudio do sistema para ajustar cada app” + botão “Permitir…” (ver §5). O card de saída principal continua funcionando.
@@ -115,7 +115,7 @@ Janela 480×600, só botão fechar ativo. Aparece **apenas na primeira execuçã
 ### 4.6 Princípio “falhar abrindo” (nunca quebrar o áudio do usuário)
 O pior resultado aceitável de qualquer falha é **“o app volta ao som normal”** — nunca “o app ficou mudo” ou “o som parou”.
 - **Vigia (watchdog)**: para cada tap ativo, um contador atômico incrementado pelo IOProc é verificado periodicamente fora do thread de áudio **somente enquanto houver taps ativos**. Se o áudio parar de fluir enquanto o app de origem ainda está tocando (ou o IOProc reportar erro), o tap é destruído — o macOS devolve o som original do app — e a linha mostra “Não foi possível controlar este app”. Nova tentativa só por ação do usuário.
-- **Restaurar áudio original** (menu `•••`, §3.2): destrói todos os taps imediatamente.
+- **Restaurar áudio original** (rodapé do popover, §3.2): destrói todos os taps imediatamente.
 - **Modo seguro**: se o app encerrar de forma anormal 2 vezes seguidas em menos de 1 minuto após iniciar, a próxima inicialização **não reaplica** volumes/rotas lembrados e mostra um aviso discreto no popover. Volta ao normal após uma sessão estável.
 - Falha ao criar tap ou aggregate device → não tenta de novo em laço; deixa o app no som original.
 - **Tap silencioso por falta de permissão (descoberto no ⏸0)**: sem a permissão “Gravação de Áudio do Sistema”, o macOS **não retorna erro** — o tap é criado, o app original é silenciado e o tap entrega **somente zeros**. O vigia de frames não detecta isso. Regras:
