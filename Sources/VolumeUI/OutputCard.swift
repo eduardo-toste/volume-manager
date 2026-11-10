@@ -62,6 +62,7 @@ struct OutputCard: View {
     .menuStyle(.button)
     .buttonStyle(.plain)
     .menuIndicator(.hidden)
+    .focusEffectDisabled()
     .accessibilityLabel(Text("output.label", bundle: .main))
     .accessibilityValue(Text(verbatim: store.defaultOutput?.displayName ?? ""))
   }

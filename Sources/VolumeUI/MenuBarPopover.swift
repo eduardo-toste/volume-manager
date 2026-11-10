@@ -15,9 +15,9 @@ public struct MenuBarPopover: View {
 
   /// Tallest the app list gets before it scrolls: about six apps (SPEC 3.2), and never so tall
   /// that the popover passes about 70% of the screen. The rest of the popover (header, output
-  /// card, section title, footer) takes about 340 pt.
+  /// card, section title, footer) takes about 260 pt.
   static func maxListHeight(screenHeight: CGFloat) -> CGFloat {
-    max(120, min(400, screenHeight * 0.7 - 340))
+    max(120, min(400, screenHeight * 0.7 - 260))
   }
 
   /// The popover.
@@ -37,6 +37,7 @@ public struct MenuBarPopover: View {
     .padding(EdgeInsets(top: 14, leading: 14, bottom: 10, trailing: 14))
     .frame(width: 320)
     .background(GlassBackground())
+    .focusEffectDisabled()
     .onExitCommand { NSApp.keyWindow?.close() }
   }
 
@@ -116,14 +117,7 @@ public struct MenuBarPopover: View {
   private var footer: some View {
     VStack(spacing: 2) {
       footerSeparator
-      MenuItemRow(title: "footer.sound", shortcut: nil, action: context.openSoundSettings)
-      MenuItemRow(
-        title: "footer.settings", shortcut: KeyboardShortcut(",", modifiers: .command),
-        action: context.showSettings)
-      footerSeparator
-      MenuItemRow(title: "menu.restore", shortcut: nil, action: store.restoreOriginalAudio)
-      MenuItemRow(title: "menu.about", shortcut: nil, action: context.showAbout)
-      footerSeparator
+      OptionsMenuRow(context: context)
       MenuItemRow(
         title: "footer.quit", shortcut: KeyboardShortcut("q", modifiers: .command),
         action: context.quit)
@@ -159,6 +153,7 @@ private struct MenuItemRow: View {
   let action: @MainActor () -> Void
 
   @State private var isHovering = false
+  @FocusState private var isFocused: Bool
 
   var body: some View {
     Button(action: action) {
@@ -174,7 +169,53 @@ private struct MenuItemRow: View {
     }
     .buttonStyle(.plain)
     .keyboardShortcut(shortcut)
-    .rowHighlight(isActive: isHovering, cornerRadius: 8)
+    .focused($isFocused)
+    .rowHighlight(isActive: isHovering || isFocused, cornerRadius: 8)
     .onHover { isHovering = $0 }
+  }
+}
+
+/// "Opções": a footer item that opens a native menu (SPEC 3.2). The hidden button keeps ⌘,
+/// working with the popover open, since a closed menu does not receive shortcuts.
+private struct OptionsMenuRow: View {
+  let context: PopoverContext
+
+  @State private var isHovering = false
+  @FocusState private var isFocused: Bool
+
+  var body: some View {
+    Menu {
+      Button("footer.sound", action: context.openSoundSettings)
+      Button("footer.settings", action: context.showSettings)
+      Divider()
+      Button("menu.restore", action: context.store.restoreOriginalAudio)
+      Button("menu.about", action: context.showAbout)
+    } label: {
+      HStack {
+        Text("footer.options", bundle: .main)
+          .font(.system(size: 13))
+          .foregroundStyle(.primary)
+        Spacer()
+        Image(systemName: "chevron.right")
+          .font(.system(size: 11, weight: .semibold))
+          .foregroundStyle(.secondary)
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 4)
+      .contentShape(Rectangle())
+    }
+    .menuStyle(.button)
+    .buttonStyle(.plain)
+    .menuIndicator(.hidden)
+    .focused($isFocused)
+    .rowHighlight(isActive: isHovering || isFocused, cornerRadius: 8)
+    .onHover { isHovering = $0 }
+    .background {
+      Button("", action: context.showSettings)
+        .keyboardShortcut(",", modifiers: .command)
+        .opacity(0)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
   }
 }

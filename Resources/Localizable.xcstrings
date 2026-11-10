@@ -191,6 +191,16 @@
         }
       }
     },
+    "footer.options": {
+      "localizations": {
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Opções"
+          }
+        }
+      }
+    },
     "footer.quit": {
       "localizations": {
         "pt-BR": {
