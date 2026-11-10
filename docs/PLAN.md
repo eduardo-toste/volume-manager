@@ -147,7 +147,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 **Dev**
 - `Styling`: `GlassBackground`, `CardBackground`, `RowHighlight` com `#available(macOS 26)` → Liquid Glass, senão materiais (único lugar com `#available`).
 - Ícone da barra dinâmico (alto-falante 0/1/2/3 ondas ou “Controles”).
-- Popover conforme design: cabeçalho (só título; o `•••` foi removido em 2026-11-09), card Saída principal (lista de saídas, slider geral, mudo), seção Aplicativos, `AppRowView` (ícone, nome, %, slider, mudo, rótulo de rota), linha expandida “SAÍDA DESTE APP” (uma por vez), rodapé (Ajustes de Som…, Ajustes do Volume… ⌘,, Restaurar áudio original, Sobre o Volume Manager, Sair ⌘Q), estados “sem permissão” e “nenhum app”.
+- Popover conforme design: cabeçalho (só título; o `•••` foi removido em 2026-11-09), card Saída principal (lista de saídas, slider geral, mudo), seção Aplicativos, `AppRowView` (ícone, nome, %, slider, mudo, rótulo de rota), linha expandida “SAÍDA DESTE APP” (uma por vez), rodapé (“Opções” — menu com Ajustes de Som…, Ajustes do Volume… ⌘,, Restaurar áudio original, Sobre o Volume Manager — e Sair ⌘Q; decisão do usuário em 2026-11-10), estados “sem permissão” e “nenhum app”.
 - Teclado (setas/rolagem com incremento, Espaço, Esc, Tab) e acessibilidade (VoiceOver, Reduzir transparência/movimento).
 - Composition root conecta tudo: app funcional pela barra de menus.
 
