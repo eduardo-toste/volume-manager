@@ -241,16 +241,6 @@
         }
       }
     },
-    "menu.more": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mais opções"
-          }
-        }
-      }
-    },
     "menu.quit": {
       "localizations": {
         "pt-BR": {

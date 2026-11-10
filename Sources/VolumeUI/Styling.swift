@@ -15,7 +15,7 @@ enum Palette {
   /// The output card.
   static let cardFill = adaptive(light: .white.withAlphaComponent(0.45), dark: white(0.07))
   static let cardStroke = adaptive(light: .white.withAlphaComponent(0.6), dark: white(0.10))
-  /// Circle behind the "•••" and mute buttons.
+  /// Circle behind the mute buttons.
   static let buttonFill = adaptive(light: black(0.059), dark: white(0.10))
   /// A row under the pointer, focused or expanded; the chosen output of an app.
   static let highlight = adaptive(light: black(0.051), dark: white(0.078))

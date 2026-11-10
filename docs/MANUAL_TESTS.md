@@ -8,7 +8,7 @@ Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume Ma
 
 ### 1. Abrir e olhar
 1. Clique no ícone de alto-falante na barra de menus. O painel deve abrir de imediato (sem demora perceptível).
-2. Confira de cima para baixo: título "Volume Manager" e botão `•••`; cartão "Saída" com o nome do dispositivo atual; seção "Aplicativos" com "N reproduzindo"; rodapé com "Ajustes de Som…", "Ajustes do Volume Manager…" e "Sair".
+2. Confira de cima para baixo: título "Volume Manager"; cartão "Saída" com o nome do dispositivo atual; seção "Aplicativos" com "N reproduzindo"; rodapé com "Ajustes de Som…", "Ajustes do Volume Manager…", "Restaurar áudio original", "Sobre o Volume Manager" e "Sair".
 3. Atenção: o cartão "Saída" deve mostrar o **nome do dispositivo** (ex.: "Alto-falantes do MacBook"). Se mostrar só "Saída" e o ícone, anote — é um defeito conhecido do QA.
 4. Não deve existir "Mostrar na barra de menus" nem atalhos globais em lugar nenhum.
 5. Feche com Esc. Abra de novo.
@@ -40,7 +40,7 @@ Antes de começar: `scripts/build-app.sh` (só constrói). Abra `build/Volume Ma
 4. ⌘, abre uma janelinha provisória ("Os Ajustes… chegam na próxima etapa") — é esperado até a M5. ⌘Q sai.
 
 ### 5. Restaurar e sair
-1. Baixe o volume de dois apps. Menu `•••` › "Restaurar áudio original": todos voltam a 100% na hora e o som segue normal.
+1. Baixe o volume de dois apps. Rodapé › "Restaurar áudio original": todos voltam a 100% na hora e o som segue normal.
 2. Baixe um app de novo e escolha "Sair": o som desse app deve voltar ao normal e o ícone sair da barra, em menos de 2 segundos. Clicar várias vezes em Sair não deve causar nada estranho.
 3. Abra o app, baixe um app, e force o encerramento (Monitor de Atividade): o som volta ao normal sozinho.
 
@@ -106,7 +106,7 @@ Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra 
 18. **Painel novo (janela própria)**: o painel agora abre ao clicar no ícone, colado sob a barra de menus. Confira:
     a. Clicar no ícone abre; clicar de novo no ícone fecha (não reabre sozinho). Esc fecha. Clicar fora (na área de trabalho, em outra janela ou em outro ícone da barra) fecha.
     b. Abrir o painel **não** deve trazer as janelas de outros apps para frente nem tirar o app da frente de onde estava (o nome do app ativo no menu da esquerda não muda).
-    c. Os menus do painel (`•••` e "Saída") abrem e escolher uma opção funciona sem o painel sumir antes da hora; ⌘, abre os Ajustes e ⌘Q sai.
+    c. O menu "Saída" do painel abre e escolher uma opção funciona sem o painel sumir antes da hora; ⌘, abre os Ajustes e ⌘Q sai.
     d. Com 2 telas, o painel abre na tela do ícone clicado. Perto da borda direita, ele não passa da tela.
     e. O ícone da barra muda conforme o volume geral e o estilo escolhido, e fica destacado enquanto o painel está aberto.
 19. **Estalo, de novo (13)**: depois da correção das paradas de áudio, repita 13a/13b e também: arraste um app passando várias vezes por 100% (de 80% a 100% e de volta). Não deve estalar. Em 100% o app continua controlado (ganho 1, som idêntico ao original); ele só deixa de ser controlado cerca de 15 segundos depois de parar de tocar.
@@ -121,7 +121,7 @@ Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra 
     d. **Som idêntico em 100%**: com o app em 100%, o som não deve mudar de timbre nem de volume em relação a antes de abrir o Volume Manager.
     e. **Vídeo**: veja um vídeo (YouTube/Safari) com fones Bluetooth e com o alto-falante: a imagem e a fala continuam sincronizadas (sem atraso perceptível) e o som não falha.
     f. **Navegador silencioso**: abra uma aba com vídeo pausado/mudo (ou um site que mantém áudio aberto em silêncio) como único áudio e abra o painel. O painel **não** deve passar a dizer "sem permissão". Se disser, anote (limitação conhecida); tocar música de verdade e reabrir o painel deve resolver.
-    g. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora, nenhum app fica mudo, e nenhum app é controlado de novo até você mexer em um volume.
+    g. **Restaurar áudio original** (rodapé): todos voltam ao som normal na hora, nenhum app fica mudo, e nenhum app é controlado de novo até você mexer em um volume.
     h. **Revogar permissão com o Volume Manager aberto** (opcional): com 2 apps tocando, desligue o "Volume Manager" em Ajustes do Sistema › Privacidade e Segurança › Gravação de Áudio do Sistema. Em poucos segundos os apps devem voltar a tocar normalmente (nunca ficar mudos) e o painel mostrar "sem permissão".
     i. **Apps com saída especial** (HDMI/monitor, interface multicanal): se aparecer "Não foi possível controlar este app" num app que você nem mexeu, anote — o som deve continuar normal.
 
@@ -136,7 +136,7 @@ Antes: `scripts/build-app.sh`, feche o Volume Manager que estiver aberto e abra 
 4. **Estalo zero**: toque música e arraste o volume de um app várias vezes (passando por 100%, de 80% a 10% e voltando), e também o volume geral. Não deve estalar. Anote se ouvir um estalinho só quando um app começa a tocar.
 5. **Pausa**: pause um app controlado, espere cerca de 20 segundos e rode o comando do log: deve aparecer "tap and aggregate destroyed" mais ou menos 15 s depois da pausa. Dar play de novo antes disso não deve causar nada.
 6. **Navegador silencioso**: deixe uma aba com vídeo mudo/pausado como único áudio e abra o painel: não deve aparecer "sem permissão". Se aparecer, anote; ele deve sumir sozinho em até ~30 s depois que algo tocar de verdade.
-7. **Restaurar áudio original** (menu `•••`): todos voltam ao som normal na hora e nenhum app fica mudo.
+7. **Restaurar áudio original** (rodapé): todos voltam ao som normal na hora e nenhum app fica mudo.
 
 ---
 

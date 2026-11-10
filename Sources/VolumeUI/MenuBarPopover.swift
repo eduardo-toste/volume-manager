@@ -15,9 +15,9 @@ public struct MenuBarPopover: View {
 
   /// Tallest the app list gets before it scrolls: about six apps (SPEC 3.2), and never so tall
   /// that the popover passes about 70% of the screen. The rest of the popover (header, output
-  /// card, section title, footer) takes about 280 pt.
+  /// card, section title, footer) takes about 340 pt.
   static func maxListHeight(screenHeight: CGFloat) -> CGFloat {
-    max(120, min(400, screenHeight * 0.7 - 280))
+    max(120, min(400, screenHeight * 0.7 - 340))
   }
 
   /// The popover.
@@ -47,26 +47,6 @@ public struct MenuBarPopover: View {
       Text("popover.title", bundle: .main)
         .font(.system(size: 15, weight: .bold))
         .foregroundStyle(.primary)
-      Spacer()
-      Menu {
-        Button(action: context.showSettings) { Text("menu.settings", bundle: .main) }
-        Button(action: store.restoreOriginalAudio) { Text("menu.restore", bundle: .main) }
-        Button(action: context.showAbout) { Text("menu.about", bundle: .main) }
-        Divider()
-        Button(action: context.quit) { Text("menu.quit", bundle: .main) }
-      } label: {
-        Image(systemName: "ellipsis")
-          .font(.system(size: 11, weight: .bold))
-          .foregroundStyle(.primary)
-          .frame(width: 24, height: 24)
-          .background(Circle().fill(Palette.buttonFill))
-          .contentShape(Circle())
-      }
-      .menuStyle(.button)
-      .buttonStyle(.plain)
-      .menuIndicator(.hidden)
-      .fixedSize()
-      .accessibilityLabel(Text("menu.more", bundle: .main))
     }
     .padding(.leading, 4)
     .padding(.trailing, 2)
@@ -126,16 +106,24 @@ public struct MenuBarPopover: View {
 
   // MARK: Footer
 
+  private var footerSeparator: some View {
+    Rectangle()
+      .fill(Palette.separator)
+      .frame(height: 1)
+      .padding(.horizontal, 8)
+  }
+
   private var footer: some View {
     VStack(spacing: 2) {
-      Rectangle()
-        .fill(Palette.separator)
-        .frame(height: 1)
-        .padding(.horizontal, 8)
+      footerSeparator
       MenuItemRow(title: "footer.sound", shortcut: nil, action: context.openSoundSettings)
       MenuItemRow(
         title: "footer.settings", shortcut: KeyboardShortcut(",", modifiers: .command),
         action: context.showSettings)
+      footerSeparator
+      MenuItemRow(title: "menu.restore", shortcut: nil, action: store.restoreOriginalAudio)
+      MenuItemRow(title: "menu.about", shortcut: nil, action: context.showAbout)
+      footerSeparator
       MenuItemRow(
         title: "footer.quit", shortcut: KeyboardShortcut("q", modifiers: .command),
         action: context.quit)
