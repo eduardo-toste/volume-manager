@@ -22,7 +22,7 @@ struct QAM53UITests {
     NSWindow, NSHostingView<MenuBarPopover>
   ) {
     let context = PopoverContext(
-      store: c.store, settings: c.settings, permission: c.permission, icon: c.icon,
+      store: c.store, settings: c.settings, icon: c.icon,
       openSoundSettings: {}, showSettings: { counter.settings += 1 }, showAbout: {},
       quit: { counter.quit += 1 })
     _ = NSApplication.shared
