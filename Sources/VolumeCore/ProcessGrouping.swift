@@ -12,6 +12,7 @@ public enum ProcessGrouping {
     var bundleID: String?
     var pids: Set<Int32> = []
     var isPlaying = false
+    var isInCall = false
   }
 
   /// Longest bundle ID accepted.
@@ -47,13 +48,14 @@ public enum ProcessGrouping {
       var draft = drafts[key] ?? Draft(name: name, bundleID: bundleID)
       draft.pids.insert(process.pid)
       draft.isPlaying = draft.isPlaying || process.isRunningOutput
+      draft.isInCall = draft.isInCall || process.isRunningInput
       drafts[key] = draft
     }
     return drafts.keys.sorted().compactMap { key in
       guard let draft = drafts[key] else { return nil }
       return AudioApp(
         id: key, name: draft.name, bundleID: draft.bundleID, pids: draft.pids.sorted(),
-        isPlaying: draft.isPlaying)
+        isPlaying: draft.isPlaying, isInCall: draft.isInCall)
     }
   }
 

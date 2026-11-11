@@ -10,13 +10,19 @@ public struct AudioApp: Sendable, Hashable, Identifiable {
   public let pids: [Int32]
   /// True when some process of the group is producing output.
   public let isPlaying: Bool
+  /// True when some process of the group has input running: the app is in a call (SPEC 3.2).
+  public let isInCall: Bool
 
   /// Creates an app group.
-  public init(id: String, name: String, bundleID: String?, pids: [Int32], isPlaying: Bool) {
+  public init(
+    id: String, name: String, bundleID: String?, pids: [Int32], isPlaying: Bool,
+    isInCall: Bool = false
+  ) {
     self.id = id
     self.name = name
     self.bundleID = bundleID
     self.pids = pids
     self.isPlaying = isPlaying
+    self.isInCall = isInCall
   }
 }

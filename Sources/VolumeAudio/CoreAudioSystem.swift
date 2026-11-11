@@ -139,8 +139,8 @@ public actor CoreAudioSystem: AudioSystem {
     publish(forced: trigger == .serviceRestarted)
   }
 
-  /// Keeps one `IsRunningOutput` listener per process and the volume and activity listeners on
-  /// the default device.
+  /// Keeps one `IsRunningOutput`/`IsRunningInput` listener per process and the volume and
+  /// activity listeners on the default device.
   private func syncDynamicListeners() {
     let hub = triggers
     let present = Set(catalog.objectIDs())
@@ -151,7 +151,10 @@ public actor CoreAudioSystem: AudioSystem {
       do {
         processListeners[object] = try PropertyListener(
           object: object,
-          addresses: [AudioProperty.address(kAudioProcessPropertyIsRunningOutput)],
+          addresses: [
+            AudioProperty.address(kAudioProcessPropertyIsRunningOutput),
+            AudioProperty.address(kAudioProcessPropertyIsRunningInput),
+          ],
           queue: queue, handler: { hub.yield(.changed) })
       } catch {
         AudioLog.logger.error(

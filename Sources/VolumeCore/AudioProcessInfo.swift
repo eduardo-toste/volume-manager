@@ -10,6 +10,9 @@ public struct AudioProcessInfo: Sendable, Hashable {
   public let responsiblePID: Int32?
   /// True while the process is producing output.
   public let isRunningOutput: Bool
+  /// True while the process has input running (it uses the microphone, for example in a
+  /// call). Only process metadata from Core Audio: no input audio is ever read.
+  public let isRunningInput: Bool
 
   /// Creates a process description.
   public init(
@@ -17,12 +20,14 @@ public struct AudioProcessInfo: Sendable, Hashable {
     bundleID: String? = nil,
     executablePath: String? = nil,
     responsiblePID: Int32? = nil,
-    isRunningOutput: Bool = false
+    isRunningOutput: Bool = false,
+    isRunningInput: Bool = false
   ) {
     self.pid = pid
     self.bundleID = bundleID
     self.executablePath = executablePath
     self.responsiblePID = responsiblePID
     self.isRunningOutput = isRunningOutput
+    self.isRunningInput = isRunningInput
   }
 }

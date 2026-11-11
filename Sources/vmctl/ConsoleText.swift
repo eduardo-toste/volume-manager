@@ -19,12 +19,13 @@ enum ConsoleText {
     "\(process.pid)\t\(process.isRunningOutput ? "PLAYING" : "idle   ")\t"
       + "\(safe(process.bundleID))\t\(safe(process.executablePath, limit: maxPathLength))"
       + (process.responsiblePID.map { "\tresponsible=\($0)" } ?? "")
+      + (process.isRunningInput ? "\tin-call" : "")
   }
 
   /// One line for a grouped app.
   static func line(for app: AudioApp) -> String {
     let pids = app.pids.map(String.init).joined(separator: ",")
     return "\(app.isPlaying ? "[PLAYING]" : "[idle]   ") \(safe(app.name)) "
-      + "<\(safe(app.bundleID ?? app.id))> pids: \(pids)"
+      + "<\(safe(app.bundleID ?? app.id))> pids: \(pids)" + (app.isInCall ? " [IN-CALL]" : "")
   }
 }

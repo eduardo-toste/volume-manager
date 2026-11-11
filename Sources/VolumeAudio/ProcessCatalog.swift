@@ -76,6 +76,12 @@ public struct ProcessCatalog: Sendable {
     return ((try? AudioProperty.get(object, address, initial: UInt32(0))) ?? 0) != 0
   }
 
+  /// `IsRunningInput`: only a flag of the process (in a call), never input audio (SPEC 3.2).
+  func runningInput(_ object: AudioObjectID) -> Bool {
+    let address = AudioProperty.address(kAudioProcessPropertyIsRunningInput)
+    return ((try? AudioProperty.get(object, address, initial: UInt32(0))) ?? 0) != 0
+  }
+
   private func describe(_ object: AudioObjectID) -> AudioProcessInfo? {
     guard
       let pid: pid_t = try? AudioProperty.get(
@@ -90,7 +96,8 @@ public struct ProcessCatalog: Sendable {
       bundleID: bundle.flatMap { $0.isEmpty ? nil : $0 },
       executablePath: info?.executablePath(forPID: pid),
       responsiblePID: responsible,
-      isRunningOutput: runningOutput(object))
+      isRunningOutput: runningOutput(object),
+      isRunningInput: runningInput(object))
   }
 }
 

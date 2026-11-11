@@ -15,7 +15,7 @@ public struct MasterOutputState: Sendable, Hashable {
 /// A change in the audio system. Every event carries the complete new value, so events that
 /// arrive late or out of order cannot leave the domain inconsistent.
 public enum AudioSystemEvent: Sendable, Hashable {
-  /// The list of audio processes, or their `isRunningOutput` flags, changed.
+  /// The list of audio processes, or their `isRunningOutput`/`isRunningInput` flags, changed.
   case processes([AudioProcessInfo])
   /// The list of output devices changed.
   case devices([OutputDevice])
