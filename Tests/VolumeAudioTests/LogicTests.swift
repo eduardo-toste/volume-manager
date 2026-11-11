@@ -85,52 +85,10 @@ struct SessionHealthTests {
 
   @Test func stalledFramesWhileTheAppPlays() {
     var health = SessionHealth(policy: policy)
-    _ = health.evaluate(frames: 100, sawSignal: true, appRunning: true, fault: false)
+    _ = health.evaluate(frames: 100, fault: false)
     var verdicts: [HealthVerdict] = []
-    for _ in 0..<4 {
-      verdicts.append(
-        health.evaluate(frames: 100, sawSignal: false, appRunning: true, fault: false))
-    }
+    for _ in 0..<4 { verdicts.append(health.evaluate(frames: 100, fault: false)) }
     #expect(verdicts == [.healthy, .healthy, .healthy, .stalled])
-  }
-
-  /// Round 5b (120 s since M5.3): silence is reported once after `silenceLimit` and then
-  /// latched until signal returns, so a silent stream asks for one check per silent period.
-  @Test func silenceIsReportedOnceAfterTheLimitAndLatched() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
-    var verdicts: [HealthVerdict] = []
-    let silence = policy.ticks(for: policy.silenceLimit)
-    #expect(silence == 240)
-    for _ in 0..<(silence * 3) {
-      frames += 24_000
-      verdicts.append(
-        health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false))
-    }
-    #expect(
-      Array(verdicts.prefix(silence)) == Array(repeating: .healthy, count: silence - 1) + [.silent])
-    #expect(verdicts.filter { $0 == .silent }.count == 1)
-  }
-
-  /// C2 (M5.3): stopping the output does not forgive the silence; only the output time counts
-  /// and only a non-zero sample resets it. A revoked permission with an app that plays on and
-  /// off still reaches the check.
-  @Test func pausesNeitherCountNorResetTheSilence() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
-    let silence = policy.ticks(for: policy.silenceLimit)
-    var runningTicks = 0
-    var verdict = HealthVerdict.healthy
-    var tick = 0
-    while verdict != .silent && tick < silence * 10 {
-      frames += 24_000
-      let running = (tick / 4) % 2 == 0  // 2 s playing, 2 s paused, repeated
-      if running { runningTicks += 1 }
-      verdict = health.evaluate(frames: frames, sawSignal: false, appRunning: running, fault: false)
-      tick += 1
-    }
-    #expect(verdict == .silent)
-    #expect(runningTicks == silence, "only the output time counts")
   }
 
   /// SPEC 4.6 (M5.3): a new tap may take up to 5 s to deliver its first frame (Bluetooth);
@@ -139,88 +97,114 @@ struct SessionHealthTests {
     var health = SessionHealth(policy: policy)
     let start = policy.ticks(for: policy.startLimit)
     var verdicts: [HealthVerdict] = []
-    for _ in 0..<start {
-      verdicts.append(health.evaluate(frames: 0, sawSignal: false, appRunning: true, fault: false))
-    }
+    for _ in 0..<start { verdicts.append(health.evaluate(frames: 0, fault: false)) }
     #expect(verdicts == Array(repeating: .healthy, count: start - 1) + [.stalled])
     var late = SessionHealth(policy: policy)
     for _ in 0..<(start - 1) {
-      #expect(
-        late.evaluate(frames: 0, sawSignal: false, appRunning: true, fault: false) == .healthy)
+      let verdict = late.evaluate(frames: 0, fault: false)
+      #expect(verdict == .healthy)
     }
-    #expect(late.evaluate(frames: 512, sawSignal: true, appRunning: true, fault: false) == .healthy)
+    let first = late.evaluate(frames: 512, fault: false)
+    #expect(first == .healthy)
     var after: [HealthVerdict] = []
     for _ in 0..<policy.ticks(for: policy.stallLimit) {
-      after.append(late.evaluate(frames: 512, sawSignal: false, appRunning: true, fault: false))
+      after.append(late.evaluate(frames: 512, fault: false))
     }
     #expect(after.last == .stalled, "2 s once the first frame arrived")
     #expect(after.dropLast().allSatisfy { $0 == .healthy })
   }
 
+  @Test func faultWinsImmediately() {
+    var health = SessionHealth(policy: policy)
+    let verdict = health.evaluate(frames: 5, fault: true)
+    #expect(verdict == .faulted)
+  }
+}
+
+@Suite("Silence guard (watchdog logic)", .timeLimit(.minutes(1)))
+struct SilenceGuardTests {
+  let policy = WatchdogPolicy()
+
+  /// Round 5b (120 s since M5.3): silence is reported once after `silenceLimit` and then
+  /// latched until signal returns, so a silent stream asks for one check per silent period.
+  @Test func silenceIsReportedOnceAfterTheLimitAndLatched() {
+    var guardian = SilenceGuard(policy: policy)
+    let silence = policy.ticks(for: policy.silenceLimit)
+    #expect(silence == 240)
+    var reports: [Bool] = []
+    for _ in 0..<(silence * 3) {
+      reports.append(guardian.evaluate(sawSignal: false, outputRunning: true))
+    }
+    #expect(Array(reports.prefix(silence)) == Array(repeating: false, count: silence - 1) + [true])
+    #expect(reports.filter { $0 }.count == 1)
+  }
+
+  /// C2 (M5.3): stopping the output does not forgive the silence; only the output time counts
+  /// and only a non-zero sample resets it. A revoked permission with an app that plays on and
+  /// off still reaches the check.
+  @Test func pausesNeitherCountNorResetTheSilence() {
+    var guardian = SilenceGuard(policy: policy)
+    let silence = policy.ticks(for: policy.silenceLimit)
+    var runningTicks = 0
+    var reported = false
+    var tick = 0
+    while !reported && tick < silence * 10 {
+      let running = (tick / 4) % 2 == 0  // 2 s playing, 2 s paused, repeated
+      if running { runningTicks += 1 }
+      reported = guardian.evaluate(sawSignal: false, outputRunning: running)
+      tick += 1
+    }
+    #expect(reported)
+    #expect(runningTicks == silence, "only the output time counts")
+  }
+
   /// S41R-M1: only a silence that already had a check is a "repeat"; real sound resets it.
   @Test func aSilenceIsARepeatOnlyAfterItsCheckAndUntilSignalReturns() {
-    var health = SessionHealth(policy: policy)
-    #expect(!health.silenceWasChecked)
-    health.retryLater()
-    #expect(health.silenceWasChecked)
-    _ = health.evaluate(frames: 1, sawSignal: true, appRunning: true, fault: false)
-    #expect(!health.silenceWasChecked)
+    var guardian = SilenceGuard(policy: policy)
+    #expect(!guardian.silenceWasChecked)
+    guardian.retryLater()
+    #expect(guardian.silenceWasChecked)
+    _ = guardian.evaluate(sawSignal: true, outputRunning: true)
+    #expect(!guardian.silenceWasChecked)
   }
 
   @Test func signalReArmsTheSilenceReport() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
+    var guardian = SilenceGuard(policy: policy)
     var reports = 0
     for period in 0..<3 {
-      frames += 24_000
-      _ = health.evaluate(frames: frames, sawSignal: true, appRunning: true, fault: false)
-      for _ in 0..<(policy.ticks(for: policy.silenceLimit) + period) {
-        frames += 24_000
-        let verdict = health.evaluate(
-          frames: frames, sawSignal: false, appRunning: true, fault: false)
-        if verdict == .silent { reports += 1 }
+      _ = guardian.evaluate(sawSignal: true, outputRunning: true)
+      for _ in 0..<(policy.ticks(for: policy.silenceLimit) + period)
+      where guardian.evaluate(sawSignal: false, outputRunning: true) {
+        reports += 1
       }
     }
     #expect(reports == 3, "one per silent period")
   }
 
   @Test func inconclusiveCheckAsksAgainOnlyAfterThirtySeconds() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
-    func tick() -> HealthVerdict {
-      frames += 24_000
-      return health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false)
-    }
-    for _ in 0..<4 { _ = tick() }
-    health.retryLater()
+    var guardian = SilenceGuard(policy: policy)
+    for _ in 0..<4 { _ = guardian.evaluate(sawSignal: false, outputRunning: true) }
+    guardian.retryLater()
     let retry = policy.ticks(for: policy.recheckAfter)
-    var verdicts: [HealthVerdict] = []
-    for _ in 0..<(retry + 10) { verdicts.append(tick()) }
-    #expect(verdicts.firstIndex(of: .silent) == retry - 1)
-    #expect(verdicts.filter { $0 == .silent }.count == 1)
+    var reports: [Bool] = []
+    for _ in 0..<(retry + 10) {
+      reports.append(guardian.evaluate(sawSignal: false, outputRunning: true))
+    }
+    #expect(reports.firstIndex(of: true) == retry - 1)
+    #expect(reports.filter { $0 }.count == 1)
   }
 
-  @Test func silenceIsNotCountedWhileTheAppIsNotRunningAndSignalResetsIt() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
-    for tick in 0..<40 {
-      frames += 1000
-      // Two silent ticks, then one with signal, forever: never reaches four in a row.
-      let verdict = health.evaluate(
-        frames: frames, sawSignal: tick % 3 == 2, appRunning: true, fault: false)
-      #expect(verdict == .healthy)
+  @Test func silenceIsNotCountedWhileNothingRunsAndSignalResetsIt() {
+    var guardian = SilenceGuard(policy: policy)
+    for tick in 0..<1_000 {
+      // Two silent ticks, then one with signal, forever: never reaches the limit.
+      let reported = guardian.evaluate(sawSignal: tick % 3 == 2, outputRunning: true)
+      #expect(!reported)
     }
-    for _ in 0..<40 {
-      frames += 1000
-      #expect(
-        health.evaluate(frames: frames, sawSignal: false, appRunning: false, fault: false)
-          == .healthy)
+    for _ in 0..<1_000 {
+      let reported = guardian.evaluate(sawSignal: false, outputRunning: false)
+      #expect(!reported)
     }
-  }
-
-  @Test func faultWinsImmediately() {
-    var health = SessionHealth(policy: policy)
-    #expect(health.evaluate(frames: 5, sawSignal: true, appRunning: true, fault: true) == .faulted)
   }
 }
 

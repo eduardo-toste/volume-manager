@@ -34,16 +34,6 @@ public final class MixerStore {
   /// Automatic checks after an ambiguous "denied" (see `recheckWhileDenied`).
   static let maxDeniedRechecks = 3
 
-  /// Who asked for a permission check: it decides what the result may change (SPEC 3.2, 5).
-  private enum CheckKind {
-    /// "Permitir…", or the check that follows it when something plays: a "denied" is proof.
-    case allow
-    /// Another action of the user (adjusting an app, opening the popover).
-    case gesture
-    /// Nobody asked (launch, rechecks after an ambiguous denial).
-    case automatic
-  }
-
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
   @ObservationIgnored private let appInfo: any AppInfoProvider
@@ -85,8 +75,8 @@ public final class MixerStore {
   /// The last check started by "Permitir…", the popover opening or a sound that starts.
   @ObservationIgnored private var checkTask: Task<Void, Never>?
   /// Automatic checks after an ambiguous denial (periodic and "sound returned" share the
-  /// budget). Only a "granted" asked for by the user resets it, so an automatic "granted"
-  /// followed by a new silence-guard denial cannot repeat forever (SPEC 4.6).
+  /// budget). Only a "granted" from "Permitir…" resets it, so an automatic "granted" followed
+  /// by a new silence-guard denial cannot repeat forever (SPEC 4.6).
   @ObservationIgnored private var automaticChecks = 0
   /// Running while a "denied" from the silence guard is checked again periodically.
   @ObservationIgnored private var deniedRechecks: Task<Void, Never>?
@@ -223,7 +213,7 @@ public final class MixerStore {
   /// After an ambiguous "denied" (`ambiguousDenial`): every
   /// `permissionRecheckInterval`, while something plays, checks again; a "granted" brings the
   /// taps back (`onGranted`). Together with the check when sound starts again
-  /// (`checkWhenSoundReturns`), at most `maxDeniedRechecks` automatic checks run, so a permission
+  /// (`updatePlayback`), at most `maxDeniedRechecks` automatic checks run, so a permission
   /// reset in System Settings cannot make them show the system prompt again and again (SPEC 5:
   /// the prompt follows a user action). After that, opening the popover (`onlyIfDenied`) takes
   /// over.
@@ -248,7 +238,7 @@ public final class MixerStore {
       automaticChecks < MixerStore.maxDeniedRechecks
     else { return }
     automaticChecks += 1
-    record(await permission.refresh(onlyIfDenied: false), .automatic)
+    record(await permission.refresh(onlyIfDenied: false), fromAllow: false)
   }
 
   /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6). With
@@ -406,7 +396,7 @@ public final class MixerStore {
       guard let self else { return }
       let result = await permission.refresh(onlyIfDenied: false, userAction: userAction)
       accessTask = nil
-      record(result, userAction ? .gesture : .automatic)
+      record(result, fromAllow: false)
     }
   }
 
@@ -416,7 +406,7 @@ public final class MixerStore {
   public func requestAccess() async -> AudioPermissionStatus? {
     askedForAccess = true
     let result = await permission.refresh(onlyIfDenied: false, userAction: true)
-    record(result, .allow)
+    record(result, fromAllow: true)
     return result
   }
 
@@ -425,7 +415,7 @@ public final class MixerStore {
   /// 5); otherwise it runs the check of `requestAccess()`.
   public func allowAccess() {
     guard permission.status == .denied else {
-      checkTask = Task { [weak self] in _ = await self?.requestAccess() }
+      startCheck { _ = await $0.requestAccess() }
       return
     }
     askedForAccess = true
@@ -440,28 +430,41 @@ public final class MixerStore {
   public func popoverOpened() {
     refreshAudioSystem()
     // After an inconclusive "Permitir…", something playing now is when its check runs.
-    let followUp = checkWhenPlaying && groups.contains(where: \.isPlaying)
-    checkTask = Task { [weak self] in
-      guard let self else { return }
-      let result = await permission.refresh(onlyIfDenied: !followUp)
-      record(result, followUp ? .allow : .gesture)
+    if checkWhenPlaying && groups.contains(where: \.isPlaying) {
+      startCheck { await $0.runAllowFollowUp() }
+    } else {
+      startCheck { $0.record(await $0.permission.refresh(onlyIfDenied: true), fromAllow: false) }
     }
   }
 
-  /// "Permitir…" was inconclusive and something plays now: the follow-up check.
-  private func checkAfterAllow() async {
-    guard checkWhenPlaying else { return }
-    record(await permission.refresh(onlyIfDenied: false), .allow)
+  /// Runs one check in the background. The previous one is cancelled first (`PermissionMonitor`
+  /// runs one at a time anyway); `settle()` waits for the last.
+  private func startCheck(_ check: @escaping @MainActor (MixerStore) async -> Void) {
+    checkTask?.cancel()
+    checkTask = Task { [weak self] in
+      guard let self else { return }
+      await check(self)
+    }
   }
 
-  /// What a check result changes (SPEC 3.2, 4.6, 5). Only a "denied" from "Permitir…" (or its
-  /// follow-up) clears the stored mark; with the mark, other checks never show the notice.
-  private func record(_ result: AudioPermissionStatus?, _ kind: CheckKind) {
+  /// The one check after an inconclusive "Permitir…", when something plays: it runs at most
+  /// once per click, and only a conclusive result changes anything (SPEC 3.2).
+  private func runAllowFollowUp() async {
+    guard checkWhenPlaying else { return }
+    checkWhenPlaying = false
+    let result = await permission.refresh(onlyIfDenied: false)
+    if result == .granted || result == .denied { record(result, fromAllow: true) }
+  }
+
+  /// What a check result changes (SPEC 3.2, 4.6, 5). `fromAllow`: "Permitir…" or its
+  /// follow-up. Only those may clear the stored mark or reset the automatic budget; with the
+  /// mark, other checks never show the notice.
+  private func record(_ result: AudioPermissionStatus?, fromAllow: Bool) {
     switch result {
     case .granted:
-      if kind != .automatic { automaticChecks = 0 }
+      if fromAllow { automaticChecks = 0 }
       permissionGranted()
-    case .denied where kind == .allow:
+    case .denied where fromAllow:
       ambiguousDenial = false
       checkWhenPlaying = false
       provenDenial = true
@@ -474,7 +477,7 @@ public final class MixerStore {
       rebuild()
     case .notDetermined, nil:
       // "Permitir…" could not conclude: hide the notice and check when something plays.
-      if kind == .allow {
+      if fromAllow {
         provenDenial = false
         checkWhenPlaying = true
       }
@@ -517,9 +520,9 @@ public final class MixerStore {
     // "Permitir…", or after an ambiguous denial (SPEC 3.2, 4.6).
     if !playing.subtracting(previouslyPlaying).isEmpty {
       if checkWhenPlaying {
-        checkTask = Task { [weak self] in await self?.checkAfterAllow() }
+        startCheck { await $0.runAllowFollowUp() }
       } else if ambiguousDenial {
-        checkTask = Task { [weak self] in await self?.runAutomaticCheck() }
+        startCheck { await $0.runAutomaticCheck() }
       }
     }
     previouslyPlaying = playing

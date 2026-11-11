@@ -25,7 +25,7 @@ struct SecurityM41StoreTests {
     await h.store.checkSilentTap()
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "fail open: original sound")
-    #expect(h.permission.isDenied, "the popover replaces the rows with the notice")
+    #expect(h.permission.status == .denied, "the popover replaces the rows with the notice")
     #expect(h.settings.audioPermissionConfirmed, "not stored across launches")
 
     h.access.answer = .granted
@@ -56,7 +56,7 @@ struct SecurityM41StoreTests {
     h.clock.advance(by: MixerStore.permissionRecheckInterval * 3)
     for _ in 0..<50 { await Task.yield() }
     #expect(h.access.requests == 1 + MixerStore.maxDeniedRechecks, "no further automatic check")
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
   }
 
   /// S41-A1 in the domain: a grant is reused for 30 s only; the next check after that runs a
@@ -125,7 +125,7 @@ struct SecurityM41StoreTests {
     await h.store.checkSilentTap()
     #expect(!h.store.showsPermissionNotice, "something still plays: still no notice")
     h.start([h.process("Safari", pid: 10, playing: false)])
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
     #expect(!h.store.showsPermissionNotice, "nothing plays: no notice")
     h.access.answer = .granted
     h.start([h.process("Safari", pid: 10, playing: true)])

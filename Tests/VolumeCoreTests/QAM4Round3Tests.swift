@@ -55,7 +55,7 @@ struct QAM4Round3Tests {
     h.store.toggleMute(spotify)
     await h.settle()
     #expect(h.controller.neverTapped)
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
   }
 
   @Test func panicAfterGrantStillAllowsTheNextUserTap() async {

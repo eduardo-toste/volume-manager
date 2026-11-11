@@ -57,8 +57,9 @@ struct M53PermissionTests {
     #expect(h.settings.audioPermissionConfirmed)
   }
 
-  /// A "granted" asked for by the user (adjusting an app) gives the budget back.
-  @Test func aGrantFromTheUserResetsTheBudget() async {
+  /// Only a "granted" from "Permitir…" gives the budget back (S53-B3: adjusting an app or
+  /// opening the popover counts as automatic for the budget).
+  @Test func aGrantFromAllowResetsTheBudget() async {
     let h = MixerHarness(preferences: marked, permission: .granted)
     h.start([h.process("Zoom", pid: 1, playing: true)])
     await h.settle()
@@ -74,6 +75,17 @@ struct M53PermissionTests {
     h.access.answer = .granted
     h.store.setVolume(0.5, for: "us.zoom.xos")
     await h.settle()
+    #expect(h.permission.status == .granted)
+    h.access.answer = .denied
+    await h.store.checkSilentTap()
+    h.store.handle(.processes([h.process("Zoom", pid: 1, playing: false)]))
+    let spent = h.access.requests
+    h.store.handle(.processes([h.process("Zoom", pid: 1, playing: true)]))
+    for _ in 0..<50 { await Task.yield() }
+    await h.settle()
+    #expect(h.access.requests == spent, "an adjustment does not give the budget back")
+    h.access.answer = .granted
+    _ = await h.store.requestAccess()
     #expect(h.permission.status == .granted)
     h.access.answer = .denied
     await h.store.checkSilentTap()
@@ -117,6 +129,28 @@ struct M53PermissionTests {
     #expect(h.settings.audioPermissionConfirmed)
     #expect(h.permission.status == .granted)
     #expect(h.controller.reconcileCalls.last?.count == 1, "the tap comes")
+  }
+
+  /// S53-B1: the follow-up of an inconclusive "Permitir…" runs once per click, not at every
+  /// sound that starts; an inconclusive follow-up changes nothing.
+  @Test func followUpRunsOncePerClick() async {
+    let h = MixerHarness(permission: .notDetermined)
+    h.start([h.process("Zoom", pid: 1, playing: false)])
+    h.access.conclusive = false
+    h.store.allowAccess()
+    await h.settle()
+    let afterClick = h.access.requests
+    for _ in 0..<5 {
+      h.store.handle(.processes([h.process("Zoom", pid: 1, playing: true)]))
+      for _ in 0..<50 { await Task.yield() }
+      await h.settle()
+      h.store.handle(.processes([h.process("Zoom", pid: 1, playing: false)]))
+      h.store.popoverOpened()
+      await h.settle()
+    }
+    #expect(h.access.requests == afterClick + 1, "one follow-up for one click")
+    #expect(h.access.userActions.dropFirst().allSatisfy { !$0 }, "never an idle listen")
+    #expect(!h.store.showsPermissionNotice)
   }
 
   /// SPEC 3.2: the follow-up of "Permitir…" that concludes "denied" shows the notice again.

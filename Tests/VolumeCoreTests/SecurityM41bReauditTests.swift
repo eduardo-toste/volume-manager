@@ -49,7 +49,8 @@ struct SecurityM41bReauditTests {
     #expect(h.permission.status == .granted)
     #expect(h.controller.reconcileCalls.last?.first?.muted == true)
 
-    // A new episode gets a fresh budget.
+    // M5.3 (S53-B3): only "Permitir…" gives the budget back; then a new episode has it all.
+    _ = await h.store.requestAccess()
     h.access.answer = .denied
     let start = h.access.requests
     await h.store.checkSilentTap()

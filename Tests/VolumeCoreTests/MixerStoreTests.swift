@@ -224,7 +224,7 @@ struct MixerStoreTests {
     await h.store.checkSilentTap()
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "original sound for every app")
-    #expect(h.permission.isDenied, "the popover shows the no-permission state")
+    #expect(h.permission.status == .denied, "the popover shows the no-permission state")
     #expect(h.settings.audioPermissionConfirmed, "an ambiguous denial is not stored")
     #expect(h.access.requests == 1)
 

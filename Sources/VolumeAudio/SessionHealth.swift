@@ -29,50 +29,27 @@ enum HealthVerdict: Sendable, Hashable {
   case healthy
   /// The IOProc stopped delivering frames.
   case stalled
-  /// Only absolute zeros arrived for `silenceLimit` of output time since the last real sample. Not a
-  /// failure by itself: a browser may keep a silent stream open, and a revoked permission also
-  /// gives zeros. Reported once per silent period.
-  case silent
   /// The audio thread raised the kill switch.
   case faulted
 }
 
-/// Per-tap counters of the watchdog. Pure logic: the controller feeds it one sample per tick.
-///
-/// Silence is reported once and then latched until a non-zero sample arrives or `retryLater`
-/// re-arms it, so a silent stream asks for at most one permission check every
-/// `recheckAfter`, never in a loop and never "trusted" forever.
+/// Per-tap stall and fault guard. Pure logic: the controller feeds it one sample per tick.
 struct SessionHealth: Sendable {
   private let stallTicks: Int
   private let startTicks: Int
-  private let silenceTicks: Int
-  private let retryTicks: Int
   private var lastFrames: UInt64 = 0
   /// True once the IOProc delivered its first frame.
   private var started = false
   private var stalled = 0
-  private var silent = 0
-  private var reported = false
-  private var checked = false
 
   init(policy: WatchdogPolicy) {
     stallTicks = policy.ticks(for: policy.stallLimit)
     startTicks = policy.ticks(for: policy.startLimit)
-    silenceTicks = policy.ticks(for: policy.silenceLimit)
-    retryTicks = policy.ticks(for: policy.recheckAfter)
   }
 
-  /// True when this silent period already had a permission check: a new `.silent` is then a
-  /// repeat, not the first silence after real sound.
-  var silenceWasChecked: Bool { checked }
-
-  /// Evaluates one tick. `sawSignal` is "a non-zero sample arrived since the last tick";
-  /// `appRunning` is the app's `IsRunningOutput`. Silence is counted only while the app reports
-  /// output, and only a non-zero sample resets the count: pausing never does, so a revoked
-  /// permission with an app that plays on and off still reaches the check.
-  mutating func evaluate(
-    frames: UInt64, sawSignal: Bool, appRunning: Bool, fault: Bool
-  ) -> HealthVerdict {
+  /// Evaluates one tick: frames must advance within `stallLimit` once the first frame arrived,
+  /// and the first frame must arrive within `startLimit`.
+  mutating func evaluate(frames: UInt64, fault: Bool) -> HealthVerdict {
     if fault { return .faulted }
     if frames == lastFrames {
       stalled += 1
@@ -81,20 +58,52 @@ struct SessionHealth: Sendable {
       lastFrames = frames
       started = true
     }
-    if stalled >= (started ? stallTicks : startTicks) { return .stalled }
+    return stalled >= (started ? stallTicks : startTicks) ? .stalled : .healthy
+  }
+}
+
+/// The silence guard (SPEC 4.6): one for the whole controller, not one per tap, so the count
+/// survives taps that are destroyed and rebuilt (pause longer than the linger, a process that
+/// joins, another output, a `coreaudiod` restart; S53-A1). It counts the time some tapped app
+/// reports output while no tap delivered any non-zero sample; only real sound on any tap resets
+/// it, which also covers "another tap has sound: the permission works". Pure logic.
+///
+/// Silence is reported once and then latched until a non-zero sample arrives or `retryLater`
+/// re-arms it, so a silent stream asks for at most one permission check every
+/// `recheckAfter`, never in a loop and never "trusted" forever.
+struct SilenceGuard: Sendable {
+  private let silenceTicks: Int
+  private let retryTicks: Int
+  private var silent = 0
+  private var reported = false
+  private var checked = false
+
+  init(policy: WatchdogPolicy) {
+    silenceTicks = policy.ticks(for: policy.silenceLimit)
+    retryTicks = policy.ticks(for: policy.recheckAfter)
+  }
+
+  /// True when this silent period already had a permission check: a new report is then a
+  /// repeat, not the first silence after real sound.
+  var silenceWasChecked: Bool { checked }
+
+  /// Evaluates one tick. `sawSignal`: a non-zero sample arrived on any tap since the last
+  /// tick; `outputRunning`: some tapped app reports `IsRunningOutput`. Returns true once when
+  /// `silenceLimit` of output time passed without any real sample (pausing never resets it).
+  mutating func evaluate(sawSignal: Bool, outputRunning: Bool) -> Bool {
     if sawSignal {
       silent = 0
       reported = false
       checked = false
-    } else if appRunning && stalled == 0 {
+    } else if outputRunning {
       silent += 1
     }
-    guard !reported, silent >= silenceTicks else { return .healthy }
+    guard !reported, silent >= silenceTicks else { return false }
     reported = true
-    return .silent
+    return true
   }
 
-  /// The permission check after `.silent` ran: report the same silent period again after
+  /// The permission check after a report ran: report the same silent period again after
   /// `recheckAfter`.
   mutating func retryLater() {
     checked = true

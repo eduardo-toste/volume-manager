@@ -11,7 +11,7 @@ struct PermissionMonitorTests {
   @Test func startsUndecidedAndNeverDenied() {
     let monitor = PermissionMonitor(service: service, onGranted: {})
     #expect(monitor.status == .notDetermined)
-    #expect(!monitor.isDenied)
+    #expect(monitor.status != .denied)
   }
 
   @Test func openingThePopoverDoesNotCheckWhileUndecidedOrGranted() async {
@@ -28,14 +28,14 @@ struct PermissionMonitorTests {
     let monitor = PermissionMonitor(service: service, onGranted: {})
     service.answer = .denied
     await monitor.refresh(onlyIfDenied: false)
-    #expect(monitor.isDenied)
+    #expect(monitor.status == .denied)
   }
 
   @Test func indeterminateCheckIsNotDenied() async {
     let monitor = PermissionMonitor(service: service, onGranted: {})
     service.answer = .notDetermined
     await monitor.refresh(onlyIfDenied: false)
-    #expect(!monitor.isDenied)
+    #expect(monitor.status != .denied)
   }
 
   @Test func grantAfterDenialRunsOnGrantedOnce() async {
@@ -56,7 +56,7 @@ struct PermissionMonitorTests {
     await monitor.refresh(onlyIfDenied: false)
     await monitor.refresh(onlyIfDenied: true)
     #expect(service.requests == 2)
-    #expect(monitor.isDenied)
+    #expect(monitor.status == .denied)
   }
 
   @Test func opensThePrivacyPane() {

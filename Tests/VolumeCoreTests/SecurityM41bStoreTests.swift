@@ -33,7 +33,7 @@ struct SecurityM41bStoreTests {
     }
     await h.settle()
     #expect(h.access.requests == 1 + MixerStore.maxDeniedRechecks, "only the budget")
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
   }
 
   /// S41b-B1 and B2 (fixed): the periodic timer spends the same budget, and after it no

@@ -208,7 +208,7 @@ struct SnapshotTests {
 
   @Test func noPermissionState() async {
     let scene = await Fixture(apps: sample, denied: true)
-    #expect(scene.permission.isDenied)
+    #expect(scene.permission.status == .denied)
     snapshot("popover-no-permission", MenuBarPopover(context: scene.context))
   }
 

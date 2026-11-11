@@ -15,9 +15,10 @@ public struct AppAudioFailure: Sendable, Hashable {
     case noAudioFrames
     /// The audio thread found buffers it could not process safely.
     case ioFault
-    /// Not a failure: the tap carried only digital silence for 120 s of output time after real
-    /// sound (`WatchdogPolicy.silenceLimit`). The tap is kept; the permission must be checked (SPEC 4.6), because
-    /// a revoked permission also delivers only zeros.
+    /// Not a failure: no tap carried any non-zero sample for 120 s of output time since the
+    /// last real sound (`WatchdogPolicy.silenceLimit`, counted across tap rebuilds). The taps
+    /// are kept; the permission must be checked (SPEC 4.6), because a revoked permission also
+    /// delivers only zeros. `appID` names one app that was playing.
     case onlySilence
     /// Like `onlySilence`, but the same silent period was already checked: a recent "granted"
     /// may answer it (SPEC 4.6).

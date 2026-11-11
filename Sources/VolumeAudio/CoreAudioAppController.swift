@@ -44,6 +44,8 @@ public actor CoreAudioAppController: AppAudioController {
   private var lastDesired: (generation: Int, list: [DesiredAppAudio])?
   private var serviceGeneration = 0
   private var watchdog: Task<Void, Never>?
+  /// Silence of every tap together (SPEC 4.6): kept when taps are rebuilt.
+  private var silence: SilenceGuard
   private var environment: Task<Void, Never>?
 
   /// Creates the controller for real hardware.
@@ -64,6 +66,7 @@ public actor CoreAudioAppController: AppAudioController {
     self.engine = engine
     self.clock = clock
     self.policy = policy
+    silence = SilenceGuard(policy: policy)
     changes = engine.environmentChanges()
   }
 
@@ -115,9 +118,9 @@ public actor CoreAudioAppController: AppAudioController {
   }
 
   /// The permission check asked by `.onlySilence` ran (any result): while the silence lasts,
-  /// the tap asks again after `WatchdogPolicy.recheckAfter` at the earliest.
-  public func silenceChecked(appID: String) {
-    entries[appID]?.health.retryLater()
+  /// it is asked again after `WatchdogPolicy.recheckAfter` at the earliest.
+  public func silenceChecked() {
+    silence.retryLater()
   }
 
   /// Allows a new attempt for every failed app.
@@ -319,14 +322,16 @@ public actor CoreAudioAppController: AppAudioController {
 
   /// Returns false when there is nothing left to watch.
   private func watchdogTick() -> Bool {
-    // Read every tap's signal first: real sound on any tap proves the permission works.
-    let signals = entries.mapValues { $0.handle.consumeSignalFlag() }
+    // Real sound on any tap proves the permission works.
+    var sawSignal = false
+    var runningApp: String?
     for id in entries.keys.sorted() {
       guard var entry = entries[id] else { continue }
+      if entry.handle.consumeSignalFlag() { sawSignal = true }
       let running = engine.isRunningOutput(pids: entry.key.pids)
+      if running, runningApp == nil { runningApp = id }
       let verdict = entry.health.evaluate(
-        frames: entry.handle.framesProcessed, sawSignal: signals[id] ?? false,
-        appRunning: running, fault: entry.handle.hasFault)
+        frames: entry.handle.framesProcessed, fault: entry.handle.hasFault)
       if entry.wasRunning != running {
         // Our own aggregate keeps the output device busy, so the device does not report that
         // the app paused or played again: tell the domain, which re-reads the processes once.
@@ -337,16 +342,16 @@ public actor CoreAudioAppController: AppAudioController {
       switch verdict {
       case .healthy: break
       case .stalled: fail(id, .noAudioFrames)
-      case .silent where signals.contains { $0.key != id && $0.value }:
-        // Another tap delivers real sound: the permission works, this is plain silence.
-        entries[id]?.health.retryLater()
-      case .silent:
-        AudioLog.logger.notice("tap carried only silence: permission check requested")
-        emit(
-          AppAudioFailure(
-            appID: id, reason: entry.health.silenceWasChecked ? .stillSilent : .onlySilence))
       case .faulted: fail(id, .ioFault)
       }
+    }
+    if silence.evaluate(sawSignal: sawSignal, outputRunning: runningApp != nil),
+      let runningApp
+    {
+      AudioLog.logger.notice("taps carried only silence: permission check requested")
+      emit(
+        AppAudioFailure(
+          appID: runningApp, reason: silence.silenceWasChecked ? .stillSilent : .onlySilence))
     }
     if entries.isEmpty {
       watchdog = nil

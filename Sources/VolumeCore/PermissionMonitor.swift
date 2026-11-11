@@ -10,9 +10,6 @@ public final class PermissionMonitor {
   /// The last verified status.
   public private(set) var status = AudioPermissionStatus.notDetermined
 
-  /// True when the popover must show the "no permission" state in place of the app list.
-  public var isDenied: Bool { status == .denied }
-
   @ObservationIgnored private let service: any PermissionService
   /// Runs when the permission changes from denied to granted. `MixerStore` adds its retry.
   @ObservationIgnored public var onGranted: @MainActor () -> Void

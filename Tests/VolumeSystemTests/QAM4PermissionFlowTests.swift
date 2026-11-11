@@ -21,10 +21,11 @@ struct QAM4PermissionFlowTests {
       service: AudioPermissionService(probe: probe, openURL: { _ in }), onGranted: {})
     probe.set(.denied)
     await monitor.refresh(onlyIfDenied: false)
-    #expect(monitor.isDenied)
+    #expect(monitor.status == .denied)
     probe.set(.indeterminate)
     await monitor.refresh(onlyIfDenied: true)
-    #expect(monitor.isDenied, "nothing playing must not hide the notice nor invent a grant")
+    #expect(
+      monitor.status == .denied, "nothing playing must not hide the notice nor invent a grant")
   }
 
   @Test func indeterminateNeverBecomesDenied() async {
@@ -32,7 +33,7 @@ struct QAM4PermissionFlowTests {
     let monitor = PermissionMonitor(
       service: AudioPermissionService(probe: probe, openURL: { _ in }), onGranted: {})
     await monitor.refresh(onlyIfDenied: false)
-    #expect(!monitor.isDenied)
+    #expect(monitor.status != .denied)
     #expect(monitor.status == .notDetermined)
   }
 
@@ -47,7 +48,7 @@ struct QAM4PermissionFlowTests {
     probe.set(.granted)
     await monitor.refresh(onlyIfDenied: true)
     await monitor.refresh(onlyIfDenied: true)
-    #expect(!monitor.isDenied)
+    #expect(monitor.status != .denied)
     #expect(retries == 1)
   }
 
@@ -59,7 +60,7 @@ struct QAM4PermissionFlowTests {
     async let first = monitor.refresh(onlyIfDenied: false)
     async let second = monitor.refresh(onlyIfDenied: false)
     let results = await [first, second]
-    #expect(monitor.isDenied)
+    #expect(monitor.status == .denied)
     #expect(results.contains(nil), "the overlapping call ran no check")
     #expect(results.contains(.denied))
   }

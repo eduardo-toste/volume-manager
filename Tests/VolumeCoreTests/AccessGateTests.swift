@@ -36,7 +36,7 @@ struct AccessGateTests {
     await h.settle()
     #expect(h.access.requests == 2)
     #expect(h.controller.neverTapped)
-    #expect(!h.permission.isDenied)
+    #expect(h.permission.status != .denied)
   }
 
   @Test func confirmedPermissionCreatesTheTapOnTheNextAction() async {
@@ -56,7 +56,7 @@ struct AccessGateTests {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.5, for: spotify)
     await h.settle()
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
     #expect(h.controller.neverTapped)
   }
 
@@ -126,7 +126,7 @@ struct LaunchVerificationTests {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     await h.settle()
     #expect(h.settings.audioPermissionConfirmed)
-    #expect(h.permission.isDenied)
+    #expect(h.permission.status == .denied)
     #expect(!h.store.showsPermissionNotice)
     #expect(h.store.rows.count == 1)
     #expect(h.controller.neverTapped)

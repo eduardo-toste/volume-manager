@@ -88,7 +88,7 @@ final class Composition {
           switch event.reason {
           case .onlySilence, .stillSilent:
             await store.checkSilentTap(mayReuseRecentGrant: event.reason == .stillSilent)
-            await controller.silenceChecked(appID: event.appID)
+            await controller.silenceChecked()
           case .stoppedPlaying, .startedPlaying:
             store.refreshAudioSystem()
           default:

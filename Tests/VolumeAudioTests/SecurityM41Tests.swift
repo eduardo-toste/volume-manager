@@ -12,18 +12,12 @@ struct SecurityM41Tests {
   /// S41-A1 (fixed): a "granted" is never trusted forever. While only zeros arrive, after each
   /// check the silence is reported again within 30 s (plus the tick), never later.
   @Test func silenceIsCheckedAgainAtMostEveryThirtySecondsWhileItLasts() {
-    var health = SessionHealth(policy: policy)
-    var frames: UInt64 = 0
+    var guardian = SilenceGuard(policy: policy)
     var reportTicks: [Int] = []
     // 10 minutes at one tick every 500 ms.
-    for tick in 0..<1_200 {
-      frames += 24_000
-      if health.evaluate(frames: frames, sawSignal: false, appRunning: true, fault: false)
-        == .silent
-      {
-        reportTicks.append(tick)
-        health.retryLater()  // the check ran (any result)
-      }
+    for tick in 0..<1_200 where guardian.evaluate(sawSignal: false, outputRunning: true) {
+      reportTicks.append(tick)
+      guardian.retryLater()  // the check ran (any result)
     }
     let gaps = zip(reportTicks.dropFirst(), reportTicks).map { $0 - $1 }
     let silence = policy.ticks(for: policy.silenceLimit)
@@ -57,7 +51,7 @@ struct SecurityM41Tests {
     }
     await silentTicks(policy.ticks(for: policy.silenceLimit))
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
-    await controller.silenceChecked(appID: "browser")  // answered "granted"
+    await controller.silenceChecked()  // answered "granted"
     await silentTicks(64)  // 32 s
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .stillSilent))
     #expect(handle.isStopped == false)
