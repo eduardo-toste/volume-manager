@@ -6,9 +6,9 @@ import Observation
 @MainActor
 @Observable
 public final class MixerStore {
-  /// Apps playing now or stopped less than `tapLingerPeriod` ago, and apps the user controls
-  /// (volume, mute or output changed) while they have an audio process (SPEC 3.2, 4.1):
-  /// playing first (a recent stop counts as playing), then by name.
+  /// Apps playing now or in a call (input running), plus apps that stopped less than
+  /// `listGracePeriod` ago (SPEC 3.2, 4.1): playing first (in a call or stopped less than
+  /// `tapLingerPeriod` ago counts as playing, so rows do not jump), then by name.
   public private(set) var rows: [MixerRow] = []
   /// Connected output devices.
   public private(set) var devices: [OutputDevice] = []
@@ -24,6 +24,11 @@ public final class MixerStore {
   /// row says it could not be controlled (SPEC 4.6). Cleared by the next user action on the app.
   public private(set) var failedAppIDs: Set<String> = []
 
+  /// While the popover is open, the processes are re-read this often (SPEC 4.1).
+  public static let openRefreshInterval: Duration = .seconds(1)
+  /// How long an app that stopped playing (and is not in a call) stays listed, so the row does
+  /// not blink between tracks (SPEC 3.2, 4.1). The tap has its own, longer linger.
+  public static let listGracePeriod: Duration = .seconds(3)
   /// How long an app keeps its tap after it stops playing, so pauses and track changes do not
   /// switch between the original sound and the tap (SPEC 4.2). After that the tap goes away
   /// and nothing keeps the output device running for an idle app.
@@ -53,12 +58,13 @@ public final class MixerStore {
   @ObservationIgnored private var groups: [AudioApp] = []
   @ObservationIgnored private var states: [String: AppAudioState] = [:]
   @ObservationIgnored private var previouslyPlaying: Set<String> = []
+  /// Apps that were playing or in a call at the last process update.
+  @ObservationIgnored private var previouslyLive: Set<String> = []
+  /// Apps that stopped (and are not in a call) and stay listed until `listGracePeriod` passes.
+  @ObservationIgnored private var graceTimers: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
   /// Apps that stopped playing and keep their tap until `tapLingerPeriod` passes.
   @ObservationIgnored private var lingerTimers: [String: Task<Void, Never>] = [:]
-  /// Idle apps the user just set back to 100%: the row stays `tapLingerPeriod` more, so it does
-  /// not vanish under the pointer while the slider is dragged (no tap: only the row).
-  @ObservationIgnored private var releaseTimers: [String: Task<Void, Never>] = [:]
   /// After "Restaurar áudio original" no app is tapped until the user changes one again.
   @ObservationIgnored private var tapsSuspended = false
   /// Apps whose output format cannot be controlled while the user had not adjusted them: they
@@ -78,6 +84,9 @@ public final class MixerStore {
   @ObservationIgnored private var checkWhenPlaying = false
   /// The last check started by "Permitir…", the popover opening or a sound that starts.
   @ObservationIgnored private var checkTask: Task<Void, Never>?
+  /// Re-reads the processes every `openRefreshInterval` while the popover is open (SPEC 4.1:
+  /// a safety net for per-process notifications that do not arrive). Never runs while closed.
+  @ObservationIgnored private var openRefresh: Task<Void, Never>?
   /// Automatic checks after an ambiguous denial (periodic and "sound returned" share the
   /// budget). Only a "granted" from "Permitir…" resets it, so an automatic "granted" followed
   /// by a new silence-guard denial cannot repeat forever (SPEC 4.6).
@@ -352,8 +361,6 @@ public final class MixerStore {
     // Panic removes every tap now and keeps them off until the user acts again.
     for timer in lingerTimers.values { timer.cancel() }
     lingerTimers = [:]
-    for timer in releaseTimers.values { timer.cancel() }
-    releaseTimers = [:]
     tapsSuspended = true
     settings.forgetAll()
     lastDesired = nil
@@ -380,12 +387,8 @@ public final class MixerStore {
       startNewReconcileSender()
       controllerWork.enqueue { [controller] in await controller.retry(appID: appID) }
     }
-    let wasControlled = state != .default
     change(&state)
     states[appID] = state
-    if wasControlled, state == .default, !isPlaying(appID), lingerTimers[appID] == nil {
-      keepRowAfterRelease(appID)
-    }
     // The control already failed quietly: the adjustment cannot apply, so say so now.
     if quietFailures.remove(appID) != nil { failedAppIDs.insert(appID) }
     tapsSuspended = false
@@ -398,15 +401,6 @@ public final class MixerStore {
       }
     }
     rebuild()
-  }
-
-  private func keepRowAfterRelease(_ id: String) {
-    releaseTimers[id]?.cancel()
-    releaseTimers[id] = Task { [weak self, clock] in
-      do { try await clock.sleep(for: MixerStore.tapLingerPeriod) } catch { return }
-      guard self?.releaseTimers.removeValue(forKey: id) != nil else { return }
-      self?.rebuild()
-    }
   }
 
   /// No tap exists until a signal check confirmed the permission in this session (SPEC 4.6).
@@ -453,12 +447,27 @@ public final class MixerStore {
   /// shows the system prompt by itself.
   public func popoverOpened() {
     refreshAudioSystem()
+    openRefresh?.cancel()
+    openRefresh = Task { [weak self, clock] in
+      while true {
+        do { try await clock.sleep(for: MixerStore.openRefreshInterval) } catch { return }
+        guard let self, !Task.isCancelled else { return }
+        refreshAudioSystem()
+      }
+    }
     // After an inconclusive "Permitir…", something playing now is when its check runs.
     if checkWhenPlaying && groups.contains(where: \.isPlaying) {
       startCheck { await $0.runAllowFollowUp() }
     } else {
       startCheck { $0.record(await $0.permission.refresh(onlyIfDenied: true), fromAllow: false) }
     }
+  }
+
+  /// The popover closed: the open-popover re-reading stops (only Core Audio notifications and
+  /// the watchdog of the taps remain, SPEC 4.1).
+  public func popoverClosed() {
+    openRefresh?.cancel()
+    openRefresh = nil
   }
 
   /// Runs one check in the background, after the previous one finished. Never cancels a check
@@ -527,17 +536,27 @@ public final class MixerStore {
     }
   }
 
-  /// Keeps the tap of an app that stopped for `tapLingerPeriod`, and runs the pending
-  /// permission checks when an app starts playing (SPEC 3.2, 4.6).
+  /// Keeps the row of an app that stopped (and is not in a call) for `listGracePeriod` and its
+  /// tap for `tapLingerPeriod`, and runs the pending permission checks when an app starts
+  /// playing (SPEC 3.2, 4.2, 4.6).
   private func updatePlayback() {
     let playing = Set(groups.filter(\.isPlaying).map(\.id))
+    let live = Set(groups.filter { $0.isPlaying || $0.isInCall }.map(\.id))
     let present = Set(groups.map(\.id))
     for id in lingerTimers.keys where playing.contains(id) || !present.contains(id) {
       lingerTimers.removeValue(forKey: id)?.cancel()
     }
-    for id in releaseTimers.keys where playing.contains(id) || !present.contains(id) {
-      releaseTimers.removeValue(forKey: id)?.cancel()
+    for id in graceTimers.keys where live.contains(id) || !present.contains(id) {
+      graceTimers.removeValue(forKey: id)?.cancel()
     }
+    for id in previouslyLive.subtracting(live)
+    where present.contains(id) && graceTimers[id] == nil {
+      graceTimers[id] = Task { [weak self, clock] in
+        do { try await clock.sleep(for: MixerStore.listGracePeriod) } catch { return }
+        self?.graceExpired(id)
+      }
+    }
+    previouslyLive = live
     for id in previouslyPlaying.subtracting(playing)
     where present.contains(id) && lingerTimers[id] == nil {
       lingerTimers[id] = Task { [weak self, clock] in
@@ -557,17 +576,22 @@ public final class MixerStore {
     previouslyPlaying = playing
   }
 
+  private func graceExpired(_ id: String) {
+    guard graceTimers.removeValue(forKey: id) != nil else { return }
+    rebuild()
+  }
+
   private func lingerExpired(_ id: String) {
     guard lingerTimers.removeValue(forKey: id) != nil else { return }
     rebuild()
   }
 
   private func rebuild() {
-    let active = Set(groups.filter { $0.isPlaying || lingerTimers[$0.id] != nil }.map(\.id))
-    // Playing (or stopped < 15 s), or controlled by the user (SPEC 3.2 item 4).
+    let active = Set(
+      groups.filter { $0.isPlaying || $0.isInCall || lingerTimers[$0.id] != nil }.map(\.id))
+    // Playing or in a call, or stopped less than 3 s ago (SPEC 3.2 item 4).
     let listed = groups.filter {
-      active.contains($0.id) || states[$0.id] ?? .default != .default
-        || releaseTimers[$0.id] != nil
+      $0.isPlaying || $0.isInCall || graceTimers[$0.id] != nil
     }
     rows = listed.map(makeRow).sorted {
       Self.isOrderedBefore($0, $1, active: active)

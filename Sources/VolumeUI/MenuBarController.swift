@@ -83,6 +83,7 @@ public final class MenuBarController: NSObject {
   }
 
   private func didClose() {
+    context.store.popoverClosed()
     lastClose = ProcessInfo.processInfo.systemUptime
     statusItem.button?.highlight(false)
   }

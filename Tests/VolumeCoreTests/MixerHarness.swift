@@ -38,10 +38,12 @@ struct MixerHarness {
   }
 
   /// Process of the app called `name` (one of the four registered above).
-  func process(_ name: String, pid: Int32, playing: Bool) -> AudioProcessInfo {
+  func process(_ name: String, pid: Int32, playing: Bool, inCall: Bool = false)
+    -> AudioProcessInfo
+  {
     AudioProcessInfo(
       pid: pid, executablePath: "/Applications/\(name).app/Contents/MacOS/\(name)",
-      isRunningOutput: playing)
+      isRunningOutput: playing, isRunningInput: inCall)
   }
 
   /// Starts with both devices, speakers as default, and the given processes.

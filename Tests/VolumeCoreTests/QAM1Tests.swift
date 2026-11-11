@@ -846,8 +846,8 @@ struct QAMixerStoreTests {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.4, for: "com.spotify.client")
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })  // tap linger
-    h.clock.advance(by: .seconds(4))
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // list grace + tap linger
+    h.clock.advance(by: .seconds(2))
     #expect(h.store.rows.count == 1)
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
     h.clock.advance(by: .seconds(30))
@@ -858,23 +858,26 @@ struct QAMixerStoreTests {
     #expect(h.controller.reconcileCalls.dropFirst().allSatisfy { !$0.isEmpty })
   }
 
-  /// A second stop starts a fresh 15 s window: the row (untouched app) and the tap both go
-  /// when it ends (SPEC 3.2, 4.2).
-  @Test func secondStopStartsAFreshLingerForRowAndTap() async {
+  /// A second stop starts fresh windows: the row goes 3 s after it, the tap 15 s after it
+  /// (SPEC 3.2, 4.2).
+  @Test func secondStopStartsFreshWindowsForRowAndTap() async {
     let h = MixerHarness()
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })  // tap linger
-    h.clock.advance(by: .seconds(4))
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // list grace + tap linger
+    h.clock.advance(by: .seconds(2))
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
     #expect(await eventually { h.clock.sleeperCount == 0 })
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount == 2 })
+    h.clock.advance(by: MixerStore.listGracePeriod)
+    #expect(await eventually { h.store.rows.isEmpty }, "the row went after 3 s")
+    await h.settle()
+    #expect(h.controller.reconcileCalls.last?.count == 1, "the tap is still kept")
     h.clock.advance(by: MixerStore.tapLingerPeriod)
     #expect(
       await eventually { h.controller.reconcileCalls.last?.isEmpty == true },
       "the tap went after the linger")
-    #expect(h.store.rows.isEmpty, "untouched and stopped: the row went with the tap")
   }
 
   @Test func reusedPIDOfAnotherAppDoesNotInheritTheOldState() async {
@@ -930,12 +933,13 @@ struct QAMixerStoreTests {
   @Test func orderingAndCounterWithIdleApps() {
     let h = MixerHarness()
     h.start([
-      h.process("Zoom", pid: 1, playing: false), h.process("Spotify", pid: 2, playing: true),
+      h.process("Zoom", pid: 1, playing: false, inCall: true),
+      h.process("Spotify", pid: 2, playing: true),
       h.process("Música", pid: 3, playing: false), h.process("Safari", pid: 4, playing: true),
     ])
-    h.store.setVolume(0.3, for: "us.zoom.xos")
-    h.store.route("com.apple.Music", to: "airpods")
-    #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify", "Música", "Zoom"])
+    h.store.setVolume(0.3, for: "com.apple.Music")
+    // Música is idle (not listed even with a volume); Zoom is in a call.
+    #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify", "Zoom"])
     #expect(h.store.playingCount == 2)
     h.store.handle(.processes([]))
     #expect(h.store.playingCount == 0)

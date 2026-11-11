@@ -30,6 +30,22 @@ struct ProcessGroupingTests {
     #expect(result[0].isPlaying)
   }
 
+  /// M5.3: a helper with input running (Discord's voice process in a call) puts the whole
+  /// app in a call; output stays separate.
+  @Test func aHelperWithInputPutsTheAppInACall() {
+    let app = "/Applications/Discord.app"
+    info.setApp(app, name: "Discord", bundleID: "com.hnc.Discord")
+    let result = group([
+      AudioProcessInfo(pid: 20, executablePath: "\(app)/Contents/MacOS/Discord"),
+      AudioProcessInfo(
+        pid: 21, executablePath: "\(app)/Contents/Frameworks/Discord Helper.app/Contents/MacOS/h",
+        isRunningInput: true),
+    ])
+    #expect(result.count == 1)
+    #expect(result[0].isInCall)
+    #expect(!result[0].isPlaying)
+  }
+
   @Test func electronHelpersJoinTheMainApp() {
     let app = "/Applications/Discord.app"
     info.setApp(app, name: "Discord", bundleID: "com.hnc.Discord")

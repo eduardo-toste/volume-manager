@@ -28,6 +28,16 @@ struct ConsoleTextTests {
     #expect(!line.contains("\u{1B}"))
   }
 
+  /// M5.3: a process with input running (in a call) and its app are marked.
+  @Test func inCallIsShown() {
+    let process = AudioProcessInfo(pid: 3, isRunningInput: true)
+    #expect(ConsoleText.line(for: process) == "3\tidle   \t-\t-\tin-call")
+    let app = AudioApp(
+      id: "com.a.b", name: "Call", bundleID: "com.a.b", pids: [3], isPlaying: false,
+      isInCall: true)
+    #expect(ConsoleText.line(for: app).hasSuffix(" [IN-CALL]"))
+  }
+
   @Test func missingValuesPrintADash() {
     let line = ConsoleText.line(for: AudioProcessInfo(pid: 1))
     #expect(line == "1\tidle   \t-\t-")

@@ -15,6 +15,7 @@ final class FakeAudioSystem: AudioSystem, Sendable {
     var snapshot = AudioSystemSnapshot()
     var calls: [Call] = []
     var continuations: [AsyncStream<AudioSystemEvent>.Continuation] = []
+    var refreshPublishes = false
   }
 
   private let state = Mutex(State())
@@ -45,7 +46,20 @@ final class FakeAudioSystem: AudioSystem, Sendable {
 
   func currentState() async -> AudioSystemSnapshot { state.withLock { $0.snapshot } }
 
-  func refresh() async { state.withLock { $0.calls.append(.refresh) } }
+  /// True: `refresh()` also emits the snapshot's processes, as the real system does when it
+  /// re-reads them (the notification path is then not needed).
+  var refreshPublishes: Bool {
+    get { state.withLock { $0.refreshPublishes } }
+    set { state.withLock { $0.refreshPublishes = newValue } }
+  }
+
+  func refresh() async {
+    let publish = state.withLock {
+      $0.calls.append(.refresh)
+      return $0.refreshPublishes
+    }
+    if publish { emit(.processes(state.withLock { $0.snapshot.processes })) }
+  }
 
   func setMasterVolume(_ volume: Double) async {
     state.withLock { $0.calls.append(.masterVolume(volume)) }
