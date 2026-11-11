@@ -24,7 +24,7 @@ struct M53PermissionTests {
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "fail open: every tap destroyed")
     #expect(!h.store.showsPermissionNotice)
-    #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"], "the list stays")
+    #expect(h.store.rows.map(\.app.name) == ["Zoom"], "the list stays (Zoom still plays)")
     #expect(h.settings.audioPermissionConfirmed, "the mark stays")
     #expect(h.store.failedAppIDs.isEmpty, "no warning on the rows")
   }

@@ -6,8 +6,9 @@ import Observation
 @MainActor
 @Observable
 public final class MixerStore {
-  /// Every app with an audio process, playing or not (SPEC 3.2, stable list): playing first
-  /// (an app that stopped less than `tapLingerPeriod` ago counts as playing), then by name.
+  /// Apps playing now or stopped less than `tapLingerPeriod` ago, and apps the user controls
+  /// (volume, mute or output changed) while they have an audio process (SPEC 3.2, 4.1):
+  /// playing first (a recent stop counts as playing), then by name.
   public private(set) var rows: [MixerRow] = []
   /// Connected output devices.
   public private(set) var devices: [OutputDevice] = []
@@ -55,6 +56,9 @@ public final class MixerStore {
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
   /// Apps that stopped playing and keep their tap until `tapLingerPeriod` passes.
   @ObservationIgnored private var lingerTimers: [String: Task<Void, Never>] = [:]
+  /// Idle apps the user just set back to 100%: the row stays `tapLingerPeriod` more, so it does
+  /// not vanish under the pointer while the slider is dragged (no tap: only the row).
+  @ObservationIgnored private var releaseTimers: [String: Task<Void, Never>] = [:]
   /// After "Restaurar áudio original" no app is tapped until the user changes one again.
   @ObservationIgnored private var tapsSuspended = false
   /// Apps whose output format cannot be controlled while the user had not adjusted them: they
@@ -343,6 +347,8 @@ public final class MixerStore {
     // Panic removes every tap now and keeps them off until the user acts again.
     for timer in lingerTimers.values { timer.cancel() }
     lingerTimers = [:]
+    for timer in releaseTimers.values { timer.cancel() }
+    releaseTimers = [:]
     tapsSuspended = true
     settings.forgetAll()
     lastDesired = nil
@@ -369,8 +375,12 @@ public final class MixerStore {
       startNewReconcileSender()
       controllerWork.enqueue { [controller] in await controller.retry(appID: appID) }
     }
+    let wasControlled = state != .default
     change(&state)
     states[appID] = state
+    if wasControlled, state == .default, !isPlaying(appID), lingerTimers[appID] == nil {
+      keepRowAfterRelease(appID)
+    }
     // The control already failed quietly: the adjustment cannot apply, so say so now.
     if quietFailures.remove(appID) != nil { failedAppIDs.insert(appID) }
     tapsSuspended = false
@@ -383,6 +393,15 @@ public final class MixerStore {
       }
     }
     rebuild()
+  }
+
+  private func keepRowAfterRelease(_ id: String) {
+    releaseTimers[id]?.cancel()
+    releaseTimers[id] = Task { [weak self, clock] in
+      do { try await clock.sleep(for: MixerStore.tapLingerPeriod) } catch { return }
+      guard self?.releaseTimers.removeValue(forKey: id) != nil else { return }
+      self?.rebuild()
+    }
   }
 
   /// No tap exists until a signal check confirmed the permission in this session (SPEC 4.6).
@@ -509,6 +528,9 @@ public final class MixerStore {
     for id in lingerTimers.keys where playing.contains(id) || !present.contains(id) {
       lingerTimers.removeValue(forKey: id)?.cancel()
     }
+    for id in releaseTimers.keys where playing.contains(id) || !present.contains(id) {
+      releaseTimers.removeValue(forKey: id)?.cancel()
+    }
     for id in previouslyPlaying.subtracting(playing)
     where present.contains(id) && lingerTimers[id] == nil {
       lingerTimers[id] = Task { [weak self, clock] in
@@ -535,7 +557,12 @@ public final class MixerStore {
 
   private func rebuild() {
     let active = Set(groups.filter { $0.isPlaying || lingerTimers[$0.id] != nil }.map(\.id))
-    rows = groups.map(makeRow).sorted {
+    // Playing (or stopped < 15 s), or controlled by the user (SPEC 3.2 item 4).
+    let listed = groups.filter {
+      active.contains($0.id) || states[$0.id] ?? .default != .default
+        || releaseTimers[$0.id] != nil
+    }
+    rows = listed.map(makeRow).sorted {
       Self.isOrderedBefore($0, $1, active: active)
     }
     failedAppIDs.formIntersection(groups.map(\.id))

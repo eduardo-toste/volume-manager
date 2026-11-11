@@ -831,7 +831,7 @@ struct QAMixerStoreTests {
     let h = MixerHarness()
     h.start([])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(h.store.rows.count == 1, "listed while its audio process exists (SPEC 3.2)")
+    #expect(h.store.rows.isEmpty, "idle and untouched: not listed (SPEC 3.2)")
     h.store.handle(.processes([]))
     await Task.yield()
     #expect(h.store.rows.isEmpty)
@@ -858,9 +858,9 @@ struct QAMixerStoreTests {
     #expect(h.controller.reconcileCalls.dropFirst().allSatisfy { !$0.isEmpty })
   }
 
-  /// The list is stable (SPEC 3.2): a second stop never removes the row; it starts a fresh
-  /// linger period for the tap.
-  @Test func secondStopStartsAFreshLingerAndKeepsTheRow() async {
+  /// A second stop starts a fresh 15 s window: the row (untouched app) and the tap both go
+  /// when it ends (SPEC 3.2, 4.2).
+  @Test func secondStopStartsAFreshLingerForRowAndTap() async {
     let h = MixerHarness()
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
@@ -874,7 +874,7 @@ struct QAMixerStoreTests {
     #expect(
       await eventually { h.controller.reconcileCalls.last?.isEmpty == true },
       "the tap went after the linger")
-    #expect(h.store.rows.count == 1)
+    #expect(h.store.rows.isEmpty, "untouched and stopped: the row went with the tap")
   }
 
   @Test func reusedPIDOfAnotherAppDoesNotInheritTheOldState() async {
@@ -933,6 +933,8 @@ struct QAMixerStoreTests {
       h.process("Zoom", pid: 1, playing: false), h.process("Spotify", pid: 2, playing: true),
       h.process("Música", pid: 3, playing: false), h.process("Safari", pid: 4, playing: true),
     ])
+    h.store.setVolume(0.3, for: "us.zoom.xos")
+    h.store.route("com.apple.Music", to: "airpods")
     #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify", "Música", "Zoom"])
     #expect(h.store.playingCount == 2)
     h.store.handle(.processes([]))

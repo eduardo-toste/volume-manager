@@ -10,7 +10,8 @@ struct QAM53StoreTests {
   private let marked: [String: Any] = ["audioPermissionConfirmed": true]
 
   /// Mark stored, fresh launch (status undecided), nothing playing, popover opened many times:
-  /// never the notice, the idle apps are listed, no system prompt (no user-action check).
+  /// never the notice, idle untouched apps are not listed (M5.3 list correction), no system
+  /// prompt (no user-action check).
   @Test func markedAndIdleNeverShowsTheNoticeAcrossManyOpenings() async {
     let h = MixerHarness(preferences: marked, permission: .notDetermined)
     h.start([
@@ -20,7 +21,7 @@ struct QAM53StoreTests {
       h.store.popoverOpened()
       await h.settle()
       #expect(!h.store.showsPermissionNotice)
-      #expect(h.store.rows.count == 2)
+      #expect(h.store.rows.isEmpty)
     }
     #expect(!h.access.userActions.contains(true), "opening never asks the system")
     #expect(h.controller.neverTapped)
@@ -73,6 +74,7 @@ struct QAM53StoreTests {
   }
 
   /// Panic button keeps the mark (it is not a permission decision) and never shows the notice.
+  /// The list keeps the playing app; the idle untouched one is not listed (M5.3 correction).
   @Test func restoreKeepsTheMarkAndTheList() async {
     let h = MixerHarness(preferences: marked, permission: .granted)
     h.start([h.process("Zoom", pid: 1, playing: true), h.process("Safari", pid: 2, playing: false)])
@@ -81,7 +83,7 @@ struct QAM53StoreTests {
     await h.settle()
     #expect(h.settings.audioPermissionConfirmed)
     #expect(!h.store.showsPermissionNotice)
-    #expect(h.store.rows.count == 2)
+    #expect(h.store.rows.map(\.app.name) == ["Zoom"])
     #expect(h.controller.reconcileCalls.last?.isEmpty ?? true)
   }
 }

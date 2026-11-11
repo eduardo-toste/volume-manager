@@ -18,6 +18,9 @@ struct MixerStoreTests {
       h.process("Safari", pid: 3, playing: true),
       h.process("Música", pid: 4, playing: false),
     ])
+    #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify"], "idle, untouched: hidden")
+    h.store.setVolume(0.4, for: "us.zoom.xos")
+    h.store.toggleMute("com.apple.Music")
     #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify", "Música", "Zoom"])
   }
 
@@ -51,35 +54,91 @@ struct MixerStoreTests {
       h.process("Safari", pid: 2, playing: true),
       h.process("Zoom", pid: 3, playing: false),
     ])
+    h.store.setVolume(0.4, for: "us.zoom.xos")
     #expect(h.store.rows.count == 3)
     #expect(h.store.playingCount == 2)
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
     #expect(h.store.playingCount == 0)
   }
 
-  // MARK: Stable list (SPEC 3.2 item 4, 4.1)
+  // MARK: Playing or controlled (SPEC 3.2 item 4, 4.1)
 
-  @Test func idleAppsWithAnAudioProcessAreListed() {
+  @Test func idleUntouchedAppsAreNotListed() {
+    h.start([h.process("Spotify", pid: 1, playing: false)])
+    #expect(h.store.rows.isEmpty)
+  }
+
+  @Test func idleRememberedAppIsListedBecauseItIsControlled() {
+    let h = MixerHarness(preferences: [
+      "rememberedApps": ["com.spotify.client": ["volume": 0.4, "muted": false]]
+    ])
     h.start([h.process("Spotify", pid: 1, playing: false)])
     #expect(h.store.rows.map(\.app.name) == ["Spotify"])
   }
 
-  @Test func appThatStoppedStaysListed() async {
+  @Test func untouchedAppThatStoppedLeavesAfterFifteenSeconds() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
     #expect(await eventually { h.clock.sleeperCount == 1 }, "only the tap linger timer")
-    h.clock.advance(by: MixerStore.tapLingerPeriod * 2)
+    h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
     await Task.yield()
+    #expect(h.store.rows.count == 1, "still listed at 14.999 s")
+    h.clock.advance(by: .milliseconds(1))
+    #expect(await eventually { h.store.rows.isEmpty }, "gone at 15 s")
+  }
+
+  @Test func controlledAppThatStoppedStaysUntilItsProcessesGo() async {
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    h.store.setVolume(0.4, for: spotify)
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
+    h.clock.advance(by: MixerStore.tapLingerPeriod * 4)
+    await h.settle()
     #expect(h.store.rows.map(\.app.name) == ["Spotify"])
+    #expect(h.store.rows.first?.state.volume == 0.4)
+    h.store.handle(.processes([]))
+    #expect(h.store.rows.isEmpty)
+  }
+
+  /// Back to 100% on an idle app: the row stays 15 s more (it must not vanish under the
+  /// pointer while dragging), then goes; no tap is created for it meanwhile.
+  @Test func idleAppSetBackToFullVolumeLeavesFifteenSecondsLater() async {
+    h.settings.rememberVolumes = false
+    h.start([h.process("Spotify", pid: 1, playing: false)])
+    h.store.setVolume(0.4, for: spotify)
+    #expect(h.store.rows.count == 1)
+    h.store.setVolume(1, for: spotify)
+    #expect(h.store.rows.count == 1, "kept while the slider is still moving")
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
+    h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
+    await Task.yield()
+    #expect(h.store.rows.count == 1)
+    h.clock.advance(by: .milliseconds(1))
+    #expect(await eventually { h.store.rows.isEmpty })
+    await h.settle()
+    #expect(h.controller.neverTapped, "an idle app is never tapped")
+  }
+
+  /// A voice call keeps its output open the whole time: never removed.
+  @Test func callWithContinuousOutputNeverLeaves() async {
+    h.start([h.process("Zoom", pid: 1, playing: true)])
+    for _ in 0..<20 {
+      h.clock.advance(by: .seconds(30))
+      await Task.yield()
+      h.store.handle(.processes([h.process("Zoom", pid: 1, playing: true)]))
+      #expect(h.store.rows.map(\.app.name) == ["Zoom"])
+    }
   }
 
   /// An app that stopped less than 15 s ago keeps its place among the playing apps; after that
   /// it goes back to its place by name (SPEC 4.1).
   @Test func recentlyStoppedAppKeepsItsPlaceUntilTheLingerEnds() async {
+    h.settings.rememberVolumes = false
     h.start([
       h.process("Safari", pid: 1, playing: false),
       h.process("Zoom", pid: 2, playing: true),
     ])
+    h.store.setVolume(0.5, for: "com.apple.Safari")
+    h.store.setVolume(0.5, for: "us.zoom.xos")
     #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"])
     h.store.handle(
       .processes([
@@ -87,7 +146,7 @@ struct MixerStoreTests {
       ]))
     #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"], "Zoom stopped just now")
     #expect(h.store.playingCount == 0)
-    #expect(await eventually { h.clock.sleeperCount == 1 })
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
     h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
     await Task.yield()
     #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"], "Zoom still lingers")
@@ -717,7 +776,7 @@ struct MixerStoreTests {
     let store = h.store
     let task = Task { await store.run() }
     #expect(await eventually { h.system.subscriberCount == 1 && !store.rows.isEmpty })
-    #expect(store.rows.map(\.app.name) == ["Safari", "Spotify", "Zoom"], "idle Zoom listed last")
+    #expect(store.rows.map(\.app.name) == ["Safari", "Spotify"], "idle untouched Zoom hidden")
     #expect(store.playingCount == 2)
     #expect(store.rows.first { $0.app.name == "Safari" }?.app.pids == [2, 3])
     store.refreshAudioSystem()
