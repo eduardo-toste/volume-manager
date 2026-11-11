@@ -70,7 +70,7 @@ public struct MenuBarPopover: View {
       }
       .padding(EdgeInsets(top: 2, leading: 4, bottom: 0, trailing: 4))
       if store.showsPermissionNotice {
-        PermissionNotice(permission: context.permission)
+        PermissionNotice(allow: store.allowAccess)
       } else if store.rows.isEmpty {
         Text("popover.empty", bundle: .main)
           .font(.system(size: 13))
@@ -133,7 +133,7 @@ public struct MenuBarPopover: View {
 
 /// "No permission" state: replaces the app list (SPEC 3.2). The output card keeps working.
 private struct PermissionNotice: View {
-  let permission: PermissionMonitor
+  let allow: @MainActor () -> Void
 
   var body: some View {
     VStack(spacing: 10) {
@@ -141,7 +141,7 @@ private struct PermissionNotice: View {
         .font(.system(size: 13))
         .multilineTextAlignment(.center)
         .foregroundStyle(.secondary)
-      Button(action: permission.openPrivacySettings) {
+      Button(action: allow) {
         Text("permission.allow", bundle: .main)
       }
       .buttonStyle(.borderedProminent)

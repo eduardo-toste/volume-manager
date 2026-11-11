@@ -7,7 +7,6 @@ import VolumeCore
 public struct PopoverContext {
   let store: MixerStore
   let settings: SettingsModel
-  let permission: PermissionMonitor
   let icon: @MainActor (String) -> NSImage?
   let openSoundSettings: @MainActor () -> Void
   let showSettings: @MainActor () -> Void
@@ -16,7 +15,7 @@ public struct PopoverContext {
 
   /// Creates the context. `icon` returns the cached icon of the app with a bundle ID.
   public init(
-    store: MixerStore, settings: SettingsModel, permission: PermissionMonitor,
+    store: MixerStore, settings: SettingsModel,
     icon: @escaping @MainActor (String) -> NSImage?,
     openSoundSettings: @escaping @MainActor () -> Void,
     showSettings: @escaping @MainActor () -> Void,
@@ -25,7 +24,6 @@ public struct PopoverContext {
   ) {
     self.store = store
     self.settings = settings
-    self.permission = permission
     self.icon = icon
     self.openSoundSettings = openSoundSettings
     self.showSettings = showSettings

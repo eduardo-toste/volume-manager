@@ -511,16 +511,6 @@
         }
       }
     },
-    "settings.inactive": {
-      "localizations": {
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mostrar apps sem áudio"
-          }
-        }
-      }
-    },
     "settings.login": {
       "localizations": {
         "pt-BR": {

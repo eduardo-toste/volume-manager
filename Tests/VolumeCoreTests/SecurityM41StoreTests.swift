@@ -114,16 +114,16 @@ struct SecurityM41StoreTests {
     #expect(h.controller.reconcileCalls.last?.isEmpty == true, "no app stays mute")
   }
 
-  /// SPEC 4.6: after the silence guard's ambiguous denial, with nothing playing, the popover
-  /// does not show the permission notice; when something plays again the permission is
-  /// checked at once.
+  /// SPEC 4.6 (changed in M5.3): the silence guard's ambiguous denial never shows the
+  /// permission notice, playing or not; when something plays again the permission is checked
+  /// at once.
   @Test func ambiguousDenialShowsNoNoticeWhileNothingPlaysAndRechecksWhenSoundReturns() async {
     let h = MixerHarness(permission: .granted)
     h.start([h.process("Safari", pid: 10, playing: true)])
     await h.settle()
     h.access.answer = .denied
     await h.store.checkSilentTap()
-    #expect(h.store.showsPermissionNotice, "something still plays: the notice is shown")
+    #expect(!h.store.showsPermissionNotice, "something still plays: still no notice")
     h.start([h.process("Safari", pid: 10, playing: false)])
     #expect(h.permission.isDenied)
     #expect(!h.store.showsPermissionNotice, "nothing plays: no notice")

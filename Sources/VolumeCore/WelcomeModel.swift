@@ -44,10 +44,10 @@ public final class WelcomeModel {
 
   /// "Permitir…": checks the permission through the same path as the first tap, which shows
   /// the system prompt when the user has not decided yet. When it was denied, opens System
-  /// Settings instead.
+  /// Settings instead (the same as the popover's "Permitir…": checked again when something plays).
   public func allow() async {
     if access == .denied {
-      permission.openPrivacySettings()
+      store.allowAccess()
       return
     }
     guard !isAsking else { return }

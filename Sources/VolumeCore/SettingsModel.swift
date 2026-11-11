@@ -8,7 +8,6 @@ public final class SettingsModel {
   /// Storage keys.
   enum Key {
     static let rememberVolumes = "rememberVolumes"
-    static let showInactiveApps = "showInactiveApps"
     static let volumeStep = "volumeStepPercent"
     static let onboardingCompleted = "onboardingCompleted"
     static let permissionConfirmed = "audioPermissionConfirmed"
@@ -20,8 +19,6 @@ public final class SettingsModel {
 
   /// Remember the volume of each app. Default on.
   public var rememberVolumes = true { didSet { changed(oldValue != rememberVolumes) } }
-  /// Keep apps that are not playing in the list. Default off.
-  public var showInactiveApps = false { didSet { changed(oldValue != showInactiveApps) } }
   /// Slider increment. Default 5%.
   public var volumeStep = VolumeStep.five { didSet { changed(oldValue != volumeStep) } }
   /// True once the welcome window has been dealt with.
@@ -30,7 +27,8 @@ public final class SettingsModel {
   }
   /// True once the audio permission was confirmed as granted on this Mac. It lets the app
   /// verify the permission at launch without showing the system prompt (the user already
-  /// decided). Cleared when the permission is found denied and by the panic button.
+  /// decided). Cleared only when a check the user asked for ("Permitir…") finds it denied
+  /// (SPEC 5).
   public var audioPermissionConfirmed = false {
     didSet { changed(oldValue != audioPermissionConfirmed) }
   }
@@ -110,8 +108,6 @@ public final class SettingsModel {
 
   private func load() {
     rememberVolumes = PreferenceValidation.bool(store.object(forKey: Key.rememberVolumes)) ?? true
-    showInactiveApps =
-      PreferenceValidation.bool(store.object(forKey: Key.showInactiveApps)) ?? false
     onboardingCompleted =
       PreferenceValidation.bool(store.object(forKey: Key.onboardingCompleted)) ?? false
     audioPermissionConfirmed =
@@ -137,7 +133,6 @@ public final class SettingsModel {
 
   private func save() {
     store.set(rememberVolumes, forKey: Key.rememberVolumes)
-    store.set(showInactiveApps, forKey: Key.showInactiveApps)
     store.set(volumeStep.rawValue, forKey: Key.volumeStep)
     store.set(onboardingCompleted, forKey: Key.onboardingCompleted)
     store.set(audioPermissionConfirmed, forKey: Key.permissionConfirmed)

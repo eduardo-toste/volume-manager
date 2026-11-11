@@ -327,10 +327,10 @@ public actor CoreAudioAppController: AppAudioController {
       let verdict = entry.health.evaluate(
         frames: entry.handle.framesProcessed, sawSignal: signals[id] ?? false,
         appRunning: running, fault: entry.handle.hasFault)
-      if entry.wasRunning && !running {
+      if entry.wasRunning != running {
         // Our own aggregate keeps the output device busy, so the device does not report that
-        // the app paused: tell the domain, which re-reads the processes once.
-        emit(AppAudioFailure(appID: id, reason: .stoppedPlaying))
+        // the app paused or played again: tell the domain, which re-reads the processes once.
+        emit(AppAudioFailure(appID: id, reason: running ? .startedPlaying : .stoppedPlaying))
       }
       entry.wasRunning = running
       entries[id] = entry

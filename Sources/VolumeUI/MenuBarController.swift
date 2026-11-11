@@ -79,9 +79,7 @@ public final class MenuBarController: NSObject {
     panel.makeKeyAndOrderFront(nil)
     panel.invalidateShadow()
     button.highlight(true)
-    context.store.refreshAudioSystem()
-    let permission = context.permission
-    Task { await permission.refresh(onlyIfDenied: true) }
+    context.store.popoverOpened()
   }
 
   private func didClose() {

@@ -6,7 +6,8 @@ import Observation
 @MainActor
 @Observable
 public final class MixerStore {
-  /// Apps shown in the list: playing first, then by name.
+  /// Every app with an audio process, playing or not (SPEC 3.2, stable list): playing first
+  /// (an app that stopped less than `tapLingerPeriod` ago counts as playing), then by name.
   public private(set) var rows: [MixerRow] = []
   /// Connected output devices.
   public private(set) var devices: [OutputDevice] = []
@@ -22,8 +23,6 @@ public final class MixerStore {
   /// row says it could not be controlled (SPEC 4.6). Cleared by the next user action on the app.
   public private(set) var failedAppIDs: Set<String> = []
 
-  /// How long an app that stopped playing stays in the list (SPEC 4.1).
-  public static let gracePeriod: Duration = .seconds(5)
   /// How long an app keeps its tap after it stops playing, so pauses and track changes do not
   /// switch between the original sound and the tap (SPEC 4.2). After that the tap goes away
   /// and nothing keeps the output device running for an idle app.
@@ -32,8 +31,18 @@ public final class MixerStore {
   /// "denied" from the silence guard the permission is checked again this often while
   /// something plays (SPEC 4.6).
   public static let permissionRecheckInterval: Duration = .seconds(30)
-  /// Automatic checks after a "denied" from the silence guard (see `recheckWhileDenied`).
+  /// Automatic checks after an ambiguous "denied" (see `recheckWhileDenied`).
   static let maxDeniedRechecks = 3
+
+  /// Who asked for a permission check: it decides what the result may change (SPEC 3.2, 5).
+  private enum CheckKind {
+    /// "Permitir…", or the check that follows it when something plays: a "denied" is proof.
+    case allow
+    /// Another action of the user (adjusting an app, opening the popover).
+    case gesture
+    /// Nobody asked (launch, rechecks after an ambiguous denial).
+    case automatic
+  }
 
   @ObservationIgnored private let audioSystem: any AudioSystem
   @ObservationIgnored private let controller: any AppAudioController
@@ -52,7 +61,6 @@ public final class MixerStore {
 
   @ObservationIgnored private var groups: [AudioApp] = []
   @ObservationIgnored private var states: [String: AppAudioState] = [:]
-  @ObservationIgnored private var graceTimers: [String: Task<Void, Never>] = [:]
   @ObservationIgnored private var previouslyPlaying: Set<String> = []
   @ObservationIgnored private var lastDesired: [DesiredAppAudio]? = []
   /// Apps that stopped playing and keep their tap until `tapLingerPeriod` passes.
@@ -64,10 +72,21 @@ public final class MixerStore {
   @ObservationIgnored private var quietFailures: Set<String> = []
   /// Running while a silence check's "granted" can still be reused.
   @ObservationIgnored private var recentGrant: Task<Void, Never>?
-  /// True after a "denied" from the silence guard: it is ambiguous (SPEC 4.6), so while nothing
-  /// plays the popover says so instead of showing the permission notice.
-  private var silenceDenial = false
-  /// Automatic checks run since that denial (periodic and "sound returned" share the budget).
+  /// True after an ambiguous "denied": from the silence guard, or from a check the user did not
+  /// ask for while the permission was confirmed on this Mac (a silent stream gives zeros too).
+  /// The taps are off (fail open) but the popover does not change (SPEC 3.2, 4.6).
+  @ObservationIgnored private var ambiguousDenial = false
+  /// A check proved the permission was not given (SPEC 3.2, cases 2 and 3).
+  private var provenDenial = false
+  /// The user clicked "Permitir…" in this session (SPEC 3.2, case 1).
+  private var askedForAccess = false
+  /// "Permitir…" could not conclude: the check runs again when something plays.
+  @ObservationIgnored private var checkWhenPlaying = false
+  /// The last check started by "Permitir…", the popover opening or a sound that starts.
+  @ObservationIgnored private var checkTask: Task<Void, Never>?
+  /// Automatic checks after an ambiguous denial (periodic and "sound returned" share the
+  /// budget). Only a "granted" asked for by the user resets it, so an automatic "granted"
+  /// followed by a new silence-guard denial cannot repeat forever (SPEC 4.6).
   @ObservationIgnored private var automaticChecks = 0
   /// Running while a "denied" from the silence guard is checked again periodically.
   @ObservationIgnored private var deniedRechecks: Task<Void, Never>?
@@ -100,19 +119,20 @@ public final class MixerStore {
     let previous = permission.onGranted
     permission.onGranted = { [weak self] in
       previous()
-      self?.silenceDenial = false
-      self?.automaticChecks = 0
-      self?.settings.audioPermissionConfirmed = true
-      self?.retryAll()
+      self?.permissionGranted()
     }
   }
 
   // MARK: Derived state
 
-  /// True when the popover shows the "no permission" notice: the permission is denied, except
-  /// after the silence guard's ambiguous denial while nothing plays (SPEC 4.6).
+  /// True when the popover shows the "no permission" notice: only when the permission was
+  /// proven not given (SPEC 3.2): never confirmed on this Mac and "Permitir…" not clicked yet,
+  /// or a check proved it denied. Never because of silence, nothing playing, an inconclusive
+  /// check or the silence guard.
   public var showsPermissionNotice: Bool {
-    permission.isDenied && !(silenceDenial && playingCount == 0)
+    provenDenial
+      || (permission.status == .notDetermined && !settings.audioPermissionConfirmed
+        && !askedForAccess)
   }
   /// Number of apps playing now ("N reproduzindo").
   public var playingCount: Int { rows.filter(\.app.isPlaying).count }
@@ -142,7 +162,7 @@ public final class MixerStore {
     case .processes(let processes):
       groups = ProcessGrouping.group(processes, info: appInfo, excludedPID: ownPID)
       adoptNewApps()
-      updateGraceTimers()
+      updatePlayback()
     case .devices(let list):
       var seen: Set<String> = []
       devices = list.filter { !$0.uid.isEmpty && seen.insert($0.uid).inserted }
@@ -157,29 +177,40 @@ public final class MixerStore {
     rebuild()
   }
 
-  /// A tap carried only digital silence for 5 s while its app plays (SPEC 4.6): a browser with
-  /// a silent stream, or a permission revoked while the Volume runs (which would leave every
-  /// tapped app mute). Checks the permission by signal (a test tap that does not change the
-  /// sound); a "granted" from the last `permissionRecheckInterval` is reused only when
-  /// `mayReuseRecentGrant` (the same silence was already checked; never for the first silence
-  /// after real sound, which is how a revocation looks). Denied: every tap
-  /// is removed at once, the original sound returns and the popover shows the "no permission"
-  /// state; the denial is ambiguous (a silent stream may be the only player), so it is not
-  /// stored and the permission is checked again periodically while something plays. At most
-  /// one check runs at a time (`PermissionMonitor`); the caller checks again later anyway.
+  /// A tap carried only digital silence for 120 s of output time (SPEC 4.6): a voice call
+  /// nobody talks in, a browser with a silent stream, or a permission revoked while the Volume
+  /// runs (which would leave every tapped app mute). Checks the permission by signal (a test tap
+  /// that does not change the sound); a "granted" from the last `permissionRecheckInterval` is
+  /// reused only when `mayReuseRecentGrant` (the same silence was already checked; never for
+  /// the first silence after real sound, which is how a revocation looks). Denied: every tap is
+  /// removed at once and the original sound returns, without changing the popover (the list
+  /// stays, no notice) and without touching the stored mark: the denial is ambiguous (a silent
+  /// stream may be the only player), so the permission is checked again while something plays.
+  /// At most one check runs at a time (`PermissionMonitor`); the caller checks again later.
   public func checkSilentTap(mayReuseRecentGrant: Bool = false) async {
     guard !(mayReuseRecentGrant && recentGrant != nil) else { return }
     switch await permission.refresh(onlyIfDenied: false) {
     case .granted: rememberGrant()
-    case .denied:
-      if !silenceDenial {
-        silenceDenial = true
-        automaticChecks = 0
-      }
-      recheckWhileDenied()
-      rebuild()
+    case .denied: noteAmbiguousDenial()
     case .notDetermined, nil: break
     }
+  }
+
+  /// Fail open without changing the popover, and check again while something plays.
+  private func noteAmbiguousDenial() {
+    ambiguousDenial = true
+    recheckWhileDenied()
+    rebuild()
+  }
+
+  /// The permission was found granted (by any check): it is remembered and failed apps get a
+  /// new attempt. The automatic budget is left alone (see `automaticChecks`).
+  private func permissionGranted() {
+    ambiguousDenial = false
+    provenDenial = false
+    checkWhenPlaying = false
+    settings.audioPermissionConfirmed = true
+    retryAll()
   }
 
   private func rememberGrant() {
@@ -189,7 +220,7 @@ public final class MixerStore {
     }
   }
 
-  /// After a "denied" from the silence guard (`silenceDenial`): every
+  /// After an ambiguous "denied" (`ambiguousDenial`): every
   /// `permissionRecheckInterval`, while something plays, checks again; a "granted" brings the
   /// taps back (`onGranted`). Together with the check when sound starts again
   /// (`checkWhenSoundReturns`), at most `maxDeniedRechecks` automatic checks run, so a permission
@@ -201,7 +232,7 @@ public final class MixerStore {
     deniedRechecks = Task { [weak self, clock] in
       while true {
         do { try await clock.sleep(for: MixerStore.permissionRecheckInterval) } catch { return }
-        guard let self, silenceDenial, permission.status == .denied,
+        guard let self, ambiguousDenial, permission.status == .denied,
           settings.audioPermissionConfirmed, automaticChecks < MixerStore.maxDeniedRechecks
         else { break }
         if groups.contains(where: \.isPlaying) { await runAutomaticCheck() }
@@ -210,14 +241,14 @@ public final class MixerStore {
     }
   }
 
-  /// The one automatic check after the silence guard's denial; it spends the shared budget,
-  /// which is what limits the checks (the "confirmed before" mark cannot tell a reset apart).
+  /// The one automatic check after an ambiguous denial; it spends the shared budget, which is
+  /// what limits the checks (the "confirmed before" mark cannot tell a reset apart).
   private func runAutomaticCheck() async {
-    guard silenceDenial, permission.status == .denied,
+    guard ambiguousDenial, permission.status == .denied,
       automaticChecks < MixerStore.maxDeniedRechecks
     else { return }
     automaticChecks += 1
-    await permission.refresh(onlyIfDenied: false)
+    record(await permission.refresh(onlyIfDenied: false), .automatic)
   }
 
   /// Records that the controller could not (or can no longer) control `appID` (SPEC 4.6). With
@@ -335,6 +366,7 @@ public final class MixerStore {
   /// Waits until every queued call to the services has finished.
   func settle() async {
     await accessTask?.value
+    await checkTask?.value
     await systemWork.settle()
     await controllerWork.settle()
     for task in panicTasks { await task.value }
@@ -374,28 +406,78 @@ public final class MixerStore {
       guard let self else { return }
       let result = await permission.refresh(onlyIfDenied: false, userAction: userAction)
       accessTask = nil
-      recordUserCheck(result)
+      record(result, userAction ? .gesture : .automatic)
     }
   }
 
-  /// "Permitir…" of the welcome window: the user asks for the permission. It is the same check
-  /// and the same bookkeeping as before the first tap, so the stored mark follows the same rules.
-  /// Returns the result, or `nil` when another check was already running.
+  /// "Permitir…" (welcome window and popover): the user asks for the permission, which shows
+  /// the system prompt when the user has not decided yet. Returns the result, or `nil` when
+  /// another check was already running.
   public func requestAccess() async -> AudioPermissionStatus? {
+    askedForAccess = true
     let result = await permission.refresh(onlyIfDenied: false, userAction: true)
-    recordUserCheck(result)
+    record(result, .allow)
     return result
   }
 
-  /// Only a check that ran for the user may store anything, and never the silence guard's
-  /// ambiguous denial (SPEC 4.6).
-  private func recordUserCheck(_ result: AudioPermissionStatus?) {
+  /// "Permitir…" of the popover's notice. After a denial the system no longer asks, so it
+  /// opens System Settings, hides the notice and checks again when something plays (SPEC 3.2,
+  /// 5); otherwise it runs the check of `requestAccess()`.
+  public func allowAccess() {
+    guard permission.status == .denied else {
+      checkTask = Task { [weak self] in _ = await self?.requestAccess() }
+      return
+    }
+    askedForAccess = true
+    provenDenial = false
+    checkWhenPlaying = true
+    permission.openPrivacySettings()
+  }
+
+  /// The popover opened: re-reads the audio system and, when the permission is denied, checks
+  /// again (a grant made later in System Settings is found without restarting, SPEC 5). Never
+  /// shows the system prompt by itself.
+  public func popoverOpened() {
+    refreshAudioSystem()
+    // After an inconclusive "Permitir…", something playing now is when its check runs.
+    let followUp = checkWhenPlaying && groups.contains(where: \.isPlaying)
+    checkTask = Task { [weak self] in
+      guard let self else { return }
+      let result = await permission.refresh(onlyIfDenied: !followUp)
+      record(result, followUp ? .allow : .gesture)
+    }
+  }
+
+  /// "Permitir…" was inconclusive and something plays now: the follow-up check.
+  private func checkAfterAllow() async {
+    guard checkWhenPlaying else { return }
+    record(await permission.refresh(onlyIfDenied: false), .allow)
+  }
+
+  /// What a check result changes (SPEC 3.2, 4.6, 5). Only a "denied" from "Permitir…" (or its
+  /// follow-up) clears the stored mark; with the mark, other checks never show the notice.
+  private func record(_ result: AudioPermissionStatus?, _ kind: CheckKind) {
     switch result {
     case .granted:
-      settings.audioPermissionConfirmed = true
-      retryAll()
-    case .denied where !silenceDenial: settings.audioPermissionConfirmed = false
-    case .denied, .notDetermined, nil: break
+      if kind != .automatic { automaticChecks = 0 }
+      permissionGranted()
+    case .denied where kind == .allow:
+      ambiguousDenial = false
+      checkWhenPlaying = false
+      provenDenial = true
+      settings.audioPermissionConfirmed = false
+      rebuild()
+    case .denied where settings.audioPermissionConfirmed || ambiguousDenial:
+      noteAmbiguousDenial()
+    case .denied:
+      provenDenial = true
+      rebuild()
+    case .notDetermined, nil:
+      // "Permitir…" could not conclude: hide the notice and check when something plays.
+      if kind == .allow {
+        provenDenial = false
+        checkWhenPlaying = true
+      }
     }
   }
 
@@ -416,12 +498,11 @@ public final class MixerStore {
     }
   }
 
-  private func updateGraceTimers() {
+  /// Keeps the tap of an app that stopped for `tapLingerPeriod`, and runs the pending
+  /// permission checks when an app starts playing (SPEC 3.2, 4.6).
+  private func updatePlayback() {
     let playing = Set(groups.filter(\.isPlaying).map(\.id))
     let present = Set(groups.map(\.id))
-    for id in graceTimers.keys where playing.contains(id) || !present.contains(id) {
-      graceTimers.removeValue(forKey: id)?.cancel()
-    }
     for id in lingerTimers.keys where playing.contains(id) || !present.contains(id) {
       lingerTimers.removeValue(forKey: id)?.cancel()
     }
@@ -432,17 +513,14 @@ public final class MixerStore {
         self?.lingerExpired(id)
       }
     }
-    for id in previouslyPlaying.subtracting(playing)
-    where present.contains(id) && graceTimers[id] == nil {
-      graceTimers[id] = Task { [weak self, clock] in
-        do { try await clock.sleep(for: MixerStore.gracePeriod) } catch { return }
-        self?.graceExpired(id)
+    // A sound that starts is the signal for the pending check: after an inconclusive
+    // "Permitir…", or after an ambiguous denial (SPEC 3.2, 4.6).
+    if !playing.subtracting(previouslyPlaying).isEmpty {
+      if checkWhenPlaying {
+        checkTask = Task { [weak self] in await self?.checkAfterAllow() }
+      } else if ambiguousDenial {
+        checkTask = Task { [weak self] in await self?.runAutomaticCheck() }
       }
-    }
-    // After the silence guard's ambiguous denial, the first sound that starts is the signal
-    // for a new check (SPEC 4.6).
-    if silenceDenial, !playing.subtracting(previouslyPlaying).isEmpty {
-      Task { [weak self] in await self?.runAutomaticCheck() }
     }
     previouslyPlaying = playing
   }
@@ -452,16 +530,11 @@ public final class MixerStore {
     rebuild()
   }
 
-  private func graceExpired(_ id: String) {
-    guard graceTimers.removeValue(forKey: id) != nil else { return }
-    rebuild()
-  }
-
   private func rebuild() {
-    let visible = groups.filter {
-      settings.showInactiveApps || $0.isPlaying || graceTimers[$0.id] != nil
+    let active = Set(groups.filter { $0.isPlaying || lingerTimers[$0.id] != nil }.map(\.id))
+    rows = groups.map(makeRow).sorted {
+      Self.isOrderedBefore($0, $1, active: active)
     }
-    rows = visible.map(makeRow).sorted(by: Self.isOrderedBefore)
     failedAppIDs.formIntersection(groups.map(\.id))
     quietFailures.formIntersection(groups.map(\.id))
     if let expanded = expandedAppID, !rows.contains(where: { $0.id == expanded }) {
@@ -482,8 +555,12 @@ public final class MixerStore {
         preferredUID: state.preferredOutputUID, devices: devices))
   }
 
-  private static func isOrderedBefore(_ lhs: MixerRow, _ rhs: MixerRow) -> Bool {
-    if lhs.app.isPlaying != rhs.app.isPlaying { return lhs.app.isPlaying }
+  /// Playing (`active`) first, then by name, so a row does not jump between tracks or pauses.
+  private static func isOrderedBefore(
+    _ lhs: MixerRow, _ rhs: MixerRow, active: Set<String>
+  ) -> Bool {
+    let left = active.contains(lhs.id)
+    if left != active.contains(rhs.id) { return left }
     switch lhs.app.name.localizedStandardCompare(rhs.app.name) {
     case .orderedAscending: return true
     case .orderedDescending: return false
@@ -512,8 +589,8 @@ public final class MixerStore {
       )
     }
     wantsTaps = !desired.isEmpty
-    // After a denial from the silence guard, `runAutomaticCheck` does the checking.
-    if settings.audioPermissionConfirmed, !silenceDenial,
+    // After an ambiguous denial, `runAutomaticCheck` does the checking.
+    if settings.audioPermissionConfirmed, !ambiguousDenial,
       desired.contains(where: { isPlaying($0.app.id) })
     {
       confirmAccessIfNeeded()

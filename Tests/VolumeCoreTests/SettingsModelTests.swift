@@ -15,7 +15,6 @@ struct SettingsModelTests {
   @Test func defaultsMatchTheSpec() {
     let settings = model(InMemoryPreferencesStore())
     #expect(settings.rememberVolumes)
-    #expect(!settings.showInactiveApps)
     #expect(settings.volumeStep == .five)
     #expect(!settings.onboardingCompleted)
     #expect(settings.rememberedApps.isEmpty)
@@ -55,7 +54,7 @@ struct SettingsModelTests {
   @Test func newChangeRestartsTheDelay() async {
     let store = InMemoryPreferencesStore()
     let settings = model(store)
-    settings.showInactiveApps = true
+    settings.volumeStep = .ten
     #expect(await eventually { clock.sleeperCount == 1 })
     clock.advance(by: .milliseconds(400))
     settings.rememberVolumes = false
@@ -101,7 +100,6 @@ struct SettingsModelTests {
     let store = InMemoryPreferencesStore()
     let first = model(store)
     first.rememberVolumes = false
-    first.showInactiveApps = true
     first.volumeStep = .ten
     first.onboardingCompleted = true
     first.remember(
@@ -109,7 +107,6 @@ struct SettingsModelTests {
     first.flush()
     let second = model(store)
     #expect(!second.rememberVolumes)
-    #expect(second.showInactiveApps)
     #expect(second.volumeStep == .ten)
     #expect(second.onboardingCompleted)
     #expect(
@@ -150,8 +147,8 @@ struct SettingsModelTests {
     let settings = model(InMemoryPreferencesStore())
     var notifications = 0
     settings.onChange { notifications += 1 }
-    settings.showInactiveApps = true
-    settings.showInactiveApps = true
+    settings.rememberVolumes = false
+    settings.rememberVolumes = false
     #expect(notifications == 1)
   }
 
@@ -170,12 +167,11 @@ struct SettingsModelTests {
   @Test func wrongTypesBecomeDefaults() {
     let store = InMemoryPreferencesStore([
       "rememberVolumes": [1],
-      "showInactiveApps": 5.5, "onboardingCompleted": "true",
+      "onboardingCompleted": "true",
       "volumeStepPercent": "ten", "rememberedApps": "nope",
     ])
     let settings = model(store)
     #expect(settings.rememberVolumes)
-    #expect(!settings.showInactiveApps)
     #expect(!settings.onboardingCompleted)
     #expect(settings.volumeStep == .five)
     #expect(settings.rememberedApps.isEmpty)

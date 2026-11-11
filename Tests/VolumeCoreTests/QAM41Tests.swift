@@ -108,11 +108,10 @@ struct QAM41AlwaysControlledTests {
 
   @Test func restoreDuringTheLingerPeriodIsNotUndoneWhenTheTimerExpires() async {
     let h = MixerHarness()
-    h.settings.showInactiveApps = true
     h.start([h.process("Spotify", pid: 10, playing: true)])
     await h.settle()
     h.store.handle(.processes([h.process("Spotify", pid: 10, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount >= 2 })
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
     h.store.restoreOriginalAudio()
     await h.settle()
     let calls = h.controller.calls.count

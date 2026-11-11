@@ -69,6 +69,8 @@ struct Fixture {
     let clock = ContinuousClock()
     let settings = SettingsModel(store: preferences, clock: clock)
     let safety = SafetyPolicy(store: preferences, clock: clock)
+    // Confirmed on this Mac before: the notice shows only for the "denied" scene (SPEC 3.2).
+    settings.audioPermissionConfirmed = !denied
     if safeMode {
       for _ in 0..<3 { safety.beginSession() }
     }
@@ -92,7 +94,7 @@ struct Fixture {
     self.permission = permission
     self.settings = settings
     context = PopoverContext(
-      store: store, settings: settings, permission: permission,
+      store: store, settings: settings,
       icon: { Self.icon(for: $0) },
       openSoundSettings: {}, showSettings: {}, showAbout: {}, quit: {})
   }

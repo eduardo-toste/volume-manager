@@ -121,9 +121,6 @@ private struct GeneralPane: View {
         Toggle(isOn: $settings.rememberVolumes) {
           TitledLabel(title: "settings.remember", subtitle: "settings.remember.subtitle")
         }
-        Toggle(isOn: $settings.showInactiveApps) {
-          TitledLabel(title: "settings.inactive", subtitle: nil)
-        }
         Picker(selection: $settings.volumeStep) {
           ForEach(VolumeStep.allCases, id: \.self) { step in
             Text(verbatim: "\(step.rawValue)%").tag(step)

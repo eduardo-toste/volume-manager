@@ -260,14 +260,15 @@ struct ControllerWatchdogTests {
     #expect(rig.engine.created.count == 1)
   }
 
-  /// Round 5b: 5 s of zeros while the app plays asks for a permission check (once) and keeps
-  /// the tap; the decision is the domain's (SPEC 4.6).
+  /// Round 5b (120 s since M5.3): zeros for `silenceLimit` while the app plays ask for a
+  /// permission check (once) and keep the tap; the decision is the domain's (SPEC 4.6).
   @Test func silenceWhileTheAppPlaysAsksForOneCheckAndKeepsTheTap() async {
     let rig = Rig()
     let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [desired()])
     let handle = rig.engine.created[0]
-    for _ in 0..<12 {
+    let silence = WatchdogPolicy().ticks(for: WatchdogPolicy().silenceLimit)
+    for _ in 0..<(silence + 2) {
       handle.deliver(frames: 24_000, signal: false)
       await rig.tick()
     }
@@ -277,7 +278,7 @@ struct ControllerWatchdogTests {
     // Signal, then silence again: one more check for the new silent period.
     handle.deliver(frames: 24_000, signal: true)
     await rig.tick()
-    for _ in 0..<12 {
+    for _ in 0..<(silence + 2) {
       handle.deliver(frames: 24_000, signal: false)
       await rig.tick()
     }

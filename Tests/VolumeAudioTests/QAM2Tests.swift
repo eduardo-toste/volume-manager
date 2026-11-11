@@ -64,7 +64,8 @@ struct QAFailOpenTests {
     let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [qaDesired()])
     let tap = rig.engine.created[0]
-    for _ in 0..<40 {
+    let silence = WatchdogPolicy().ticks(for: WatchdogPolicy().silenceLimit)
+    for _ in 0..<(silence + 30) {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
       await rig.controller.reconcile(desired: [qaDesired()])
@@ -81,7 +82,7 @@ struct QAFailOpenTests {
     let failures = rig.controller.failures()
     await rig.controller.reconcile(desired: [qaDesired()])
     let tap = rig.engine.created[0]
-    for _ in 0..<10 {
+    for _ in 0..<WatchdogPolicy().ticks(for: WatchdogPolicy().silenceLimit) {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
     }

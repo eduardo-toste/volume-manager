@@ -64,7 +64,7 @@ final class Composition {
     self.safety = safety
     self.store = store
     context = PopoverContext(
-      store: store, settings: settings, permission: permission,
+      store: store, settings: settings,
       icon: { provider.icon(forBundleID: $0) },
       openSoundSettings: Self.openSoundSettings,
       showSettings: { windows.showSettings() },
@@ -89,7 +89,7 @@ final class Composition {
           case .onlySilence, .stillSilent:
             await store.checkSilentTap(mayReuseRecentGrant: event.reason == .stillSilent)
             await controller.silenceChecked(appID: event.appID)
-          case .stoppedPlaying:
+          case .stoppedPlaying, .startedPlaying:
             store.refreshAudioSystem()
           default:
             // An unsupported output format on an app the user never adjusted is not shown:

@@ -26,9 +26,11 @@ struct SecurityM41Tests {
       }
     }
     let gaps = zip(reportTicks.dropFirst(), reportTicks).map { $0 - $1 }
-    #expect(reportTicks.first == 9, "first check after 5 s")
-    #expect(gaps.allSatisfy { $0 == policy.ticks(for: policy.recheckAfter) }, "every 30 s")
-    #expect(reportTicks.count == 20)
+    let silence = policy.ticks(for: policy.silenceLimit)
+    let retry = policy.ticks(for: policy.recheckAfter)
+    #expect(reportTicks.first == silence - 1, "first check after 120 s (M5.3)")
+    #expect(gaps.allSatisfy { $0 == retry }, "every 30 s")
+    #expect(reportTicks.count == 1 + (1_199 - (silence - 1)) / retry)
   }
 
   /// S41-A1 at controller level: silence checked as granted, then the permission is revoked
@@ -53,7 +55,7 @@ struct SecurityM41Tests {
         for _ in 0..<50 { await Task.yield() }
       }
     }
-    await silentTicks(10)
+    await silentTicks(policy.ticks(for: policy.silenceLimit))
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
     await controller.silenceChecked(appID: "browser")  // answered "granted"
     await silentTicks(64)  // 32 s

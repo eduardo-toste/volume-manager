@@ -18,7 +18,6 @@ struct MixerStoreTests {
       h.process("Safari", pid: 3, playing: true),
       h.process("Música", pid: 4, playing: false),
     ])
-    h.settings.showInactiveApps = true
     #expect(h.store.rows.map(\.app.name) == ["Safari", "Spotify", "Música", "Zoom"])
   }
 
@@ -47,7 +46,6 @@ struct MixerStoreTests {
   }
 
   @Test func playingCounterCountsOnlyPlayingApps() {
-    h.settings.showInactiveApps = true
     h.start([
       h.process("Spotify", pid: 1, playing: true),
       h.process("Safari", pid: 2, playing: true),
@@ -59,57 +57,48 @@ struct MixerStoreTests {
     #expect(h.store.playingCount == 0)
   }
 
-  @Test func idleAppsAreHiddenByDefault() {
+  // MARK: Stable list (SPEC 3.2 item 4, 4.1)
+
+  @Test func idleAppsWithAnAudioProcessAreListed() {
     h.start([h.process("Spotify", pid: 1, playing: false)])
-    #expect(h.store.rows.isEmpty)
-    h.settings.showInactiveApps = true
-    #expect(h.store.rows.count == 1)
-    h.settings.showInactiveApps = false
-    #expect(h.store.rows.isEmpty)
+    #expect(h.store.rows.map(\.app.name) == ["Spotify"])
   }
 
-  // MARK: Five second delay
-
-  @Test func appThatStoppedStaysFiveSecondsThenDisappears() async {
+  @Test func appThatStoppedStaysListed() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(h.store.rows.count == 1)
-    #expect(await eventually { h.clock.sleeperCount >= 1 })
-    h.clock.advance(by: .milliseconds(4999))
+    #expect(await eventually { h.clock.sleeperCount == 1 }, "only the tap linger timer")
+    h.clock.advance(by: MixerStore.tapLingerPeriod * 2)
     await Task.yield()
-    #expect(h.store.rows.count == 1)
+    #expect(h.store.rows.map(\.app.name) == ["Spotify"])
+  }
+
+  /// An app that stopped less than 15 s ago keeps its place among the playing apps; after that
+  /// it goes back to its place by name (SPEC 4.1).
+  @Test func recentlyStoppedAppKeepsItsPlaceUntilTheLingerEnds() async {
+    h.start([
+      h.process("Safari", pid: 1, playing: false),
+      h.process("Zoom", pid: 2, playing: true),
+    ])
+    #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"])
+    h.store.handle(
+      .processes([
+        h.process("Safari", pid: 1, playing: false), h.process("Zoom", pid: 2, playing: false),
+      ]))
+    #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"], "Zoom stopped just now")
+    #expect(h.store.playingCount == 0)
+    #expect(await eventually { h.clock.sleeperCount == 1 })
+    h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
+    await Task.yield()
+    #expect(h.store.rows.map(\.app.name) == ["Zoom", "Safari"], "Zoom still lingers")
     h.clock.advance(by: .milliseconds(1))
-    #expect(await eventually { h.store.rows.isEmpty })
-  }
-
-  @Test func appThatResumesCancelsTheRemoval() async {
-    h.start([h.process("Spotify", pid: 1, playing: true)])
-    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    // The 5 s list timer and the tap linger timer (SPEC 4.1, 4.2).
-    #expect(await eventually { h.clock.sleeperCount == 2 })
-    h.clock.advance(by: .seconds(3))
-    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
-    #expect(await eventually { h.clock.sleeperCount == 0 })
-    h.clock.advance(by: .seconds(10))
-    await Task.yield()
-    #expect(h.store.rows.count == 1)
-  }
-
-  @Test func nothingDisappearsWhileShowingInactiveApps() async {
-    h.settings.showInactiveApps = true
-    h.start([h.process("Spotify", pid: 1, playing: true)])
-    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 3 })
-    h.clock.advance(by: .seconds(6))
-    await Task.yield()
-    await Task.yield()
-    #expect(h.store.rows.count == 1)
+    #expect(await eventually { h.store.rows.map(\.app.name) == ["Safari", "Zoom"] })
   }
 
   @Test func appThatLeavesTheProcessListLeavesImmediatelyAndItsTimerStops() async {
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 2 })
+    #expect(await eventually { h.clock.sleeperCount == 1 })
     h.store.handle(.processes([]))
     #expect(h.store.rows.isEmpty)
     #expect(await eventually { h.clock.sleeperCount == 0 })
@@ -164,17 +153,16 @@ struct MixerStoreTests {
   }
 
   @Test func tapStaysThroughAShortPauseAndGoesAfterTheLingerPeriod() async {
-    h.settings.showInactiveApps = true
     h.start([h.process("Spotify", pid: 1, playing: true)])
     h.store.setVolume(0.4, for: spotify)
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 3 })  // list, linger, saved volume
+    #expect(await eventually { h.clock.sleeperCount == 2 })  // linger, saved volume
     h.clock.advance(by: .seconds(10))
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
     await h.settle()
     #expect(h.controller.reconcileCalls.allSatisfy { $0.count == 1 }, "the same tap all along")
     h.store.handle(.processes([h.process("Spotify", pid: 1, playing: false)]))
-    #expect(await eventually { h.clock.sleeperCount == 2 })  // list and linger timers
+    #expect(await eventually { h.clock.sleeperCount == 1 })  // linger timer
     h.clock.advance(by: MixerStore.tapLingerPeriod - .milliseconds(1))
     await h.settle()
     #expect(h.controller.reconcileCalls.last?.count == 1)
@@ -729,7 +717,7 @@ struct MixerStoreTests {
     let store = h.store
     let task = Task { await store.run() }
     #expect(await eventually { h.system.subscriberCount == 1 && !store.rows.isEmpty })
-    #expect(store.rows.map(\.app.name) == ["Safari", "Spotify"])
+    #expect(store.rows.map(\.app.name) == ["Safari", "Spotify", "Zoom"], "idle Zoom listed last")
     #expect(store.playingCount == 2)
     #expect(store.rows.first { $0.app.name == "Safari" }?.app.pids == [2, 3])
     store.refreshAudioSystem()

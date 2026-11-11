@@ -2,10 +2,14 @@
 struct WatchdogPolicy: Sendable, Hashable {
   /// How often active taps are checked. The check only runs while taps exist.
   var tick: Duration = .milliseconds(500)
-  /// Frames must advance within this time.
+  /// Once the first frame arrived, frames must keep advancing within this time.
   var stallLimit: Duration = .seconds(2)
-  /// Digital silence while the app reports output for this long asks for a permission check.
-  var silenceLimit: Duration = .seconds(5)
+  /// A new tap must deliver its first frame within this time (a Bluetooth device may be slow
+  /// to wake up, SPEC 4.6).
+  var startLimit: Duration = .seconds(5)
+  /// Digital silence for this long, counting only the time the app reports output, asks for a
+  /// permission check (SPEC 4.6: a voice call stays silent while nobody talks).
+  var silenceLimit: Duration = .seconds(120)
   /// While a silence lasts, a new permission check is asked at most this often (after any
   /// result: a "granted" is never trusted forever, SPEC 4.6).
   var recheckAfter: Duration = .seconds(30)
@@ -25,7 +29,7 @@ enum HealthVerdict: Sendable, Hashable {
   case healthy
   /// The IOProc stopped delivering frames.
   case stalled
-  /// Only absolute zeros arrived for `silenceLimit` while the app was reporting output. Not a
+  /// Only absolute zeros arrived for `silenceLimit` of output time since the last real sample. Not a
   /// failure by itself: a browser may keep a silent stream open, and a revoked permission also
   /// gives zeros. Reported once per silent period.
   case silent
@@ -40,9 +44,12 @@ enum HealthVerdict: Sendable, Hashable {
 /// `recheckAfter`, never in a loop and never "trusted" forever.
 struct SessionHealth: Sendable {
   private let stallTicks: Int
+  private let startTicks: Int
   private let silenceTicks: Int
   private let retryTicks: Int
   private var lastFrames: UInt64 = 0
+  /// True once the IOProc delivered its first frame.
+  private var started = false
   private var stalled = 0
   private var silent = 0
   private var reported = false
@@ -50,6 +57,7 @@ struct SessionHealth: Sendable {
 
   init(policy: WatchdogPolicy) {
     stallTicks = policy.ticks(for: policy.stallLimit)
+    startTicks = policy.ticks(for: policy.startLimit)
     silenceTicks = policy.ticks(for: policy.silenceLimit)
     retryTicks = policy.ticks(for: policy.recheckAfter)
   }
@@ -59,7 +67,9 @@ struct SessionHealth: Sendable {
   var silenceWasChecked: Bool { checked }
 
   /// Evaluates one tick. `sawSignal` is "a non-zero sample arrived since the last tick";
-  /// `appRunning` is the app's `IsRunningOutput`.
+  /// `appRunning` is the app's `IsRunningOutput`. Silence is counted only while the app reports
+  /// output, and only a non-zero sample resets the count: pausing never does, so a revoked
+  /// permission with an app that plays on and off still reaches the check.
   mutating func evaluate(
     frames: UInt64, sawSignal: Bool, appRunning: Bool, fault: Bool
   ) -> HealthVerdict {
@@ -69,16 +79,15 @@ struct SessionHealth: Sendable {
     } else {
       stalled = 0
       lastFrames = frames
+      started = true
     }
-    if stalled >= stallTicks { return .stalled }
+    if stalled >= (started ? stallTicks : startTicks) { return .stalled }
     if sawSignal {
       silent = 0
       reported = false
       checked = false
     } else if appRunning && stalled == 0 {
       silent += 1
-    } else if silent > 0 {
-      silent = 0
     }
     guard !reported, silent >= silenceTicks else { return .healthy }
     reported = true

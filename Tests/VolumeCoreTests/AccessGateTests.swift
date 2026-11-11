@@ -118,14 +118,21 @@ struct LaunchVerificationTests {
     #expect(h.access.requests == 0)
   }
 
-  @Test func deniedClearsTheMarkAndCreatesNoTap() async {
+  /// A7 (M5.3): an automatic "denied" with the mark (for example the only app plays a silent
+  /// stream) is ambiguous: no tap, but the mark stays and the notice is not shown (SPEC 3.2, 5).
+  @Test func automaticDenialKeepsTheMarkShowsNoNoticeAndCreatesNoTap() async {
     let h = MixerHarness(preferences: marked, permission: .notDetermined)
     h.access.answer = .denied
     h.start([h.process("Spotify", pid: 1, playing: true)])
     await h.settle()
-    #expect(!h.settings.audioPermissionConfirmed)
+    #expect(h.settings.audioPermissionConfirmed)
     #expect(h.permission.isDenied)
+    #expect(!h.store.showsPermissionNotice)
+    #expect(h.store.rows.count == 1)
     #expect(h.controller.neverTapped)
+    h.store.handle(.processes([h.process("Spotify", pid: 1, playing: true)]))
+    await h.settle()
+    #expect(h.access.requests == 1, "no check loop on every reconciliation")
   }
 
   @Test func indeterminateStaysPendingAndRetriesOnNextReconciliation() async {
