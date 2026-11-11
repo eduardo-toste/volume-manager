@@ -3,8 +3,9 @@ import Foundation
 import Synchronization
 
 /// Owns the Core Audio objects of one tap: the process tap, the private aggregate device and
-/// the IOProc. Whatever was created is destroyed, in the right order, by `teardown()` or when
-/// this object is released (RAII, SPEC 12.3).
+/// the IOProc. Whatever was created and is still ours (it answers with the UID it was created
+/// with, or is found by that UID) is destroyed, in the right order, by `teardown()` or when this
+/// object is released (RAII, SPEC 12.3). Objects whose IDs went stale are never touched.
 ///
 /// Destruction order: stop the IOProc, destroy the IOProc, destroy the aggregate device,
 /// destroy the tap.
@@ -14,6 +15,10 @@ final class TapPipeline: Sendable {
     var aggregate = AudioProperty.unknown
     var procID: AudioDeviceIOProcID?
     var started = false
+    /// The identity each object was created with: only an object that still answers with it
+    /// is ours (S21-B1/B2).
+    var tapUID = ""
+    var aggregateUID = ""
   }
 
   private let resources = Mutex(Resources())
@@ -30,7 +35,10 @@ final class TapPipeline: Sendable {
       throw AudioError.unsupported(
         "create process tap returned no object", stage: .createTap)
     }
-    resources.withLock { $0.tap = tapID }
+    resources.withLock {
+      $0.tap = tapID
+      $0.tapUID = description.uuid.uuidString
+    }
     return tapID
   }
 
@@ -43,7 +51,10 @@ final class TapPipeline: Sendable {
     guard aggregateID != AudioProperty.unknown else {
       throw AudioError.unsupported("create aggregate device returned no object")
     }
-    resources.withLock { $0.aggregate = aggregateID }
+    resources.withLock {
+      $0.aggregate = aggregateID
+      $0.aggregateUID = dictionary[kAudioAggregateDeviceUIDKey] as? String ?? ""
+    }
     return aggregateID
   }
 
@@ -64,37 +75,107 @@ final class TapPipeline: Sendable {
     resources.withLock { $0.started = true }
   }
 
-  /// Forgets everything without calling any Core Audio function. Used after `coreaudiod`
-  /// restarted: the server already lost these objects, and their IDs may now belong to objects
-  /// of other apps or of the user, which must never be touched (review finding M-2).
-  func abandon() {
-    resources.withLock { $0 = Resources() }
+  /// True when the object still answers with the identity it was created with. After a
+  /// `coreaudiod` restart an old ID is dead (no answer) or names someone else's object (another
+  /// answer), and must not be destroyed (SPEC 4.6, findings M-2, S21-B1, S21-B2).
+  static func isOurs(found: String?, expected: String) -> Bool {
+    guard !expected.isEmpty, let found else { return false }
+    return found.caseInsensitiveCompare(expected) == .orderedSame
   }
 
-  /// Destroys everything that exists. Idempotent and safe from any thread.
-  func teardown() {
+  /// The ID to destroy for an object created with `expected` as its UID, or `nil` to leave it
+  /// alone. `id` is used when it still answers with that UID; otherwise the server is asked
+  /// which object has that UID (`translate`, `unknown` when none), so a live object of ours is
+  /// never left behind by a failed read (SPEC 4.6: no app stays muted), while a stale ID that
+  /// names someone else's object is never destroyed (findings M-2, S6-M1).
+  static func resolve(
+    id: AudioObjectID, expected: String, read: (AudioObjectID) -> String?,
+    translate: (String) -> AudioObjectID
+  ) -> AudioObjectID? {
+    if isOurs(found: read(id), expected: expected) { return id }
+    guard !expected.isEmpty else { return nil }
+    let found = translate(expected)
+    return found == AudioProperty.unknown ? nil : found
+  }
+
+  /// Destroys everything that exists and is still ours (see `resolve`). Idempotent and safe
+  /// from any thread. Returns false when something was left alone or a Core Audio call failed,
+  /// which means the IOProc may still be running somewhere (see `teardown(keeping:)`).
+  @discardableResult
+  func teardown() -> Bool {
     let taken = resources.withLock { state -> Resources in
       defer { state = Resources() }
       return state
     }
-    if taken.started, let procID = taken.procID {
-      report(AudioDeviceStop(taken.aggregate, procID), "stop IOProc")
-    }
-    if let procID = taken.procID {
-      report(AudioDeviceDestroyIOProcID(taken.aggregate, procID), "destroy IOProc")
-    }
+    var allOurs = true
     if taken.aggregate != AudioProperty.unknown {
-      report(AudioHardwareDestroyAggregateDevice(taken.aggregate), "destroy aggregate device")
+      if let aggregate = Self.resolve(
+        id: taken.aggregate, expected: taken.aggregateUID,
+        read: {
+          try? AudioProperty.string($0, AudioProperty.address(kAudioDevicePropertyDeviceUID))
+        },
+        translate: { Self.translate(kAudioHardwarePropertyTranslateUIDToDevice, uid: $0) })
+      {
+        if taken.started, let procID = taken.procID {
+          allOurs = report(AudioDeviceStop(aggregate, procID), "stop IOProc") && allOurs
+        }
+        if let procID = taken.procID {
+          allOurs =
+            report(AudioDeviceDestroyIOProcID(aggregate, procID), "destroy IOProc") && allOurs
+        }
+        allOurs =
+          report(AudioHardwareDestroyAggregateDevice(aggregate), "destroy aggregate device")
+          && allOurs
+      } else {
+        AudioLog.logger.notice(
+          "teardown: aggregate \(taken.aggregate, privacy: .public) left alone, identity not confirmed"
+        )
+        allOurs = false
+      }
     }
     if taken.tap != AudioProperty.unknown {
-      report(AudioHardwareDestroyProcessTap(taken.tap), "destroy process tap")
+      if let tap = Self.resolve(
+        id: taken.tap, expected: taken.tapUID,
+        read: { try? AudioProperty.string($0, AudioProperty.address(kAudioTapPropertyUID)) },
+        translate: { Self.translate(kAudioHardwarePropertyTranslateUIDToTap, uid: $0) })
+      {
+        allOurs = report(AudioHardwareDestroyProcessTap(tap), "destroy process tap") && allOurs
+      } else {
+        AudioLog.logger.notice(
+          "teardown: tap \(taken.tap, privacy: .public) left alone, identity not confirmed")
+        allOurs = false
+      }
     }
+    return allOurs
   }
 
-  private func report(_ status: OSStatus, _ what: String) {
-    guard status != noErr else { return }
+  /// The object the server knows by this UID (`unknown` when there is none or the call fails).
+  static func translate(_ selector: AudioObjectPropertySelector, uid: String)
+    -> AudioObjectID
+  {
+    var address = AudioProperty.address(selector)
+    var qualifier = uid as CFString
+    var object = AudioProperty.unknown
+    var size = UInt32(MemoryLayout<AudioObjectID>.size)
+    let status = withUnsafeMutablePointer(to: &qualifier) {
+      AudioObjectGetPropertyData(
+        AudioProperty.system, &address, UInt32(MemoryLayout<CFString>.size), $0, &size, &object)
+    }
+    return status == noErr ? object : AudioProperty.unknown
+  }
+
+  /// Like `teardown()`, but if an object was left alone its IOProc may still call into
+  /// `client`, which is then kept alive forever (a few bytes) instead of freed.
+  func teardown(keeping client: AnyObject) {
+    if !teardown() { _ = Unmanaged.passRetained(client) }
+  }
+
+  @discardableResult
+  private func report(_ status: OSStatus, _ what: String) -> Bool {
+    guard status != noErr else { return true }
     AudioLog.logger.warning(
       "teardown \(what, privacy: .public) failed: \(status, privacy: .public)")
+    return false
   }
 
   deinit { teardown() }

@@ -100,6 +100,35 @@ struct LaunchVerificationTests {
     #expect(h.settings.audioPermissionConfirmed)
   }
 
+  /// M6: the mark may be stale (permission reset, app re-signed) when the last session did not
+  /// end cleanly: no automatic verification, only a user action verifies.
+  @Test func markAfterAnUncleanSessionIsNotVerifiedByItself() async {
+    var prefs = marked
+    prefs["safety.sessionStarted"] = true
+    prefs["safety.cleanExit"] = false
+    prefs["safety.stable"] = true
+    let h = MixerHarness(preferences: prefs, beginSafety: true, permission: .notDetermined)
+    h.access.answer = .granted
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    await h.settle()
+    #expect(h.access.requests == 0)
+    #expect(h.controller.neverTapped)
+    #expect(!h.store.showsPermissionNotice, "the mark still hides the notice")
+    h.store.setVolume(0.5, for: "com.spotify.client")  // the user acts: now it verifies
+    await h.settle()
+    #expect(h.access.requests == 1)
+    #expect(h.controller.reconcileCalls.last?.map(\.app.id) == ["com.spotify.client"])
+  }
+
+  @Test func markWithoutAnyPreviousSessionRecordIsNotVerifiedByItself() async {
+    let h = MixerHarness(
+      preferences: marked.merging(["safety.sessionStarted": false]) { $1 },
+      beginSafety: true, permission: .notDetermined)
+    h.start([h.process("Spotify", pid: 1, playing: true)])
+    await h.settle()
+    #expect(h.access.requests == 0)
+  }
+
   @Test func noMarkMeansNoVerificationWithoutUserAction() async {
     var prefs = marked
     prefs["audioPermissionConfirmed"] = nil

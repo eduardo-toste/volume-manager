@@ -142,12 +142,12 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
       try pipeline.startIO(
         proc: signalProbeIOProc, client: Unmanaged.passUnretained(state).toOpaque())
     } catch {
-      withExtendedLifetime(state) { pipeline.teardown() }
+      pipeline.teardown(keeping: state)
       // Creating the tap itself failed: refused. Anything later: cannot conclude.
       return Self.verdictAfterFailure(error, targetsExist: exist(playing))
     }
     try? await clock.sleep(for: listenDuration)
-    withExtendedLifetime(state) { pipeline.teardown() }
+    pipeline.teardown(keeping: state)
     // Cut short (the task was cancelled) without sound: nothing was really listened to, so it
     // proves nothing (S53R-B1). Real sound still proves the permission.
     if Task.isCancelled, !state.sawSignal { return .indeterminate }

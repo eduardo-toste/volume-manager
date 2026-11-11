@@ -172,3 +172,16 @@ Use `build/Volume Manager.app` (gerado por `scripts/build-app.sh`). Para repetir
 1. Com o app rodando, abrir `Volume Manager.app` de novo pelo Finder (duplo clique): abre Ajustes, sem segunda instância no Monitor de Atividade.
 2. ⌘Q com a janela de Ajustes em foco: mesmo caminho do "Sair" do popover; apps ajustados voltam ao som original (conferir com algo tocando e volume reduzido).
 3. Aparência: alternar Claro/Escuro em Ajustes do Sistema com as janelas abertas; ambas acompanham, texto legível.
+
+## M6 (⏸3) — Ciclo de vida e robustez
+Use um app tocando música (ex.: Música/Spotify) e deixe o Volume Manager abaixo de 100% nele. Tudo aqui é por sua conta (mexe em sono, sessão e Bluetooth).
+
+1. **Dormir/acordar**: app a 40%, menu Apple › Repousar (ou fechar a tampa), esperar uns 10 s, acordar. Esperado: o som volta a tocar sem interrupção prolongada e o volume continua em 40% (mexa no controle e confirme que responde). Nunca fica mudo.
+2. **Restaurar antes de dormir**: clique "Restaurar áudio original", repouse e acorde. Esperado: continua no som original (100%), sem reaplicar o 40%.
+3. **Troca rápida de usuário**: troque para outro usuário (menu de usuários na barra), volte. Esperado: o app volta com o volume lembrado e o som continua. No outro usuário o Volume Manager não interfere.
+4. **AirPods**: com o app a 40% nos AirPods, desligue/guarde os AirPods (o som cai para o alto-falante) e depois reconecte. Esperado: sem mudo preso; ao voltar, o app toca nos AirPods com 40% (pode levar alguns segundos). Repita desconectando pelo Bluetooth do Centro de Controle.
+5. **Forçar Encerramento**: com 2 apps abaixo de 100%, use ⌥⌘Esc › Volume Manager › Forçar Encerramento (ou `kill -9 <pid>` no Terminal). Esperado: os dois apps voltam imediatamente ao volume original (sem mudo, sem ficar baixo) e o ícone sai da barra.
+6. **Reabrir após o crash**: abra o app de novo. Esperado: abre normal (1 travamento não ativa modo seguro); volumes lembrados reaplicam. Não aparece o pedido de permissão sozinho; se a marca estiver velha, só ao mexer num controle é que verifica.
+7. **2 travamentos → modo seguro**: repita o item 5 duas vezes seguidas em menos de 1 minuto cada (abrir, esperar poucos segundos, matar). Ao abrir pela terceira vez: aviso de modo seguro no popover, nenhum volume/saída lembrados é aplicado (apps em 100%). Sair normalmente (Sair no popover) e abrir de novo: modo seguro desativado e os volumes lembrados voltam.
+8. **Encerrar pelo Terminal**: `kill <pid>` (SIGTERM) no Volume Manager com app a 40%. Esperado: o app volta a 100% e o Volume Manager sai (mesmo que o "Sair").
+9. **Reiniciar sessão**: Ajustes › Geral › "Abrir ao iniciar sessão" ligado; menu Apple › Encerrar Sessão, entrar de novo. Esperado: o Volume Manager abre sozinho (ícone na barra), sem janela de boas-vindas; app lembrado volta ao volume salvo. Depois de um desligamento normal, a permissão marcada é verificada sozinha e nenhum pedido aparece.

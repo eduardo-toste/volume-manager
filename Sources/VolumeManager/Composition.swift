@@ -4,6 +4,7 @@ import VolumeAudio
 import VolumeCore
 import VolumeSystem
 import VolumeUI
+import os
 
 /// Composition root: creates the real services, injects them into the domain and connects
 /// the controller's failures, the permission and the session lifecycle to it.
@@ -22,6 +23,8 @@ final class Composition {
   private let safety: SafetyPolicy
   private let controller: CoreAudioAppController
   private var lifecycle: SessionLifecycleObserver?
+  /// SIGTERM and SIGINT quit through the same path as ⌘Q, so every tap is destroyed first.
+  private var terminationSignals: [any DispatchSourceSignal] = []
   private var tasks: [Task<Void, Never>] = []
 
   init() {
@@ -76,9 +79,32 @@ final class Composition {
   func start() {
     guard tasks.isEmpty else { return }
     let failures = controller.failures()
-    lifecycle = SessionLifecycleObserver { [settings, safety] in
-      settings.flush()
-      safety.markCleanExit()
+    lifecycle = SessionLifecycleObserver(
+      onCleanExit: { [settings, safety] in
+        settings.flush()
+        safety.markCleanExit()
+      },
+      onResume: { [controller] in
+        Task { await controller.systemResumed() }
+      })
+    terminationSignals = [SIGTERM, SIGINT].map { number in
+      signal(number, SIG_IGN)
+      // Handled off the main queue: a second signal still kills an app that hangs there.
+      let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+      let signalled = OSAllocatedUnfairLock(initialState: false)
+      source.setEventHandler { [quit] in
+        if signalled.withLock({ was in
+          defer { was = true }
+          return was
+        }) {
+          signal(number, SIG_DFL)
+          raise(number)
+        } else {
+          Task { @MainActor in quit() }
+        }
+      }
+      source.resume()
+      return source
     }
     tasks = [
       Task { [store] in await store.run() },

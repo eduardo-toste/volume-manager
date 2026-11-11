@@ -21,6 +21,21 @@ private func deviceCountSettles(to expected: Int) async -> Bool {
   return AudioDiagnostics.deviceCount() == expected
 }
 
+/// Taps the system lists (`kAudioHardwarePropertyTapList`); nil when the property cannot be read.
+private func tapCount() -> Int? {
+  (try? AudioProperty.array(
+    AudioProperty.system, AudioProperty.address(kAudioHardwarePropertyTapList),
+    initial: AudioObjectID(0)))?.count
+}
+
+private func tapCountSettles(to expected: Int) async -> Bool {
+  for _ in 0..<30 {
+    if tapCount() == expected { return true }
+    try? await Task.sleep(for: .milliseconds(100))
+  }
+  return tapCount() == expected
+}
+
 /// Hardware tests (SPEC 12.8.1). Skipped unless `scripts/check.sh --audio`. They only ever tap a
 /// process this test started with `afplay -v 0` (digital silence) and never change the system
 /// volume, mute or default device. Without the System Audio Recording permission taps deliver
@@ -58,6 +73,7 @@ struct HardwareTests {
     else { return }
     let app = ControlledApp(id: "pid:\(player.pid)", bundleID: nil, pids: [player.pid])
     let before = AudioDiagnostics.deviceCount()
+    let tapsBefore = tapCount()
     var created = 0
     var framesSeen: UInt64 = 0
     for cycle in 0..<100 {
@@ -80,6 +96,58 @@ struct HardwareTests {
     #expect(created == 100)
     #expect(framesSeen > 0)
     #expect(await deviceCountSettles(to: before))
+    #expect(tapsBefore != nil)
+    if let tapsBefore { #expect(await tapCountSettles(to: tapsBefore)) }
+  }
+
+  /// M6 / S21-B1: the identity read back from Core Audio must equal the one we created with,
+  /// otherwise `teardown()` would leave the tap alive and the app muted.
+  @Test func teardownRecognisesItsOwnTapAndAggregate() async throws {
+    guard let player = await SilentPlayer() else { return }
+    guard let objectID = ProcessCatalog().objectID(forPID: player.pid) else { return }
+    let devices = DeviceCatalog.outputDevices()
+    guard let device = devices.first(where: { $0.kind == .builtIn }) ?? devices.first,
+      let signature = CoreAudioTapEngine(
+        catalog: ProcessCatalog(), identity: TestPIDIdentity(pid: player.pid)
+      ).deviceSignature(uid: device.uid)
+    else { return }
+    let tapsBefore = tapCount()
+    let devicesBefore = AudioDiagnostics.deviceCount()
+    let pipeline = TapPipeline()
+    let description = CATapDescription(stereoMixdownOfProcesses: [objectID])
+    description.isPrivate = true
+    // As in production; the only tapped process is the test's own silent player.
+    description.muteBehavior = .mutedWhenTapped
+    let tapID = try pipeline.createTap(description)
+    let aggregateUID = DeviceCatalog.aggregateUIDPrefix + UUID().uuidString
+    let aggregateID = try pipeline.createAggregate([
+      kAudioAggregateDeviceNameKey: "Volume aggregate",
+      kAudioAggregateDeviceUIDKey: aggregateUID,
+      kAudioAggregateDeviceMainSubDeviceKey: signature.rawUID,
+      kAudioAggregateDeviceIsPrivateKey: true,
+      kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: signature.rawUID]],
+      kAudioAggregateDeviceTapListKey: [
+        [kAudioSubTapUIDKey: description.uuid.uuidString]
+      ],
+    ])
+    let tapUID = try AudioProperty.string(tapID, AudioProperty.address(kAudioTapPropertyUID))
+    let readAggregate = try AudioProperty.string(
+      aggregateID, AudioProperty.address(kAudioDevicePropertyDeviceUID))
+    #expect(TapPipeline.isOurs(found: tapUID, expected: description.uuid.uuidString))
+    #expect(TapPipeline.isOurs(found: readAggregate, expected: aggregateUID))
+    // S6-M1: the UID fallback finds our own objects even from a wrong ID.
+    #expect(
+      TapPipeline.translate(
+        kAudioHardwarePropertyTranslateUIDToTap, uid: description.uuid.uuidString)
+        == tapID)
+    #expect(
+      TapPipeline.translate(kAudioHardwarePropertyTranslateUIDToDevice, uid: aggregateUID)
+        == aggregateID)
+    #expect(pipeline.teardown() == true)
+    #expect(pipeline.teardown() == true)
+    #expect(await deviceCountSettles(to: devicesBefore))
+    #expect(tapsBefore != nil)
+    if let tapsBefore { #expect(await tapCountSettles(to: tapsBefore)) }
   }
 
   @Test func controllerEndToEndOnTheSilentPlayer() async throws {

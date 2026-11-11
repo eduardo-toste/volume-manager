@@ -229,16 +229,12 @@ public actor CoreAudioAppController: AppAudioController {
         health: SessionHealth(policy: policy))
       AudioLog.logger.notice("tap and aggregate created, IO started")
       if let old {
-        let serviceAtStart = serviceGeneration
         old.handle.setTarget(gain: 0)
         try? await clock.sleep(for: policy.crossfade)
-        // If `coreaudiod` restarted during the fade, the old objects are already gone.
+        // If `coreaudiod` restarted during the fade, the old objects are gone: `stop()` leaves
+        // anything that no longer answers with its own identity alone.
         AudioLog.logger.notice("old tap destroyed after cross-fade")
-        if serviceGeneration == serviceAtStart {
-          old.handle.stop()
-        } else {
-          old.handle.abandon()
-        }
+        old.handle.stop()
         killList.remove(old.token)
       }
       return true
@@ -269,15 +265,6 @@ public actor CoreAudioAppController: AppAudioController {
     guard let entry = entries.removeValue(forKey: id) else { return }
     AudioLog.logger.notice("tap and aggregate destroyed, IO stopped")
     entry.handle.stop()
-    killList.remove(entry.token)
-    cancelWatchdogIfIdle()
-  }
-
-  /// After a `coreaudiod` restart: forgets the tap without destroying anything, because the
-  /// server lost its objects and the old IDs may now name objects that are not ours (M-2).
-  private func forget(_ id: String) {
-    guard let entry = entries.removeValue(forKey: id) else { return }
-    entry.handle.abandon()
     killList.remove(entry.token)
     cancelWatchdogIfIdle()
   }
@@ -371,9 +358,23 @@ public actor CoreAudioAppController: AppAudioController {
   private func handle(_ change: EnvironmentChange) async {
     if change == .serviceRestarted {
       serviceGeneration += 1
-      for id in Array(entries.keys) { forget(id) }
+      // The old objects are gone or renamed by the new server: `stop()` checks each one's
+      // identity first (S21-B1), so a tap built after the restart is destroyed, not orphaned.
+      for id in Array(entries.keys) { destroy(id) }
       failed.removeAll()
     }
+    await reapplyLastDesired()
+  }
+
+  /// The Mac woke up or this user's session became active again (SPEC 8): destroys every tap and
+  /// builds the wanted ones anew, because the devices behind them may have been reset. Apps that
+  /// failed stay failed (no retry without the user).
+  public func systemResumed() async {
+    for id in Array(entries.keys) { destroy(id) }
+    await reapplyLastDesired()
+  }
+
+  private func reapplyLastDesired() async {
     guard let last = lastDesired, last.generation == generation.current
     else { return }
     await apply(last.list, issuedAt: last.generation)

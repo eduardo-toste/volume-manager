@@ -15,10 +15,10 @@ struct SecurityM21Tests {
   }
 
   /// Finding S21-B1: `coreaudiod` restarted, and a `reconcile` built a tap with the new (valid)
-  /// IDs before the restart event reached the controller. The event then forgets that tap: it
-  /// is neither stopped nor in the kill list, so with real Core Audio it would keep running
-  /// (muted-when-tapped) until the process exits, and `restoreAll` can no longer reach it.
-  @Test func aTapBuiltAfterTheRestartButBeforeTheEventIsOrphaned() async {
+  /// IDs before the restart event reached the controller. The event must not orphan that tap:
+  /// it is stopped (the real `stop()` checks each object's identity first, so dead or foreign
+  /// IDs are left alone) and the tap is rebuilt.
+  @Test func aTapBuiltAfterTheRestartButBeforeTheEventIsStoppedNotOrphaned() async {
     let engine = FakeTapEngine()
     engine.setDevice("SPK")
     let controller = CoreAudioAppController(
@@ -29,9 +29,8 @@ struct SecurityM21Tests {
     engine.emit(.serviceRestarted)
     #expect(await eventually { engine.created.count == 2 })
     await controller.restoreAll()
-    withKnownIssue("residual window of M-2: a live tap can be abandoned (S21-B1)") {
-      #expect(builtAfterRestart.stopCalls > 0 || !builtAfterRestart.isAbandoned)
-    }
+    #expect(builtAfterRestart.stopCalls == 1)
+    #expect(engine.live.isEmpty)
     #expect(engine.created[1].stopCalls >= 1)
   }
 

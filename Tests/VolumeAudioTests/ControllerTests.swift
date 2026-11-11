@@ -155,10 +155,59 @@ struct ControllerReconcileTests {
     await rig.controller.reconcile(desired: [desired()])
     rig.engine.emit(.serviceRestarted)
     #expect(await eventually { rig.engine.created.count == 2 })
-    // The old objects died with the server: forgotten, never destroyed (finding M-2).
-    #expect(rig.engine.created[0].isAbandoned)
-    #expect(rig.engine.created[0].stopCalls == 0)
+    // The old tap is stopped once; the real `stop()` leaves dead or foreign IDs alone (M-2).
+    #expect(rig.engine.created[0].stopCalls == 1)
     #expect(rig.engine.live.count == 1)
+  }
+
+  // M6: wake from sleep and fast user switching rebuild the taps (SPEC 8).
+
+  @Test func wakeOrSessionResumeRebuildsEveryTapOnce() async {
+    let rig = Rig()
+    await rig.controller.reconcile(desired: [desired(), desired(app("app.two", pids: [20]))])
+    #expect(rig.engine.created.count == 2)
+    await rig.controller.systemResumed()
+    #expect(rig.engine.created.count == 4)
+    #expect(rig.engine.created.prefix(2).allSatisfy { $0.stopCalls == 1 })
+    #expect(rig.engine.live.count == 2)
+    #expect(rig.controller.killList.count == 2)
+    await rig.controller.restoreAll()
+    #expect(rig.engine.live.isEmpty)
+  }
+
+  @Test func resumeWithoutTapsOrAfterARestoreCreatesNothing() async {
+    let rig = Rig()
+    await rig.controller.systemResumed()
+    #expect(rig.engine.created.isEmpty)
+    await rig.controller.reconcile(desired: [desired()])
+    await rig.controller.restoreAll()
+    await rig.controller.systemResumed()
+    #expect(rig.engine.live.isEmpty, "a restored (panic) state is not undone by waking up")
+  }
+
+  @Test func resumeDoesNotRetryAnAppThatFailed() async {
+    let rig = Rig()
+    rig.engine.failNext(.coreAudio(AudioError(status: -1, context: "boom")))
+    await rig.controller.reconcile(desired: [desired()])
+    rig.engine.failNext(nil)
+    await rig.controller.systemResumed()
+    #expect(rig.engine.created.isEmpty, "only the user may retry (SPEC 4.6)")
+  }
+
+  @Test func unpluggingAndRepluggingTheHeadphonesLeavesNoOrphanTap() async {
+    let rig = Rig()
+    let onPods = desired(device: "PODS")
+    await rig.controller.reconcile(desired: [onPods])
+    #expect(rig.engine.live.count == 1)
+    // Unplugged: the device is gone, the tap is destroyed at once (the app plays natively).
+    rig.engine.removeDevice("PODS")
+    await rig.controller.reconcile(desired: [onPods])
+    #expect(rig.engine.live.isEmpty)
+    // They come back: the next reconcile builds the tap on them again.
+    rig.engine.setDevice("PODS", rate: 24_000, id: 2)
+    await rig.controller.reconcile(desired: [onPods])
+    #expect(await eventually { rig.engine.live.count == 1 })
+    #expect(rig.engine.live.first?.request.device.uid == "PODS")
   }
 
   @Test func missingDeviceDestroysTheTapAndReportsWithoutLatching() async {

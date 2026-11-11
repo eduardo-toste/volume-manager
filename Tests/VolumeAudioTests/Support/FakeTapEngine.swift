@@ -14,7 +14,6 @@ final class FakeTapHandle: TapHandle {
     var targets: [Float] = []
     var stopped = false
     var stopCalls = 0
-    var abandoned = false
   }
 
   let request: TapRequest
@@ -40,7 +39,6 @@ final class FakeTapHandle: TapHandle {
       $0.stopCalls += 1
     }
   }
-  func abandon() { state.withLock { $0.abandoned = true } }
   var diagnostics: TapDiagnostics {
     TapDiagnostics(
       appID: request.app.id, pids: request.pids, deviceUID: request.device.uid,
@@ -53,8 +51,6 @@ final class FakeTapHandle: TapHandle {
   var isStopped: Bool { state.withLock { $0.stopped } }
   /// Number of `stop()` calls (Core Audio objects destroyed).
   var stopCalls: Int { state.withLock { $0.stopCalls } }
-  /// True once the controller forgot the tap without destroying it.
-  var isAbandoned: Bool { state.withLock { $0.abandoned } }
   func deliver(frames: UInt64, signal: Bool) {
     state.withLock {
       $0.frames += frames
@@ -96,7 +92,7 @@ final class FakeTapEngine: TapEngine {
   func emit(_ change: EnvironmentChange) { hub.yield(change) }
 
   var created: [FakeTapHandle] { state.withLock { $0.created } }
-  var live: [FakeTapHandle] { created.filter { !$0.isStopped && !$0.isAbandoned } }
+  var live: [FakeTapHandle] { created.filter { !$0.isStopped } }
   var enteredCount: Int { state.withLock { $0.entered } }
 
   func deviceSignature(uid: String) -> DeviceSignature? { state.withLock { $0.devices[uid] } }

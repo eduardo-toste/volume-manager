@@ -133,7 +133,6 @@ private final class CountingHandle: TapHandle {
   var hasFault: Bool { false }
   func setTarget(gain: Float) {}
   func stop() { stops.add(1, ordering: .relaxed) }
-  func abandon() {}
   var diagnostics: TapDiagnostics {
     TapDiagnostics(
       appID: "x", pids: [], deviceUID: "", framesProcessed: 0, hasSeenSignal: false,

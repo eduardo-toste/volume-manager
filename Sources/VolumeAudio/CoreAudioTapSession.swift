@@ -45,22 +45,12 @@ final class CoreAudioTapSession: TapHandle {
       isFormatMonitored: info.isFormatMonitored)
   }
 
+  /// Cancelling a listener may pass an output device ID that is stale after a `coreaudiod`
+  /// restart; that is harmless, it only removes this process's own listener block (S21-B4).
+  /// The Core Audio objects are destroyed only if they are still ours (`TapPipeline.teardown`).
   func stop() {
     for listener in listeners { listener.cancel() }
-    pipeline.teardown()
-  }
-
-  /// Forgets the Core Audio objects without destroying them (SPEC 4.6, finding M-2): after a
-  /// `coreaudiod` restart their IDs are meaningless and may belong to someone else's objects,
-  /// so no destroy or stop is sent for them. Cancelling the listeners still passes the old
-  /// device ID to `AudioObjectRemovePropertyListenerBlock`; that is harmless because it only
-  /// removes this process's own listener blocks.
-  /// The realtime state is deliberately kept alive forever (a few bytes) because the IOProc
-  /// holds an unretained pointer to it and we cannot prove the client side stopped calling it.
-  func abandon() {
-    for listener in listeners { listener.cancel() }
-    pipeline.abandon()
-    _ = Unmanaged.passRetained(state)
+    pipeline.teardown(keeping: state)
   }
 
   deinit { stop() }
@@ -129,11 +119,10 @@ final class CoreAudioTapSession: TapHandle {
       try pipeline.startIO(
         proc: tapIOProc, client: Unmanaged.passUnretained(state).toOpaque())
     } catch let error as TapError {
-      // The IOProc holds an unretained pointer to `state`: keep it alive until teardown.
-      withExtendedLifetime(state) { pipeline.teardown() }
+      pipeline.teardown(keeping: state)
       throw error
     } catch {
-      withExtendedLifetime(state) { pipeline.teardown() }
+      pipeline.teardown(keeping: state)
       throw .coreAudio(
         (error as? AudioError) ?? AudioError.unsupported("unexpected error creating tap"))
     }

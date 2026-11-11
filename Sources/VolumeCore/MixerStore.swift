@@ -650,8 +650,9 @@ public final class MixerStore {
       )
     }
     wantsTaps = !desired.isEmpty
-    // After an ambiguous denial, `runAutomaticCheck` does the checking.
-    if settings.audioPermissionConfirmed, !ambiguousDenial,
+    // After an ambiguous denial, `runAutomaticCheck` does the checking. A mark left by a session
+    // that did not end cleanly may be stale: only a user action verifies then.
+    if settings.audioPermissionConfirmed, safety.previousSessionEndedCleanly, !ambiguousDenial,
       desired.contains(where: { isPlaying($0.app.id) })
     {
       confirmAccessIfNeeded()

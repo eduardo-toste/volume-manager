@@ -23,6 +23,10 @@ public final class SafetyPolicy {
 
   /// True when remembered volumes and routes must not be applied in this session.
   public private(set) var isSafeMode = false
+  /// True when the previous session ended through a normal quit or shutdown. Without it the
+  /// permission mark may be stale (permission reset, app re-signed), so the permission is not
+  /// verified by itself at launch (SPEC 4.6).
+  public private(set) var previousSessionEndedCleanly = false
 
   @ObservationIgnored private let store: any PreferencesStore
   @ObservationIgnored private let clock: AppClock
@@ -44,6 +48,7 @@ public final class SafetyPolicy {
       max(PreferenceValidation.integer(store.object(forKey: Key.earlyCrashes)) ?? 0, 0), 100)
     if hadSession { crashes = (clean || stable) ? 0 : crashes + 1 }
     isSafeMode = crashes >= Self.crashThreshold
+    previousSessionEndedCleanly = hadSession && clean
     write(crashes: crashes, clean: false, stable: false)
     stableTask?.cancel()
     stableTask = Task { [weak self, clock] in

@@ -61,7 +61,6 @@ struct QAM4PermissionFlowTests {
     async let second = monitor.refresh(onlyIfDenied: false)
     let results = await [first, second]
     #expect(monitor.status == .denied)
-    #expect(results.contains(nil), "the overlapping call ran no check")
-    #expect(results.contains(.denied))
+    #expect(results == [.denied, .denied], "the overlapping call waits for the running check")
   }
 }

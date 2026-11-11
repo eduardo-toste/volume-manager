@@ -102,4 +102,38 @@ struct SafetyPolicyTests {
     #expect(!policy.isSafeMode)
     #expect(hostile.values["safety.earlyCrashes"] as? Int == 1)
   }
+
+  @Test func previousSessionEndedCleanlyOnlyAfterAMarkedCleanExit() {
+    #expect(!launch().previousSessionEndedCleanly, "first launch: no record")
+    #expect(!launch().previousSessionEndedCleanly, "the first session never ended")
+    let session = launch()
+    session.markCleanExit()
+    #expect(launch().previousSessionEndedCleanly)
+    #expect(!launch().previousSessionEndedCleanly, "that one ended without a clean exit")
+  }
+
+  /// M6, end to end: two early crashes, then a start in safe mode that exits cleanly, then a
+  /// normal start that applies what was remembered.
+  @Test func safeModeEndsAfterACleanExitAndRememberedVolumesReturn() async {
+    let remembered: [String: Any] = [
+      "rememberedApps": ["com.spotify.client": ["volume": 0.3, "muted": false]] as [String: Any]
+    ]
+    var saved = remembered
+    func start() -> MixerHarness {
+      let h = MixerHarness(preferences: saved, beginSafety: true)
+      h.start([h.process("Spotify", pid: 1, playing: true)])
+      saved = h.preferences.values
+      return h
+    }
+    _ = start()
+    _ = start()
+    let inSafeMode = start()
+    #expect(inSafeMode.store.isSafeMode)
+    #expect(inSafeMode.store.rows.first?.state == .default)
+    inSafeMode.safety.markCleanExit()
+    saved = inSafeMode.preferences.values
+    let normal = start()
+    #expect(!normal.store.isSafeMode)
+    #expect(normal.store.rows.first?.state.volume == 0.3)
+  }
 }

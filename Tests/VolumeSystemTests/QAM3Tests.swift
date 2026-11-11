@@ -414,9 +414,8 @@ struct QALifecycleTests {
     let workspace = NotificationCenter()
     let app = NotificationCenter()
     let counter = Counter()
-    let observer = SessionLifecycleObserver(workspaceCenter: workspace, appCenter: app) {
-      counter.bump()
-    }
+    let observer = SessionLifecycleObserver(
+      workspaceCenter: workspace, appCenter: app, onCleanExit: { counter.bump() }, onResume: {})
     observer.stop()
     observer.stop()
     workspace.post(name: NSWorkspace.willPowerOffNotification, object: nil)
@@ -428,9 +427,8 @@ struct QALifecycleTests {
     let workspace = NotificationCenter()
     let app = NotificationCenter()
     let counter = Counter()
-    let observer = SessionLifecycleObserver(workspaceCenter: workspace, appCenter: app) {
-      counter.bump()
-    }
+    let observer = SessionLifecycleObserver(
+      workspaceCenter: workspace, appCenter: app, onCleanExit: { counter.bump() }, onResume: {})
     workspace.post(name: NSApplication.willTerminateNotification, object: nil)
     app.post(name: NSWorkspace.willPowerOffNotification, object: nil)
     #expect(counter.count == 0)
@@ -441,9 +439,8 @@ struct QALifecycleTests {
     let workspace = NotificationCenter()
     let app = NotificationCenter()
     let counter = Counter()
-    let observer = SessionLifecycleObserver(workspaceCenter: workspace, appCenter: app) {
-      counter.bump()
-    }
+    let observer = SessionLifecycleObserver(
+      workspaceCenter: workspace, appCenter: app, onCleanExit: { counter.bump() }, onResume: {})
     for _ in 0..<3 { workspace.post(name: NSWorkspace.willPowerOffNotification, object: nil) }
     #expect(counter.count == 3)
     observer.stop()
@@ -456,9 +453,8 @@ struct QALifecycleTests {
     let counter = Counter()
     weak var weakObserver: SessionLifecycleObserver?
     do {
-      let observer = SessionLifecycleObserver(workspaceCenter: workspace, appCenter: app) {
-        counter.bump()
-      }
+      let observer = SessionLifecycleObserver(
+        workspaceCenter: workspace, appCenter: app, onCleanExit: { counter.bump() }, onResume: {})
       weakObserver = observer
     }
     #expect(weakObserver == nil)

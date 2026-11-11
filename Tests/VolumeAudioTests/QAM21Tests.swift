@@ -22,9 +22,10 @@ struct QAServiceRestartM21Tests {
     )
   }
 
-  /// The restart arrives while the old tap fades out: neither the old nor the new handle may be
-  /// stopped (their IDs are dead); the app ends with exactly one working tap.
-  @Test func restartDuringCrossfadeNeverStopsWithDeadIDs() async {
+  /// The restart arrives while the old tap fades out: both handles are stopped (the real `stop()`
+  /// checks identity, so dead IDs are left alone, S21-B2), once each; the app ends with exactly
+  /// one working tap.
+  @Test func restartDuringCrossfadeStopsEachHandleOnceAndLeavesOneTap() async {
     let (engine, clock, controller) = rig()
     await controller.reconcile(desired: [qaDesired([10])])
     let first = engine.created[0]
@@ -36,14 +37,14 @@ struct QAServiceRestartM21Tests {
     for _ in 0..<50 { await Task.yield() }
     clock.advance(by: .milliseconds(50))  // past the 40 ms crossfade, before the 500 ms watchdog
     await task.value
-    #expect(engine.created[0].isAbandoned && engine.created[0].stopCalls == 0)
-    #expect(engine.created[1].isAbandoned && engine.created[1].stopCalls == 0)
+    #expect(engine.created[0].stopCalls == 1)
+    #expect(engine.created[1].stopCalls == 1)
     #expect(first === engine.created[0])
     #expect(engine.live.count == 1)  // the rebuilt tap, never left without a path (4.6)
     #expect(controller.killList.count == 1)
     await controller.restoreAll()
     #expect(engine.live.isEmpty)
-    #expect(engine.created.prefix(2).allSatisfy { $0.stopCalls == 0 })
+    #expect(engine.created.prefix(2).allSatisfy { $0.stopCalls == 1 })
   }
 
   @Test func repeatedRestartsDoNotAccumulateOrLoop() async {
@@ -55,7 +56,7 @@ struct QAServiceRestartM21Tests {
       #expect(engine.live.count == 1)
       #expect(controller.killList.count == 1)
     }
-    #expect(engine.created.dropLast().allSatisfy { $0.isAbandoned && $0.stopCalls == 0 })
+    #expect(engine.created.dropLast().allSatisfy { $0.stopCalls == 1 })
     await controller.restoreAll()
     #expect(engine.live.isEmpty)
   }

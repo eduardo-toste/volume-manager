@@ -2,11 +2,11 @@ import AppKit
 import Foundation
 
 /// Calls `onCleanExit` when the user's session ends normally (power off, restart, log out) or
-/// the app terminates normally, so the domain can call `SafetyPolicy.markCleanExit()`.
-/// Wiring only; the composition root connects it (M4/M6).
+/// the app terminates normally, so the domain can call `SafetyPolicy.markCleanExit()`; and
+/// `onResume` when the Mac wakes up or this user's session becomes active again (fast user
+/// switching), so the taps can be rebuilt (SPEC 8). Wiring only; the composition root connects it.
 @MainActor
 public final class SessionLifecycleObserver {
-  private let onCleanExit: @MainActor () -> Void
   private var tokens: [any NSObjectProtocol] = []
   private var centers: [NotificationCenter] = []
 
@@ -14,11 +14,13 @@ public final class SessionLifecycleObserver {
   public init(
     workspaceCenter: NotificationCenter = NSWorkspace.shared.notificationCenter,
     appCenter: NotificationCenter = .default,
-    onCleanExit: @escaping @MainActor () -> Void
+    onCleanExit: @escaping @MainActor () -> Void,
+    onResume: @escaping @MainActor () -> Void
   ) {
-    self.onCleanExit = onCleanExit
-    observe(NSWorkspace.willPowerOffNotification, on: workspaceCenter)
-    observe(NSApplication.willTerminateNotification, on: appCenter)
+    observe(NSWorkspace.willPowerOffNotification, on: workspaceCenter, onCleanExit)
+    observe(NSApplication.willTerminateNotification, on: appCenter, onCleanExit)
+    observe(NSWorkspace.didWakeNotification, on: workspaceCenter, onResume)
+    observe(NSWorkspace.sessionDidBecomeActiveNotification, on: workspaceCenter, onResume)
   }
 
   isolated deinit {
@@ -32,9 +34,12 @@ public final class SessionLifecycleObserver {
     tokens.removeAll()
   }
 
-  private func observe(_ name: Notification.Name, on center: NotificationCenter) {
-    let token = center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-      MainActor.assumeIsolated { self?.onCleanExit() }
+  private func observe(
+    _ name: Notification.Name, on center: NotificationCenter,
+    _ action: @escaping @MainActor () -> Void
+  ) {
+    let token = center.addObserver(forName: name, object: nil, queue: .main) { _ in
+      MainActor.assumeIsolated { action() }
     }
     centers.append(center)
     tokens.append(token)

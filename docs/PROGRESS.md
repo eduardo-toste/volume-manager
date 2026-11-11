@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-10: **M5.2 e M5.3 integradas.** Antes da M6: experimento de revogação (condição da Segurança) e decisão S53-B2 — ver item 0. **M5 (Ajustes, Boas-vindas e ícones) concluída e integrada na `main`** — QA PASS + Segurança LIBERA (2 voltas). Falta o teste manual do usuário (`docs/MANUAL_TESTS.md`, seção M5). **Próxima sessão: M6.**
+> Atualizado em 2026-11-11: **M6 integrada** (falta o ⏸3 do usuário). **Próxima: M7.** Antes, em 2026-11-10: **M5.2 e M5.3 integradas.** Antes da M6: experimento de revogação (condição da Segurança) e decisão S53-B2 — ver item 0. **M5 (Ajustes, Boas-vindas e ícones) concluída e integrada na `main`** — QA PASS + Segurança LIBERA (2 voltas). Falta o teste manual do usuário (`docs/MANUAL_TESTS.md`, seção M5). **Próxima sessão: M6.**
 
 ## Onde estamos
 
@@ -26,13 +26,15 @@
 | M5.1 Correções do teste manual da M5 (Boas-vindas na frente com `orderFrontRegardless`; “Permitir…” mostra o pedido do macOS no clique — escuta curta de processo ocioso só por ação do usuário; texto neutro do inconclusivo) | ✅ QA PASS + Segurança LIBERA (`docs/reports/m5.1-qa.md`, `m5-security.md` §M5.1) + teste manual do usuário (pedido apareceu no clique) | branch `etapa/m5.1` |
 | M5.2 Rodapé do popover (sem `•••`; Restaurar áudio original e Sobre no rodapé, decisão do usuário) | ✅ QA PASS (`docs/reports/m5.2-qa.md`); conferência visual do usuário pendente | branch `etapa/m5.2-rodape` |
 | M5.3 Estabilidade (bug do Discord: vigia de silêncio 120 s com contagem única; aviso de permissão só se não concedida; lista só com apps reproduzindo ou em chamada, sai em 3 s, ao vivo; menu Opções no rodapé; sem anel de foco) | ✅ QA PASS (`docs/reports/m5.3-qa.md`, `m5.3-ui-qa.md`) + Segurança LIBERA **condicionado ao experimento revoke-exp** (`docs/reports/m5.3-security.md`); teste manual do usuário pendente | branch `etapa/m5.3-estabilidade` |
-| M6 Robustez · M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
+| M6 Ciclo de vida e robustez (acordar/troca de usuário recria taps; SIGTERM/SIGINT = ⌘Q, 2º sinal mata; identidade conferida antes de destruir com fallback por UID — S21-B1/B2, S6-M1; auto-verificação só após sessão limpa; "Permitir…" aguarda verificação em curso) | ✅ QA PASS (`docs/reports/m6-qa.md`, hardware com `afplay -v 0` incluindo tap `mutedWhenTapped`) + Segurança LIBERA (reavaliação, `docs/reports/m6-security.md`); ⏸3 do usuário pendente (`docs/MANUAL_TESTS.md` M6) | branch `etapa/m6` |
+| M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
 ## Próxima sessão — ordem sugerida
 
-0. **Pendências da M5.3 (2026-11-10) — fazer ANTES da M6.**
+0. **2026-11-11: experimento revoke-exp CANCELADO** — o tom de teste (−50 dBFS em tap `mutedWhenTapped`, aggregate sem saída física) foi ouvido no fone do usuário ANTES de qualquer revogação. **Nunca repetir.** O usuário decidiu seguir para a M6 sem a M5.5 (caminho seguro do S53-A1 desfeito antes do commit): a variante "revogação zera só taps novos" fica **risco aceito pelo usuário**; S53-B2 aceito sem mudança ("do jeito da última build está tudo certo"). Para a M7.5: entender por que o `mutedWhenTapped` não silenciou a fonte própria sem saída física.
+   **Pendências da M5.3 (2026-11-10)** (o teste manual continua valendo).
    - **Experimento revoke-exp (condição da Segurança)**: pronto em `scratchpad/revoke-exp/` da sessão de 2026-11-10 (bundle `vmexp.app`, id `com.volumemanager.vmctl-exp`, sinal inaudível dentro de tap `mutedWhenTapped` com aggregate sem saída física). O usuário desliga o item **vmctl-exp** em Ajustes › Privacidade › Gravação de Áudio do Sistema ~1 min após o início, espera 2 min e religa. Se o scratchpad sumir, pedir a um Dev para recriar (relatório na conversa: tap A contínuo + tap B novo a cada 60 s, log a cada 250 ms). **Se os taps antigos continuarem com sinal enquanto os novos recebem só zeros → Alto, BLOQUEIA** (o sinal dos antigos zera a contagem global e o app novo fica mudo sem prazo).
    - **S53-B2 (decisão do usuário)**: com a marca gravada e a permissão revogada de fato, o app volta ao som normal mas os sliders param de funcionar sem aviso. Mostrar "Permitir…" nesse caso ou deixar? O resultado do experimento ajuda a decidir.
    - **Teste manual do usuário (M5.3)**: chamada real do Discord com silêncios longos (sem engasgo, sem "sem permissão", Discord fica na lista); app que para sai sozinho em ~3 s (popover aberto e fechado); "Permitir…" não aparece com a permissão dada; menu Opções; nenhum contorno azul ao clicar.

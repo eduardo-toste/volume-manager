@@ -109,10 +109,9 @@ protocol TapHandle: Sendable {
   func consumeSignalFlag() -> Bool
   var hasFault: Bool { get }
   func setTarget(gain: Float)
+  /// Destroys the tap and its aggregate device, but only objects that still answer with the
+  /// identity they were created with (so stale IDs after a `coreaudiod` restart are left alone).
   func stop()
-  /// Forgets the Core Audio objects without destroying them (the server restarted and already
-  /// lost them; the old IDs must not be used).
-  func abandon()
   var diagnostics: TapDiagnostics { get }
 }
 

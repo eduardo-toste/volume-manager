@@ -108,7 +108,8 @@ private struct RejectAllIdentity: ProcessIdentityChecking {
   func confirm(pid: Int32, belongsTo app: ControlledApp) -> Bool { false }
 }
 
-@Suite("M2.1: coreaudiod restart forgets instead of destroying (M-2)", .timeLimit(.minutes(1)))
+@Suite(
+  "M2.1: coreaudiod restart stops every tap by identity (M-2, S21-B1)", .timeLimit(.minutes(1)))
 struct ServiceRestartTests {
   private func desired(_ id: String) -> DesiredAppAudio {
     DesiredAppAudio(
@@ -116,7 +117,7 @@ struct ServiceRestartTests {
       targetDeviceUID: "SPK")
   }
 
-  @Test func everyTapIsAbandonedNeverStoppedThenRebuilt() async {
+  @Test func everyTapIsStoppedThenRebuilt() async {
     let engine = FakeTapEngine()
     engine.setDevice("SPK")
     let controller = CoreAudioAppController(
@@ -126,15 +127,15 @@ struct ServiceRestartTests {
     engine.emit(.serviceRestarted)
     #expect(await eventually { engine.created.count == 4 })
     let old = Array(engine.created.prefix(2))
-    #expect(old.allSatisfy { $0.isAbandoned && $0.stopCalls == 0 })
+    #expect(old.allSatisfy { $0.stopCalls == 1 })
     #expect(engine.live.count == 2)
     await controller.restoreAll()
-    // restoreAll only stops the new taps; the forgotten ones are no longer reachable.
-    #expect(old.allSatisfy { $0.stopCalls == 0 })
+    // The old taps were stopped once and are no longer reachable: restoreAll stops only the new.
+    #expect(old.allSatisfy { $0.stopCalls == 1 })
     #expect(engine.live.isEmpty)
   }
 
-  @Test func theKillListNoLongerHoldsAbandonedTaps() async throws {
+  @Test func theKillListHoldsOnlyTheRebuiltTap() async throws {
     let engine = FakeTapEngine()
     engine.setDevice("SPK")
     let controller = CoreAudioAppController(
@@ -144,29 +145,50 @@ struct ServiceRestartTests {
     engine.emit(.serviceRestarted)
     try #require(await eventually { engine.created.count == 2 })
     #expect(controller.killList.count == 1)  // only the rebuilt tap
-    #expect(engine.created[0].stopCalls == 0)
+    #expect(engine.created[0].stopCalls == 1)
     await controller.restoreAll()
-    #expect(engine.created[0].stopCalls == 0)
+    #expect(engine.created[0].stopCalls == 1)
     #expect(engine.created[1].stopCalls >= 1)
   }
 
-  @Test(.requiresAudioHardware, .tags(.audioHardware))
-  func pipelineAbandonLeavesTheRealObjectAlive() throws {
+  /// S21-B1/B2: only an object that answers with the identity it was created with is destroyed.
+  @Test func onlyAnObjectWithItsOwnIdentityIsDestroyed() {
+    let ours = DeviceCatalog.aggregateUIDPrefix + "ABC"
+    #expect(TapPipeline.isOurs(found: ours, expected: ours))
+    #expect(TapPipeline.isOurs(found: ours.lowercased(), expected: ours))  // UUID text case
+    #expect(!TapPipeline.isOurs(found: "com.other.aggregate", expected: ours))
+    #expect(!TapPipeline.isOurs(found: nil, expected: ours), "a dead ID does not answer")
+    #expect(!TapPipeline.isOurs(found: "", expected: ""), "nothing was recorded at creation")
+    #expect(!TapPipeline.isOurs(found: nil, expected: ""))
+  }
+
+  /// A pipeline that never created anything has nothing to leave alone.
+  @Test func anEmptyPipelineTearsDownCleanlyAndTwice() {
     let pipeline = TapPipeline()
-    let uid = DeviceCatalog.aggregateUIDPrefix + UUID().uuidString
-    let aggregate: AudioObjectID
-    do {
-      aggregate = try pipeline.createAggregate([
-        kAudioAggregateDeviceNameKey: "Volume test aggregate",
-        kAudioAggregateDeviceUIDKey: uid,
-        kAudioAggregateDeviceIsPrivateKey: true,
-      ])
-    } catch { return }
-    let before = AudioDiagnostics.deviceUIDs().filter { $0 == uid }
-    pipeline.abandon()
-    pipeline.teardown()  // must now be a no-op
-    let after = AudioDiagnostics.deviceUIDs().filter { $0 == uid }
-    #expect(before.count == after.count)
-    #expect(AudioHardwareDestroyAggregateDevice(aggregate) == noErr)  // manual cleanup
+    #expect(pipeline.teardown())
+    #expect(pipeline.teardown())
+  }
+
+  /// S6-M1: when the ID no longer answers with our UID, the object is found by UID instead.
+  @Test(
+    arguments: [
+      // (id answers with, translate gives, expected result)
+      ("MINE", 0, 7),  // the ID still answers: it is used, no lookup needed
+      ("mine", 0, 7),  // same text in another case
+      (nil, 9, 9),  // the read failed on a live object: found by UID
+      ("OTHER", 9, 9),  // the ID names another object: ours is found by UID
+      ("OTHER", 0, -1),  // stale ID and the server has no such object: left alone
+      (nil, 0, -1),  // dead ID: left alone
+    ] as [(String?, UInt32, Int)])
+  func resolvePrefersTheIDThenTheUID(found: String?, translated: UInt32, expected: Int) {
+    let result = TapPipeline.resolve(
+      id: 7, expected: "MINE", read: { _ in found }, translate: { _ in translated })
+    #expect(result == (expected < 0 ? nil : AudioObjectID(expected)))
+  }
+
+  @Test func withoutARecordedIdentityNothingIsLookedUp() {
+    let result = TapPipeline.resolve(
+      id: 7, expected: "", read: { _ in "x" }, translate: { _ in 9 })
+    #expect(result == nil)
   }
 }

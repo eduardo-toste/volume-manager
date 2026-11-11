@@ -21,11 +21,23 @@ struct MixerHarness {
     preferences initial: [String: Any] = [:], beginSafety: Bool = false,
     permission status: AudioPermissionStatus = .granted
   ) {
+    var initial = initial
+    // A stored permission mark is only auto-verified after a clean exit (SPEC 4.6): by default
+    // the previous session of a harness that has the mark ended cleanly.
+    var cleanStart = false
+    if initial["audioPermissionConfirmed"] as? Bool == true, initial["safety.sessionStarted"] == nil
+    {
+      initial["safety.sessionStarted"] = true
+      initial["safety.cleanExit"] = true
+      cleanStart = true
+    }
     permission = PermissionMonitor(service: access, status: status)
     preferences = InMemoryPreferencesStore(initial)
     settings = SettingsModel(store: preferences, clock: clock)
     safety = SafetyPolicy(store: preferences, clock: clock)
-    if beginSafety { safety.beginSession() }
+    if beginSafety || cleanStart { safety.beginSession() }
+    // Ends the harness session at once, which also drops the stable-session timer.
+    if cleanStart { safety.markCleanExit() }
     store = MixerStore(
       audioSystem: system, controller: controller, appInfo: info, settings: settings,
       safety: safety, clock: clock, permission: permission)
