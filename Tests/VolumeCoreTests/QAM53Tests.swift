@@ -87,3 +87,72 @@ struct QAM53StoreTests {
     #expect(h.controller.reconcileCalls.last?.isEmpty ?? true)
   }
 }
+
+/// QA M5.3 final round: the list rules (playing or in a call, 3 s grace) and the live list.
+@MainActor
+@Suite("QA M5.3: live list", .timeLimit(.minutes(1)))
+struct QAM53LiveListTests {
+  private let marked: [String: Any] = ["audioPermissionConfirmed": true]
+
+  private func refreshes(_ h: MixerHarness) -> Int {
+    h.system.calls.filter { $0 == .refresh }.count
+  }
+
+  /// A call listed without ever getting a tap; ending it removes the row 3 s later.
+  @Test func callStaysListedWithoutATapAndLeavesThreeSecondsAfterItEnds() async {
+    let h = MixerHarness(preferences: marked, permission: .granted)
+    h.start([h.process("Zoom", pid: 1, playing: false, inCall: true)])
+    await h.settle()
+    #expect(h.store.rows.map(\.app.name) == ["Zoom"])
+    #expect(h.controller.neverTapped, "being in a call never creates a tap")
+    h.store.handle(.processes([h.process("Zoom", pid: 1, playing: false, inCall: false)]))
+    #expect(await eventually { h.clock.sleeperCount >= 1 })
+    h.clock.advance(by: MixerStore.listGracePeriod - .milliseconds(1))
+    await Task.yield()
+    #expect(h.store.rows.count == 1, "still within the 3 s")
+    h.clock.advance(by: .milliseconds(1))
+    #expect(await eventually { h.store.rows.isEmpty })
+    #expect(h.controller.neverTapped)
+  }
+
+  /// An idle app that never played is not listed at all.
+  @Test func idleAppIsNotListed() {
+    let h = MixerHarness(preferences: marked, permission: .granted)
+    h.start([h.process("Spotify", pid: 1, playing: false)])
+    #expect(h.store.rows.isEmpty)
+  }
+
+  /// The 1 s re-reading runs only while the popover is open.
+  @Test func rereadingRunsOnlyWhileThePopoverIsOpen() async {
+    let h = MixerHarness(preferences: marked, permission: .granted)
+    h.start([h.process("Zoom", pid: 1, playing: true)])
+    await h.settle()
+    let idle = refreshes(h)
+    h.clock.advance(by: .seconds(30))
+    await h.settle()
+    #expect(refreshes(h) == idle, "closed: no polling")
+    h.store.popoverOpened()
+    await h.settle()
+    #expect(refreshes(h) == idle + 1, "opening re-reads at once")
+    for _ in 0..<5 {
+      #expect(await eventually { h.clock.sleeperCount >= 1 })
+      h.clock.advance(by: MixerStore.openRefreshInterval)
+      await h.settle()
+    }
+    #expect(refreshes(h) >= idle + 5)
+    h.store.popoverClosed()
+    await h.settle()
+    let closed = refreshes(h)
+    h.clock.advance(by: .seconds(30))
+    await h.settle()
+    #expect(refreshes(h) == closed, "closing stops the timer")
+    h.store.popoverOpened()
+    h.store.popoverOpened()
+    h.store.popoverClosed()
+    await h.settle()
+    let again = refreshes(h)
+    h.clock.advance(by: .seconds(10))
+    await h.settle()
+    #expect(refreshes(h) == again, "opening twice leaves no timer behind")
+  }
+}
