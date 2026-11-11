@@ -117,10 +117,16 @@ public actor CoreAudioAppController: AppAudioController {
     failed.removeValue(forKey: appID)
   }
 
-  /// The permission check asked by `.onlySilence` ran (any result): while the silence lasts,
-  /// it is asked again after `WatchdogPolicy.recheckAfter` at the earliest.
-  public func silenceChecked() {
-    silence.retryLater()
+  /// The permission check asked by `.onlySilence` ran. `granted` (a conclusive "granted"
+  /// proves the permission now): the count starts again from zero, so a long silent call is
+  /// checked once every `silenceLimit`. Any other result: asked again after
+  /// `WatchdogPolicy.recheckAfter` at the earliest while the silence lasts (SPEC 4.6).
+  public func silenceChecked(granted: Bool) {
+    if granted {
+      silence.reset()
+    } else {
+      silence.retryLater()
+    }
   }
 
   /// Allows a new attempt for every failed app.

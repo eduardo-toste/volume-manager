@@ -86,7 +86,7 @@ struct QAFailOpenTests {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)
     }
-    await rig.controller.silenceChecked()
+    await rig.controller.silenceChecked(granted: false)
     for _ in 0..<59 {
       tap.deliver(frames: 100, signal: false)
       await rig.tick(1)

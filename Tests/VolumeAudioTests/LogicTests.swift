@@ -194,6 +194,20 @@ struct SilenceGuardTests {
     #expect(reports.filter { $0 }.count == 1)
   }
 
+  /// M5.3 (S53R, optional): a silent call with the permission granted is checked once every
+  /// 120 s, not every 30 s: at most 5 checks in 10 minutes.
+  @Test func aGrantedSilentCallIsCheckedOncePerSilenceLimit() {
+    var guardian = SilenceGuard(policy: policy)
+    var checks: [Int] = []
+    for tick in 0..<1_200 where guardian.evaluate(sawSignal: false, outputRunning: true) {
+      checks.append(tick)
+      guardian.reset()  // the check concluded "granted"
+    }
+    #expect(checks.count == 5)
+    #expect(checks.first == policy.ticks(for: policy.silenceLimit) - 1)
+    #expect(zip(checks.dropFirst(), checks).allSatisfy { $0 - $1 == 240 })
+  }
+
   @Test func silenceIsNotCountedWhileNothingRunsAndSignalResetsIt() {
     var guardian = SilenceGuard(policy: policy)
     for tick in 0..<1_000 {

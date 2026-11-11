@@ -148,6 +148,9 @@ public struct SystemAudioAccessProbe: AudioAccessProbe {
     }
     try? await clock.sleep(for: listenDuration)
     withExtendedLifetime(state) { pipeline.teardown() }
+    // Cut short (the task was cancelled) without sound: nothing was really listened to, so it
+    // proves nothing (S53R-B1). Real sound still proves the permission.
+    if Task.isCancelled, !state.sawSignal { return .indeterminate }
     let stillPlaying = playing.contains { catalog.runningOutput($0) }
     return AccessDecision.verdict(sawSignal: state.sawSignal, stillPlaying: stillPlaying)
   }

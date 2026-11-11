@@ -27,10 +27,11 @@ struct SecurityM41Tests {
     #expect(reportTicks.count == 1 + (1_199 - (silence - 1)) / retry)
   }
 
-  /// S41-A1 at controller level: silence checked as granted, then the permission is revoked
-  /// (the tap keeps giving zeros): within ~32 s a new check is asked; the store's "denied"
-  /// then removes every tap (`SecurityM41StoreTests`).
-  @Test func aGrantedSilenceIsAskedAgainWithinThirtyTwoSeconds() async {
+  /// S41-A1 at controller level: a "granted" is never trusted forever. Silence checked as
+  /// granted, then the permission is revoked (the tap keeps giving zeros): since M5.3 the count
+  /// starts again from zero, so a new check comes at 120 s (never later); an inconclusive
+  /// check is asked again within ~32 s. The store's "denied" then removes every tap.
+  @Test func aGrantedSilenceIsAskedAgainWithinTheSilenceLimit() async {
     let engine = FakeTapEngine()
     let clock = FakeClock()
     engine.setDevice("SPK")
@@ -51,7 +52,10 @@ struct SecurityM41Tests {
     }
     await silentTicks(policy.ticks(for: policy.silenceLimit))
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
-    await controller.silenceChecked()  // answered "granted"
+    await controller.silenceChecked(granted: true)
+    await silentTicks(policy.ticks(for: policy.silenceLimit))  // 120 s more
+    #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .onlySilence))
+    await controller.silenceChecked(granted: false)  // inconclusive
     await silentTicks(64)  // 32 s
     #expect(await iterator.next() == AppAudioFailure(appID: "browser", reason: .stillSilent))
     #expect(handle.isStopped == false)

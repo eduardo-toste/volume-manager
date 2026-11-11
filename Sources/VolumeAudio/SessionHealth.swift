@@ -103,8 +103,16 @@ struct SilenceGuard: Sendable {
     return true
   }
 
-  /// The permission check after a report ran: report the same silent period again after
-  /// `recheckAfter`.
+  /// A conclusive "granted" proves the permission now: count again from zero, as after real
+  /// sound. The worst case after a revocation stays `silenceLimit` (SPEC 4.6).
+  mutating func reset() {
+    silent = 0
+    reported = false
+    checked = false
+  }
+
+  /// The permission check after a report could not prove the permission: report the same
+  /// silent period again after `recheckAfter`.
   mutating func retryLater() {
     checked = true
     reported = false

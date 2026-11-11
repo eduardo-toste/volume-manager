@@ -40,7 +40,9 @@ public final class PermissionMonitor {
     isRefreshing = true
     defer { isRefreshing = false }
     let previous = status
-    let result = await service.request(userAction: userAction)
+    var result = await service.request(userAction: userAction)
+    // A check cut short by cancellation proves no denial (S53R-B1).
+    if Task.isCancelled, result == .denied { result = .notDetermined }
     if result != .notDetermined { status = result }
     if previous == .denied, status == .granted { onGranted() }
     return result

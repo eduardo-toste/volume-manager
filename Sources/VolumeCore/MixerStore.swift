@@ -181,13 +181,18 @@ public final class MixerStore {
   /// stays, no notice) and without touching the stored mark: the denial is ambiguous (a silent
   /// stream may be the only player), so the permission is checked again while something plays.
   /// At most one check runs at a time (`PermissionMonitor`); the caller checks again later.
-  public func checkSilentTap(mayReuseRecentGrant: Bool = false) async {
-    guard !(mayReuseRecentGrant && recentGrant != nil) else { return }
-    switch await permission.refresh(onlyIfDenied: false) {
+  /// Returns the result of the check, or `nil` when none ran (a recent grant answered it, or
+  /// another check was running).
+  @discardableResult
+  public func checkSilentTap(mayReuseRecentGrant: Bool = false) async -> AudioPermissionStatus? {
+    guard !(mayReuseRecentGrant && recentGrant != nil) else { return nil }
+    let result = await permission.refresh(onlyIfDenied: false)
+    switch result {
     case .granted: rememberGrant()
     case .denied: noteAmbiguousDenial()
     case .notDetermined, nil: break
     }
+    return result
   }
 
   /// Fail open without changing the popover, and check again while something plays.
@@ -456,11 +461,13 @@ public final class MixerStore {
     }
   }
 
-  /// Runs one check in the background. The previous one is cancelled first (`PermissionMonitor`
-  /// runs one at a time anyway); `settle()` waits for the last.
+  /// Runs one check in the background, after the previous one finished. Never cancels a check
+  /// in flight: a probe cut short hears nothing and could look like a denial (S53R-B1).
+  /// `settle()` waits for the last, which waits for the ones before it.
   private func startCheck(_ check: @escaping @MainActor (MixerStore) async -> Void) {
-    checkTask?.cancel()
+    let previous = checkTask
     checkTask = Task { [weak self] in
+      await previous?.value
       guard let self else { return }
       await check(self)
     }

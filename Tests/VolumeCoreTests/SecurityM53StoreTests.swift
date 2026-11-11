@@ -24,15 +24,16 @@ private final class CancellableProbeService: PermissionService, Sendable {
   func openPrivacySettings() {}
 }
 
-/// Security re-review M5.3 (S53R-M1): `startCheck` cancels the check in flight. The real probe
-/// turns a cancelled listening window into "denied", and the cancelled task still records it.
+/// Security re-review M5.3 (S53R-B1, fixed): `startCheck` used to cancel the check in flight,
+/// and the real probe turned a cancelled listening window into "denied". Checks are now queued,
+/// never cancelled, and a cancelled "denied" counts as inconclusive.
 @MainActor
 @Suite("Security M5.3 re-review: cancelled permission checks", .timeLimit(.minutes(1)))
 struct SecurityM53StoreTests {
   /// The permission is granted and Spotify plays real sound. The user clicks "Permitir…" and,
-  /// while its 500 ms check listens, reopens the popover. The click's check is cancelled,
-  /// concludes "denied", and as a "Permitir…" result it shows the notice and clears the mark.
-  @Test func reopeningThePopoverDuringPermitirShowsAFalseDenial() async {
+  /// while its 500 ms check listens, reopens the popover: the click's check is not cancelled,
+  /// hears the sound and stores the mark; no false "sem permissão".
+  @Test func reopeningThePopoverDuringPermitirShowsNoFalseDenial() async {
     let service = CancellableProbeService()
     let permission = PermissionMonitor(service: service, status: .notDetermined)
     let preferences = InMemoryPreferencesStore([:])
@@ -62,9 +63,23 @@ struct SecurityM53StoreTests {
     await store.settle()
     for _ in 0..<50 { await Task.yield() }
 
-    #expect(service.cancelled == 1, "the click's check was cancelled mid-listen")
-    #expect(permission.status == .denied, "a cancelled check is taken as a real denial")
-    #expect(store.showsPermissionNotice, "false 'sem permissão' with the permission granted")
-    #expect(!settings.audioPermissionConfirmed)
+    #expect(service.cancelled == 0, "the click's check was not cancelled")
+    #expect(permission.status == .granted)
+    #expect(!store.showsPermissionNotice, "no false 'sem permissão'")
+    #expect(settings.audioPermissionConfirmed)
+  }
+
+  /// Defense: a check whose task is cancelled while it listens (quitting, for example) never
+  /// becomes a denial in the monitor.
+  @Test func aCancelledCheckIsNotADenial() async {
+    let service = CancellableProbeService()
+    let permission = PermissionMonitor(service: service, status: .granted)
+    let task = Task { await permission.refresh(onlyIfDenied: false) }
+    #expect(await eventually { service.requests == 1 })
+    task.cancel()
+    let result = await task.value
+    #expect(service.cancelled == 1)
+    #expect(result == .notDetermined)
+    #expect(permission.status == .granted, "the last known status is kept")
   }
 }

@@ -87,8 +87,9 @@ final class Composition {
         for await event in failures {
           switch event.reason {
           case .onlySilence, .stillSilent:
-            await store.checkSilentTap(mayReuseRecentGrant: event.reason == .stillSilent)
-            await controller.silenceChecked()
+            let result = await store.checkSilentTap(
+              mayReuseRecentGrant: event.reason == .stillSilent)
+            await controller.silenceChecked(granted: result == .granted)
           case .stoppedPlaying, .startedPlaying:
             store.refreshAudioSystem()
           default:
