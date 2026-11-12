@@ -1,207 +1,158 @@
 <div align="center">
 
-<img src="Resources/AppIcon-1024.png" width="128" alt="Ícone do Volume Manager">
+<img src="Resources/AppIcon-1024.png" width="96" alt="Ícone do Volume Manager">
 
 # Volume Manager
 
-**Mixer de volume por app para o macOS, direto na barra de menus.**
+**Um volume para cada app no seu Mac, direto na barra de menus.**
 
-Baixe o volume do navegador sem mexer no do Spotify, silencie só um app ou mande cada app para uma
-saída de áudio diferente. Nativo, leve, sem driver e sem extensão de kernel.
+Abaixe o navegador sem mexer no Spotify, silencie só o Discord ou mande cada app para uma saída diferente.
 
 ![macOS 15+](https://img.shields.io/badge/macOS-15%2B-000000?logo=apple&logoColor=white)
 ![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-arm64-1f6feb)
-![Swift 6](https://img.shields.io/badge/Swift-6-F05138?logo=swift&logoColor=white)
-![Zero dependências](https://img.shields.io/badge/depend%C3%AAncias-zero-2ea44f)
+![Grátis](https://img.shields.io/badge/pre%C3%A7o-gr%C3%A1tis-2ea44f)
 ![Sem rede](https://img.shields.io/badge/rede-nenhuma-2ea44f)
 
-[Download](https://github.com/eduardo-toste/volume-manager/releases) ·
-[Instalação](#instalação) ·
-[Privacidade](#privacidade-e-segurança) ·
-[Compilar](#compilar-a-partir-do-código)
+### [⬇&nbsp; Baixar o Volume Manager](https://github.com/eduardo-toste/volume-manager/releases/latest)
 
-<br>
-
-<img src="docs/images/hero.png" alt="Popover do Volume Manager nos modos Claro e Escuro, com Discord silenciado, Música a 55%, Safari a 35% nos AirPods Pro e Spotify a 72%" width="860">
+<img src="docs/images/hero.png" alt="Popover do Volume Manager nos modos Claro e Escuro, com Discord silenciado, Música a 55%, Safari a 35% nos AirPods Pro e Spotify a 72%" width="760">
 
 </div>
 
-## Recursos
+## Instalar
 
-- **Volume de cada app** — um slider de 0 a 100% e um botão de mudo para cada app que está tocando.
-- **Saída por app** — mande o Spotify para os AirPods e deixe o resto nos alto-falantes.
-- **Volume e saída geral** — o card “Saída” controla o dispositivo padrão do sistema, como a
-  Central de Controle.
-- **Lista ao vivo** — mostra só os apps que estão reproduzindo áudio ou em chamada (Discord, Zoom,
-  FaceTime); quem para de tocar sai da lista sozinho.
-- **Lembra suas escolhas** — volume, mudo e saída de cada app voltam a valer quando ele tocar de novo.
-- **Qualidade idêntica à nativa** — o processamento é só `amostra × ganho` em Float32. Em 100% as
-  amostras são copiadas bit a bit; sem efeitos, sem conversão de formato, sem reamostragem.
-- **Igual ao sistema** — segue o modo Claro/Escuro e a cor de destaque do macOS, com VoiceOver,
-  navegação por teclado e respeito a Reduzir transparência e Reduzir movimento.
-- **Nunca deixa um app mudo** — se algo falhar, o app devolve o som original. Fechar ou travar o
-  Volume Manager também devolve o áudio de todos os apps ao padrão do macOS.
+<img src="docs/images/install-dmg.png" alt="Janela do DMG: arraste o Volume Manager para Aplicativos" width="360" align="right">
 
-## Conheça
+1. **Baixe** o `Volume-Manager-<versão>.dmg` na página de [Releases](https://github.com/eduardo-toste/volume-manager/releases/latest).
+2. **Abra o DMG** e arraste o **Volume Manager** para **Aplicativos**.
+3. **Abra o app.** Na primeira vez o macOS bloqueia, porque o app não é assinado com uma conta da Apple. Vá em **Ajustes do Sistema › Privacidade e Segurança**, role até o aviso do Volume Manager e clique em **Abrir Mesmo Assim**.
+4. **Clique em Permitir…** na janela de boas-vindas e aceite o pedido de áudio do macOS. Pronto: o ícone de três faders aparece na barra de menus.
 
-### Uma saída diferente para cada app
+<br clear="right">
 
-Clique no nome de um app para escolher para onde vai o áudio dele. Os outros continuam na saída
-padrão do sistema.
+## Usar
 
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/popover-routing-dark.png">
-    <img src="docs/images/popover-routing-light.png" alt="Linha do Safari expandida com a lista de saídas: Padrão do sistema, Alto-falantes e AirPods Pro selecionado" width="400">
-  </picture>
-</p>
+<table>
+<tr>
+<td width="50%" align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/popover-routing-dark.png">
+  <img src="docs/images/popover-routing-light.png" alt="Linha do Safari aberta com a lista de saídas: Padrão do sistema, Alto-falantes e AirPods Pro" width="260">
+</picture>
+<br><sub><b>Clique no nome de um app</b> para mandar o som dele para outra saída.</sub>
+</td>
+<td width="50%" align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/welcome-dark.png">
+  <img src="docs/images/welcome-light.png" alt="Janela de boas-vindas com o botão Permitir" width="300">
+</picture>
+<br><sub><b>No primeiro uso</b>, as boas-vindas pedem a permissão de áudio.</sub>
+</td>
+</tr>
+</table>
 
-### Primeiro uso
-
-Na primeira abertura, uma janela de boas-vindas pede a permissão de áudio do sistema e liga a
-abertura automática ao iniciar sessão (você pode desligar depois).
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/welcome-dark.png">
-    <img src="docs/images/welcome-light.png" alt="Janela de boas-vindas do Volume Manager" width="480">
-  </picture>
-</p>
-
-### Ajustes
-
-Em **Ajustes › Aplicativos** ficam os apps lembrados, com o volume e a saída salvos. Dá para
-esquecer um app ou todos de uma vez. Os Ajustes também têm **Geral** (abrir ao iniciar sessão,
-lembrar volumes, incremento do volume), **Dispositivos** e **Sobre**.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/settings-apps-dark.png">
-    <img src="docs/images/settings-apps-light.png" alt="Ajustes › Aplicativos com Discord, Música, Safari e Spotify lembrados" width="640">
-  </picture>
-</p>
-
-> As imagens são renderizadas a partir das próprias telas do app (SwiftUI), com os textos reais em
-> pt-BR e os ícones dos apps instalados.
-
-## Requisitos
-
-| | |
+| Quero… | Faça assim |
 |---|---|
-| Sistema | macOS 15 Sequoia ou mais novo |
-| Processador | Apple Silicon (o build publicado é arm64) |
-| Permissão | Apenas **áudio do sistema**, pedida no primeiro uso |
+| Ajustar o volume de um app | Clique no ícone da barra de menus e arraste o slider do app |
+| Silenciar um app | Clique no alto-falante à direita do app |
+| Mudar a saída de um app | Clique no nome do app e escolha o dispositivo |
+| Voltar tudo ao normal | **Opções › Restaurar áudio original** |
+| Abrir os Ajustes / sair | **⌘,** / **⌘Q** com o mixer aberto |
 
-## Instalação
+Só aparecem os apps que estão tocando som. Volume, mudo e saída de cada app ficam salvos e voltam quando ele tocar de novo.
 
-<p align="center">
-  <img src="docs/images/install-dmg.png" alt="Janela do DMG: arraste o Volume Manager para Aplicativos" width="560">
-</p>
-
-1. Baixe `Volume-Manager-<versão>.dmg` e o `SHA256SUMS` **somente** da página de
-   [Releases](https://github.com/eduardo-toste/volume-manager/releases). Não baixe de nenhum outro lugar.
-2. [Confira o SHA-256](#conferir-o-sha-256).
-3. Abra o DMG e arraste **Volume Manager** para **Aplicativos**.
-4. Abra o app. Como ele não é assinado com conta da Apple, o macOS bloqueia a primeira abertura:
-   vá em **Ajustes do Sistema › Privacidade e Segurança**, role até a mensagem sobre o Volume
-   Manager e clique em **Abrir Mesmo Assim** (só na primeira vez).
-5. Conceda a permissão de áudio quando o app pedir. O ícone de três faders aparece na barra de menus.
+## Perguntas frequentes
 
 <details>
-<summary><b>Alternativa pelo Terminal</b></summary>
+<summary><b>É seguro? O app coleta alguma coisa?</b></summary>
 
-Só se você baixou do endereço oficial e conferiu o SHA-256. O comando remove a marca de quarentena
-que faz o macOS bloquear a abertura, ou seja, desliga uma proteção para este app:
+Não. O app não usa a internet (nem para procurar atualizações), não tem telemetria e não grava áudio:
+o som só passa pela memória, multiplicado pelo volume. A única permissão é a de áudio do sistema.
+O processamento é só `amostra × ganho`, então a qualidade é idêntica à original. Detalhes em
+[SECURITY.md](SECURITY.md).
+</details>
+
+<details>
+<summary><b>Por que o macOS pediu a permissão de novo depois de atualizar?</b></summary>
+
+As versões não são assinadas com uma conta da Apple, então o macOS trata cada versão nova como um
+app novo. Clique em **Permitir…** no aviso do app e aceite. Para atualizar, baixe o DMG novo e
+substitua o app em Aplicativos.
+</details>
+
+<details>
+<summary><b>Um app ficou sem som. E agora?</b></summary>
+
+Use **Opções › Restaurar áudio original**, ou simplesmente feche o Volume Manager: ao fechar (ou se
+ele travar), o macOS devolve o som de todos os apps ao normal na hora.
+</details>
+
+<details>
+<summary><b>Como confiro se o arquivo baixado é o original?</b></summary>
+
+Baixe também o `SHA256SUMS` da mesma Release, deixe na mesma pasta do DMG e rode no Terminal:
+
+```sh
+shasum -a 256 -c SHA256SUMS --ignore-missing
+```
+
+Tem que aparecer `OK`. Se não aparecer, apague o arquivo e não abra.
+</details>
+
+<details>
+<summary><b>O botão "Abrir Mesmo Assim" não aparece</b></summary>
+
+Tente abrir o app uma vez antes: o botão só aparece em Privacidade e Segurança depois do primeiro
+bloqueio. Como alternativa, só se você baixou daqui e conferiu o SHA-256, rode no Terminal (isso
+remove a marca de quarentena deste app):
 
 ```sh
 xattr -dr com.apple.quarantine "/Applications/Volume Manager.app"
 ```
 </details>
 
-### Conferir o SHA-256
+<details>
+<summary><b>Como desinstalo?</b></summary>
 
-Com o DMG e o `SHA256SUMS` na mesma pasta:
+Saia do app (**⌘Q** com o mixer aberto) e arraste o **Volume Manager** de Aplicativos para o Lixo.
+Para apagar também os volumes salvos, rode `defaults delete com.volumemanager.app` no Terminal.
+</details>
 
-```sh
-shasum -a 256 -c SHA256SUMS --ignore-missing
-```
+## Para desenvolvedores
 
-Deve imprimir `OK` para o arquivo baixado. Compare também com o hash colado nas notas da Release.
-Se não bater, apague o arquivo e não abra.
+<details>
+<summary><b>Como funciona, compilar e documentação</b></summary>
 
-### Atualizar
-
-Baixe o DMG novo (e confira o SHA-256) e substitua o app em Aplicativos. Os releases são assinados
-ad hoc (sem certificado), então o macOS trata cada versão como um app novo: **cada versão nova pede
-a permissão de áudio de novo**. O app mostra o aviso com o botão "Permitir…"; é só aceitar. O app
-não procura atualizações sozinho.
-
-## Uso
-
-| Ação | Como |
-|---|---|
-| Abrir o mixer | Clique no ícone de três faders na barra de menus |
-| Ajustar um app | Arraste o slider, use ←/→ ou role no trackpad |
-| Silenciar um app | Botão de alto-falante à direita da linha, ou Espaço na linha focada |
-| Mudar a saída de um app | Clique no nome ou ícone do app e escolha o dispositivo |
-| Restaurar tudo na hora | **Opções › Restaurar áudio original** (todos os apps voltam a 100% e à saída padrão) |
-| Ajustes / Sair | ⌘, / ⌘Q com o popover aberto |
-| Fechar o mixer | Esc ou clique fora |
-
-## Privacidade e segurança
-
-- **Sem rede**: o app não faz nenhuma conexão (nem verifica atualização). Sem telemetria.
-- **Nada é gravado**: o áudio só passa pela memória, multiplicado pelo volume; nada vai para
-  arquivo, histórico ou análise.
-- **Uma permissão só**: áudio do sistema. Nada de Acessibilidade, Microfone, Gravação de Tela etc.
-- **Hardened Runtime sem exceções** e **zero dependências externas** (só frameworks da Apple).
-- Guarda nas preferências do macOS apenas suas configurações e o volume/mudo/saída por app.
-  **Esquecer todos** apaga isso.
-
-Modelo de ameaças: [docs/SPEC.md](docs/SPEC.md) §12.9. Para reportar uma vulnerabilidade, veja
-[SECURITY.md](SECURITY.md).
-
-## Como funciona
+<br>
 
 Para cada app que está tocando, o Volume Manager cria um **process tap** do Core Audio
-(`CATapDescription` com `mutedWhenTapped`) e um **aggregate device** privado que tem o tap como
-entrada e a saída escolhida como saída. Um IOProc de tempo real copia o áudio multiplicando pelo
-ganho, lido de uma variável atômica — sem alocação, sem locks e sem logs na thread de áudio.
+(`CATapDescription` com `mutedWhenTapped`) e um **aggregate device** privado com o tap na entrada e a
+saída escolhida na saída. Um IOProc de tempo real copia o áudio multiplicando pelo ganho, sem
+alocação, sem locks e sem logs. Se algo falhar, o tap é destruído e o som original volta.
 
-O princípio é **falhar abrindo**: um vigia confere se o áudio continua chegando e, na dúvida,
-destrói o tap para o som original voltar. Ao sair, ao travar ou ao ser forçado a encerrar, o macOS
-devolve o áudio de todos os apps ao comportamento padrão.
-
-```
-Sources/
-├── VolumeCore     domínio puro: estado do mixer, preferências, políticas (sem CoreAudio/AppKit)
-├── VolumeAudio    process taps, aggregate devices e IOProc (Core Audio)
-├── VolumeSystem   permissão, login item, preferências, informações dos apps
-├── VolumeUI       popover, Ajustes e Boas-vindas (SwiftUI + AppKit)
-├── VolumeManager  ponto de composição do app
-└── vmctl          ferramenta de linha de comando para desenvolvimento (não vai no app)
-```
-
-## Compilar a partir do código
-
-Precisa do Xcode (Swift 6) no macOS 15+. Sem dependências externas: nada é baixado na compilação.
+Precisa do Xcode (Swift 6) no macOS 15+. Zero dependências externas.
 
 ```sh
 swift build                 # compila
 swift test                  # testes (Swift Testing)
-scripts/check.sh            # portão de qualidade: formatação, build sem avisos, testes e segurança
+scripts/check.sh            # formatação, build sem avisos, testes e segurança
 scripts/build-app.sh        # gera build/Volume Manager.app
 ```
 
-Sem `VOLUME_SIGN_IDENTITY`, o `build-app.sh` e o `release.sh` assinam ad hoc: o macOS esquece a
-permissão de áudio a cada build. Releases: [docs/RELEASE.md](docs/RELEASE.md); certificado
-opcional: [docs/SIGNING.md](docs/SIGNING.md).
-
-## Documentação
+```
+Sources/
+├── VolumeCore     domínio puro: estado do mixer, preferências, políticas
+├── VolumeAudio    process taps, aggregate devices e IOProc (Core Audio)
+├── VolumeSystem   permissão, login item, preferências, informações dos apps
+├── VolumeUI       popover, Ajustes e Boas-vindas (SwiftUI + AppKit)
+├── VolumeManager  ponto de composição do app
+└── vmctl          ferramenta de linha de comando para desenvolvimento
+```
 
 | Documento | Conteúdo |
 |---|---|
-| [docs/SPEC.md](docs/SPEC.md) | Especificação completa: telas, comportamento de áudio, regras técnicas e de segurança |
-| [docs/PLAN.md](docs/PLAN.md) | Etapas do projeto e critérios de aceite |
-| [docs/RELEASE.md](docs/RELEASE.md) · [docs/SIGNING.md](docs/SIGNING.md) | Como gerar, assinar e publicar um release |
+| [docs/SPEC.md](docs/SPEC.md) | Especificação: telas, áudio, regras técnicas e de segurança |
+| [docs/PLAN.md](docs/PLAN.md) | Etapas e critérios de aceite |
+| [docs/RELEASE.md](docs/RELEASE.md) · [docs/SIGNING.md](docs/SIGNING.md) | Gerar, assinar e publicar um release |
 | [SECURITY.md](SECURITY.md) | Política de segurança e como reportar vulnerabilidades |
+</details>
