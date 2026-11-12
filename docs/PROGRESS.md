@@ -1,6 +1,6 @@
 # Volume Manager — Progresso
 
-> Atualizado em 2026-11-11: **M6 integrada** (falta o ⏸3 do usuário). **Próxima: M7.** Antes, em 2026-11-10: **M5.2 e M5.3 integradas.** Antes da M6: experimento de revogação (condição da Segurança) e decisão S53-B2 — ver item 0. **M5 (Ajustes, Boas-vindas e ícones) concluída e integrada na `main`** — QA PASS + Segurança LIBERA (2 voltas). Falta o teste manual do usuário (`docs/MANUAL_TESTS.md`, seção M5). **Próxima sessão: M6.**
+> Atualizado em 2026-11-12: **M7 (QA PASS) e M7.5 (Segurança LIBERA) integradas. Próxima: M8** — falta o certificado e a assinatura de tags do usuário. Antes, em 2026-11-11: **M6 integrada** (falta o ⏸3 do usuário). **Próxima: M7.** Antes, em 2026-11-10: **M5.2 e M5.3 integradas.** Antes da M6: experimento de revogação (condição da Segurança) e decisão S53-B2 — ver item 0. **M5 (Ajustes, Boas-vindas e ícones) concluída e integrada na `main`** — QA PASS + Segurança LIBERA (2 voltas). Falta o teste manual do usuário (`docs/MANUAL_TESTS.md`, seção M5). **Próxima sessão: M6.**
 
 ## Onde estamos
 
@@ -27,7 +27,9 @@
 | M5.2 Rodapé do popover (sem `•••`; Restaurar áudio original e Sobre no rodapé, decisão do usuário) | ✅ QA PASS (`docs/reports/m5.2-qa.md`); conferência visual do usuário pendente | branch `etapa/m5.2-rodape` |
 | M5.3 Estabilidade (bug do Discord: vigia de silêncio 120 s com contagem única; aviso de permissão só se não concedida; lista só com apps reproduzindo ou em chamada, sai em 3 s, ao vivo; menu Opções no rodapé; sem anel de foco) | ✅ QA PASS (`docs/reports/m5.3-qa.md`, `m5.3-ui-qa.md`) + Segurança LIBERA **condicionado ao experimento revoke-exp** (`docs/reports/m5.3-security.md`); teste manual do usuário pendente | branch `etapa/m5.3-estabilidade` |
 | M6 Ciclo de vida e robustez (acordar/troca de usuário recria taps; SIGTERM/SIGINT = ⌘Q, 2º sinal mata; identidade conferida antes de destruir com fallback por UID — S21-B1/B2, S6-M1; auto-verificação só após sessão limpa; "Permitir…" aguarda verificação em curso) | ✅ QA PASS (`docs/reports/m6-qa.md`, hardware com `afplay -v 0` incluindo tap `mutedWhenTapped`) + Segurança LIBERA (reavaliação, `docs/reports/m6-security.md`); ⏸3 do usuário pendente (`docs/MANUAL_TESTS.md` M6) | branch `etapa/m6` |
-| M7 Distribuição · M7.5 Auditoria · M8 Aceite | ⏳ | — |
+| M7 Distribuição (release.sh, DMG, SIGNING/RELEASE/SECURITY, README com imagens) | ✅ QA PASS (`docs/reports/m7-qa.md`); pendente do certificado: requisito designado estável, release assinado, layout do Finder | `55fdd17`, `a0847ab` |
+| M7.5 Auditoria de segurança independente | ✅ Segurança LIBERA (`docs/SECURITY_AUDIT.md`, com reverificação); S75-M1 (regra 14: só silêncio digital), S75-M2 (entitlements vazios), S75-B1/B2/B3 corrigidos | `4de286d`…`fd57239` |
+| M8 Aceite final · ⏸4 | ⏳ precisa do usuário: certificado `Volume Self-Signed` + assinatura de tags (`docs/SIGNING.md`, `docs/RELEASE.md` 1.3); depois QA §14, ⏸4, limpeza final e tag `v1.0.0` | — |
 
 Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de ouvido ainda vai validar a reescrita). Nada foi enviado ao GitHub (sem `push`). A próxima etapa começa num branch novo a partir da `main`.
 
