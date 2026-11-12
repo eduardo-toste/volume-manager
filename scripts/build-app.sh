@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Builds build/Volume Manager.app (release), signs with Hardened Runtime and verifies the signature.
 # Signing identity: $VOLUME_SIGN_IDENTITY, otherwise ad-hoc ("-", development only; SPEC 13.2).
+# Release builds (scripts/release.sh) always pass a real identity; ad-hoc is for development only
+# because its designated requirement is the cdhash, which changes on every build (SPEC 13.2).
 # vmctl is a development tool and is NEVER copied into the bundle (SPEC 12.9.6).
 set -euo pipefail
 
@@ -86,5 +88,23 @@ codesign --force --options runtime --timestamp=none \
   --entitlements Resources/VolumeManager.entitlements \
   --sign "$IDENTITY" "$APP"
 codesign --verify --strict --deep --verbose=2 "$APP"
+
+# Designated requirement: with a real certificate it is `identifier "<bundle id>" and certificate
+# leaf = H"<cert hash>"`, so it stays the same across builds signed by the same certificate and
+# the audio permission survives updates. Ad-hoc signing yields a cdhash requirement instead.
+REQUIREMENT="$(codesign -d -r- "$APP" 2>&1 | sed -n 's/^# designated => //p')"
+echo "designated requirement: $REQUIREMENT"
+if [ "$IDENTITY" != "-" ]; then
+  case "$REQUIREMENT" in
+    *cdhash*) echo "build-app: designated requirement depends on cdhash; not stable across builds" >&2; exit 1 ;;
+    'identifier "com.volumemanager.app" and '*) ;;
+    *) echo "build-app: unexpected designated requirement" >&2; exit 1 ;;
+  esac
+fi
+# Debug symbols must not ship in the binary (SPEC 12.9.2).
+if otool -l "$APP/Contents/MacOS/VolumeManager" | grep -q '__DWARF'; then
+  echo "build-app: binary still contains DWARF debug info" >&2
+  exit 1
+fi
 
 echo "build-app: OK -> $APP ($VERSION build $BUILD)"

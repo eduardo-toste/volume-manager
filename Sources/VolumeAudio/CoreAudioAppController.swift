@@ -149,7 +149,7 @@ public actor CoreAudioAppController: AppAudioController {
     for item in desired { wanted[item.app.id] = item }
 
     for id in entries.keys where wanted[id] == nil {
-      AudioLog.logger.notice("tap destroyed: no longer wanted")
+      AudioLog.logger.info("tap destroyed: no longer wanted")
       destroy(id)
     }
     failed = failed.filter { wanted[$0.key] != nil }
@@ -178,7 +178,7 @@ public actor CoreAudioAppController: AppAudioController {
     let gain = Self.effectiveGain(item)
     let plan = ReconcilePlanner.plan(current: entries[id]?.key, wanted: key)
     if plan != .update, plan != .none {
-      AudioLog.logger.notice("tap plan: \(String(describing: plan), privacy: .public)")
+      AudioLog.logger.info("tap plan: \(String(describing: plan), privacy: .public)")
     }
     switch plan {
     case .none, .destroy:
@@ -227,13 +227,13 @@ public actor CoreAudioAppController: AppAudioController {
       entries[id] = Entry(
         handle: handle, token: token, key: key, generation: issued,
         health: SessionHealth(policy: policy))
-      AudioLog.logger.notice("tap and aggregate created, IO started")
+      AudioLog.logger.info("tap and aggregate created, IO started")
       if let old {
         old.handle.setTarget(gain: 0)
         try? await clock.sleep(for: policy.crossfade)
         // If `coreaudiod` restarted during the fade, the old objects are gone: `stop()` leaves
         // anything that no longer answers with its own identity alone.
-        AudioLog.logger.notice("old tap destroyed after cross-fade")
+        AudioLog.logger.info("old tap destroyed after cross-fade")
         old.handle.stop()
         killList.remove(old.token)
       }
@@ -263,7 +263,7 @@ public actor CoreAudioAppController: AppAudioController {
 
   private func destroy(_ id: String) {
     guard let entry = entries.removeValue(forKey: id) else { return }
-    AudioLog.logger.notice("tap and aggregate destroyed, IO stopped")
+    AudioLog.logger.info("tap and aggregate destroyed, IO stopped")
     entry.handle.stop()
     killList.remove(entry.token)
     cancelWatchdogIfIdle()
@@ -341,7 +341,7 @@ public actor CoreAudioAppController: AppAudioController {
     if silence.evaluate(sawSignal: sawSignal, outputRunning: runningApp != nil),
       let runningApp
     {
-      AudioLog.logger.notice("taps carried only silence: permission check requested")
+      AudioLog.logger.info("taps carried only silence: permission check requested")
       emit(
         AppAudioFailure(
           appID: runningApp, reason: silence.silenceWasChecked ? .stillSilent : .onlySilence))
