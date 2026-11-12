@@ -17,4 +17,4 @@ Faça:
 
 Regras: não altere `Sources/` nem relaxe scripts de verificação. Não troque de branch, não faça commit, merge ou push.
 
-Saída: relatório no formato do `CLAUDE.md` com **PASS** ou **FAIL**. Em FAIL, liste problemas numerados com arquivo:linha, gravidade e o que esperava. Salve também em `docs/reports/<etapa>-qa.md`.
+Saída: relatório no formato do `CLAUDE.md` com **PASS** ou **FAIL**. Em FAIL, liste problemas numerados com arquivo:linha, gravidade e o que esperava.

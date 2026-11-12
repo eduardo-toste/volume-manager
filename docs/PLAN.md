@@ -153,7 +153,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 **QA**
 - Testes de view-model/estado da UI (formatação “72%”/“Silenciado”, ordenação, uma linha expandida).
-- **Snapshots** com `ImageRenderer` das views em claro e escuro com dados de exemplo (`Tests/Snapshots/*.png`), comparados visualmente com o design (o agente QA lê as imagens e lista divergências relevantes).
+- **Snapshots** com `ImageRenderer` das views em claro e escuro com dados de exemplo (`Tests/Snapshots/*.png`, gerados localmente com `VM_WRITE_SNAPSHOTS=1` e ignorados pelo git), comparados visualmente com o design (o agente QA lê as imagens e lista divergências relevantes).
 - Medir abertura do popover e CPU ocioso (orçamentos §12.4).
 
 **⏸2 Você**: abrir o app real, mexer nos sliders com música tocando, alternar claro/escuro.
@@ -227,7 +227,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 **⏸4 Você**: instalar pelo DMG como um usuário qualquer e usar por um dia.
 
-**Limpeza antes da tag** (decisão do usuário em 2026-11-11): remover do repositório o que só serve ao desenvolvimento até a publicação — `Tests/Snapshots/` (PNGs de conferência visual; os testes de snapshot continuam), `docs/reports/` e `docs/PROGRESS.md` — e ajustar as referências a eles (testes, PLAN, `CLAUDE.md`, agentes). `CLAUDE.md`, `.claude/` e `design/` ficam. Depois da publicação, o desenvolvimento segue a partir do projeto pronto.
+**Limpeza antes da tag** ✅ feita em 2026-11-12 (decisão do usuário em 2026-11-11): remover do repositório o que só serve ao desenvolvimento até a publicação — `Tests/Snapshots/` (PNGs de conferência visual; os testes de snapshot continuam), `docs/reports/` e `docs/PROGRESS.md` — e ajustar as referências a eles (testes, PLAN, `CLAUDE.md`, agentes). `CLAUDE.md`, `.claude/` e `design/` ficam. Depois da publicação, o desenvolvimento segue a partir do projeto pronto.
 
 **Resultado**: tag `v1.0.0` e primeira Release no GitHub (upload manual).
 

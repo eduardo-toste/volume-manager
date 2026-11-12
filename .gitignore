@@ -9,6 +9,9 @@ dist/
 default.profraw
 *.profdata
 
+# Snapshots locais de conferência visual (VM_WRITE_SNAPSHOTS=1)
+Tests/Snapshots/
+
 # macOS
 .DS_Store
 

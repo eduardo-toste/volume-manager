@@ -7,7 +7,7 @@ import VolumeCore
 
 // Snapshots of the settings window and the welcome window (PLAN M5), from fakes only: no
 // real preferences, no login item registered, no Core Audio. VM_WRITE_SNAPSHOTS=1 rewrites
-// Tests/Snapshots/*.png (helpers in SnapshotTests.swift).
+// Tests/Snapshots/*.png, git-ignored (helpers in SnapshotTests.swift).
 
 private final class QuietLoginItem: LoginItemService, Sendable {
   let state: LoginItemStatus

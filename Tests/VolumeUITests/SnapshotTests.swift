@@ -8,7 +8,8 @@ import VolumeCore
 
 // Snapshots of the popover (PLAN M4). Everything is built from fakes: no Core Audio, no taps,
 // no sound, the real app is never opened. The views are drawn by AppKit in an off-screen
-// window that is never shown. Set VM_WRITE_SNAPSHOTS=1 to rewrite Tests/Snapshots/*.png.
+// window that is never shown. Set VM_WRITE_SNAPSHOTS=1 to write Tests/Snapshots/*.png
+// (git-ignored; for local visual review only).
 
 final class QuietAudioSystem: AudioSystem, Sendable {
   func events() -> AsyncStream<AudioSystemEvent> { AsyncStream { _ in } }

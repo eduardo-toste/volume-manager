@@ -19,4 +19,4 @@ Revise com foco em:
 
 Pode escrever e rodar testes/provas adversariais em `Tests/` ou em diretório temporário, mas **não altere código de produção**. Não troque de branch, não faça commit, merge ou push, não use `sudo`/`tccutil`.
 
-Saída: `docs/SECURITY_AUDIT.md` (ou `docs/reports/<etapa>-security.md` em revisões pontuais) com achados classificados **Crítico / Alto / Médio / Baixo**, cada um com evidência (arquivo:linha ou reprodução), impacto e recomendação. Termine com veredito: **BLOQUEIA** (há Crítico/Alto) ou **LIBERA**.
+Saída: `docs/SECURITY_AUDIT.md` (revisões pontuais viram uma seção nova no fim dele) com achados classificados **Crítico / Alto / Médio / Baixo**, cada um com evidência (arquivo:linha ou reprodução), impacto e recomendação. Termine com veredito: **BLOQUEIA** (há Crítico/Alto) ou **LIBERA**.
