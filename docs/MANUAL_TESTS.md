@@ -185,3 +185,67 @@ Use um app tocando música (ex.: Música/Spotify) e deixe o Volume Manager abaix
 7. **2 travamentos → modo seguro**: repita o item 5 duas vezes seguidas em menos de 1 minuto cada (abrir, esperar poucos segundos, matar). Ao abrir pela terceira vez: aviso de modo seguro no popover, nenhum volume/saída lembrados é aplicado (apps em 100%). Sair normalmente (Sair no popover) e abrir de novo: modo seguro desativado e os volumes lembrados voltam.
 8. **Encerrar pelo Terminal**: `kill <pid>` (SIGTERM) no Volume Manager com app a 40%. Esperado: o app volta a 100% e o Volume Manager sai (mesmo que o "Sair").
 9. **Reiniciar sessão**: Ajustes › Geral › "Abrir ao iniciar sessão" ligado; menu Apple › Encerrar Sessão, entrar de novo. Esperado: o Volume Manager abre sozinho (ícone na barra), sem janela de boas-vindas; app lembrado volta ao volume salvo. Depois de um desligamento normal, a permissão marcada é verificada sozinha e nenhum pedido aparece.
+
+---
+
+## M8 / ⏸4 — Aceite final (instalação pelo DMG)
+
+Regras: volume baixo (música em volume 10–20%), nada alto. Os itens de M4/M5/M6 acima que ainda não foram confirmados estão aqui, sem repetição.
+
+### A. Medições de performance (SPEC 12.4) — QA, 2026-11-12 01:11, só leitura
+Processo medido: PID 84220, `/Users/eduardotoste/Documents/projects/volume-manager/build/Volume Manager.app` (v1.0.0 build 1), iniciado em 2026-11-11 23:16:06 (build de desenvolvimento ad hoc, não o do DMG), rodando há 1 h 55 min. Nada tocando no momento, nenhum app ajustado.
+
+| Métrica | Orçamento | Medido | Resultado |
+|---|---|---|---|
+| CPU, popover fechado, sem tap | ~0% | 0,0% em `ps` (6 amostras em ~40 s) e 0,0% no `top -l 3 -s 5` | dentro |
+| Memória | < 60 MB | `phys_footprint` 41 MB (pico 47 MB, `footprint`); `top` MEM 41 MB. RSS do `ps` = 106 MB (conta páginas compartilhadas dos frameworks do sistema) | dentro pela métrica de footprint; RSS acima — ver nota |
+| Taps/aggregates `com.volumemanager.agg.` | 0 sem áudio | 0 em `system_profiler SPAudioDataType` (aggregates privados podem não aparecer ali) | indicativo, confirmar abaixo |
+| Rede | nenhuma | 0 sockets TCP/UDP em `lsof -p` | ok |
+| CPU por app com tap, latência, abrir o popover, arrastar slider, início do app | ver abaixo | não medidos pelo QA | MANUAL |
+
+Nota: o orçamento "< 60 MB" foi tratado como memória do processo (`phys_footprint`, a mesma que o Monitor de Atividade mostra na coluna Memória). Se você quiser o critério por RSS, o número é 106 MB e o orçamento seria estourado.
+
+Para você medir (Terminal, app aberto pelo DMG instalado; troque o PID por `pgrep -x VolumeManager`):
+1. Com 2 apps tocando e ajustados (um a 30%): `top -l 5 -s 3 -pid $(pgrep -x VolumeManager) -stats pid,cpu,mem` — esperado < 1% de CPU por app, memória < 60 MB; `footprint $(pgrep -x VolumeManager) | tail -3`.
+2. Taps vivos: o log `/usr/bin/log show --last 5m --info --predicate 'subsystem == "com.volumemanager.app"'` deve mostrar um "tap created" por app tocando e "destroyed" ~15 s depois de pausar; nunca recriar ao mexer no volume.
+3. Primeiro quadro do popover < 100 ms: grave a tela (⇧⌘5), abra o popover, conte quadros (≈6 a 60 fps). Slider a 60 fps: arraste e observe se acompanha sem engasgar.
+4. Início até o ícone na barra < 1 s: depois de "Encerrar Sessão"/entrar, o ícone deve estar na barra praticamente junto com a área de trabalho.
+5. Latência (≤ 20 ms): sem instrumento; vale a escuta, sincronia labial em vídeo (YouTube/Zoom) com e sem o app a 100%, e em AirPods. Anote se notar atraso.
+
+### B. Instalar como um usuário qualquer
+1. Feche o Volume Manager de desenvolvimento. Rode `scripts/release.sh` com a tag anotada que você criar (o script recusa árvore suja/tag leve); pegue o DMG gerado.
+2. Abra o DMG, arraste para Aplicativos, ejete. Abra o app: o macOS recusa (sem certificado) → Ajustes do Sistema › Privacidade e Segurança › "Abrir Mesmo Assim". Esperado: abre; ícone "Três faders" na barra; nenhuma janela além das Boas-vindas.
+3. Boas-vindas (1ª execução): ícone, 3 destaques, toggle "Abrir ao iniciar sessão" ligado, "Permitir…" (com música baixa tocando) → pedido do macOS → Permitir → "Permitido". "Começar" fecha a janela, abre o popover e cria o item em Ajustes › Geral › Itens de Início. Negar nunca deixa um app mudo.
+4. Matriz de apps (SPEC 4.1): toque algo em cada um e confira nome/ícone corretos (nunca "Helper"), uma só linha por app, e que o slider age só nele.
+
+| App | Aparece 1x | Nome/ícone | Volume responde | Obs. |
+|---|---|---|---|---|
+| Safari | | | | |
+| Chrome | | | | |
+| Spotify | | | | |
+| Discord | | | | |
+| Zoom | | | | |
+| Música | | | | |
+| YouTube (no navegador) | | | | |
+
+### C. Uso
+5. Volume/mudo: em 2 apps, um a 30% (só ele baixa), mudo em outro (só ele cala); arraste passando por 100% várias vezes, sem estalo e sem o tap recriar (log).
+6. Rota: mande um app para outro dispositivo (fones/AirPods): toca só ele lá; desconecte o dispositivo → volta ao padrão; reconecte → restaura.
+7. Teclas de volume do teclado movem o slider geral em tempo real; nenhum atalho global foi registrado; no popover, Tab/setas/Espaço/Esc funcionam, ⌘, abre Ajustes e ⌘Q sai.
+8. Claro/Escuro: alterar em Ajustes do Sistema com popover/Ajustes/Boas-vindas abertos: acompanham na hora, texto legível.
+9. "Lembrar volume": Spotify a 72% e rota definida; feche e reabra o Spotify: volta a 72%/rota.
+10. Permissão negada: revogue em Ajustes do Sistema › Privacidade › Gravação de Tela e Áudio do Sistema → aviso no popover; reative → lista aparece ao reabrir o popover.
+11. Restaurar áudio original (rodapé › Opções): todos voltam ao normal, nenhum mudo.
+12. Sair (popover e ⌘Q): todos os apps voltam ao áudio original.
+13. Forçar Encerramento (⌥⌘Esc ou `kill -9`) com 2 apps abaixo de 100%: voltam ao original na hora, sem mudo.
+14. Reiniciar a sessão (ou o Mac) com "Abrir ao iniciar sessão" ligado: o app sobe na barra sem janela; app lembrado volta ao volume salvo.
+15. Aviso "Permitir…" após atualizar versão: instale uma segunda build (versão ou build diferente, ad hoc) por cima; esperado: Boas-vindas NÃO reaparece, popover mostra o aviso de permissão com "Permitir…"; nenhum app fica mudo e nenhum pedido aparece sozinho; após "Permitir…" volta ao normal.
+16. Qualidade de áudio (SPEC 4.7): com e sem o app a 100%, em música conhecida e fones bons, sem diferença perceptível (sem chiado, sem mudança de timbre/nível).
+17. Uso por um dia: deixe aberto; anote qualquer estalo, mudo preso, CPU alta no Monitor de Atividade, ícone sumindo.
+
+### D. Pendentes de etapas anteriores (sem duplicar o texto acima)
+- Cada item de **M6 (1–9)** acima: dormir/acordar, restaurar antes de dormir, troca rápida de usuário, AirPods, Forçar Encerramento, reabrir após crash, 2 travamentos → modo seguro, SIGTERM, reiniciar sessão (os itens 13 e 14 deste roteiro cobrem 5 e 9 de M6; o resto faça uma vez).
+- **M5.3**: 1 (abrir de novo pelo Finder só abre Ajustes), 2 (⌘Q com Ajustes em foco restaura o áudio), 3 (Claro/Escuro com janelas abertas).
+- **M4.1**: trocar saída/taxa nos Ajustes de Som com um app abaixo de 100% (sem estalo nem pico); pausar um app não mostra "sem permissão"; "tap and aggregate destroyed" ~15 s após pausar; estalinho no início da reprodução (anote se ouvir).
+- **macOS 15 (critério 13)**: abrir o app num Mac/VM com macOS 15 (materiais nativos) e conferir o macOS 26+ (Liquid Glass). Só foi possível testar o macOS atual.
+- Ao final: remover em Ajustes › Privacidade › Gravação de Tela e Áudio do Sistema as permissões de `vmctl-test` e `vmctl-dev`.
