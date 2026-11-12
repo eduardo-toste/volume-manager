@@ -5,9 +5,7 @@
 #          Without it, binary checks are skipped with a warning when the bundle does not exist.
 #
 # Search scope: tracked project files only. These are deliberately EXCLUDED from the searches:
-#   .build/ and build/ (build products, third-party checkouts), .git/, and spike/ (the discarded
-#   M0.5 proof-of-concept: it has its own package, uses @_silgen_name and C atomics, is NOT part
-#   of the product and must never be linked into it).
+#   .build/ and build/ (build products, third-party checkouts) and .git/.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -26,9 +24,9 @@ FAILURES=0
 fail() { echo "FAIL: $*" >&2; FAILURES=$((FAILURES + 1)); }
 pass() { echo "ok:   $*"; }
 
-# Project files to search (excludes build output, VCS data and the spike).
+# Project files to search (excludes build output and VCS data).
 project_find() {
-  find . \( -path ./.build -o -path ./build -o -path ./.git -o -path ./spike \) -prune -o "$@" -print
+  find . \( -path ./.build -o -path ./build -o -path ./.git \) -prune -o "$@" -print
 }
 
 # ---------------------------------------------------------------- 3. forbidden APIs in Sources/

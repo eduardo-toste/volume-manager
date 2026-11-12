@@ -33,6 +33,8 @@ Tudo está na `main` (a M2 foi integrada após QA + Segurança LIBERA; o ⏸1 de
 
 ## Próxima sessão — ordem sugerida
 
+**Tarefa final (antes da tag `v1.0.0`, M8)**: remover `Tests/Snapshots/`, `docs/reports/` e `docs/PROGRESS.md` (só servem ao desenvolvimento até a publicação; decisão do usuário em 2026-11-11). `CLAUDE.md`, `.claude/` e `design/` ficam. O `spike/` já foi removido em 2026-11-11.
+
 0. **2026-11-11: experimento revoke-exp CANCELADO** — o tom de teste (−50 dBFS em tap `mutedWhenTapped`, aggregate sem saída física) foi ouvido no fone do usuário ANTES de qualquer revogação. **Nunca repetir.** O usuário decidiu seguir para a M6 sem a M5.5 (caminho seguro do S53-A1 desfeito antes do commit): a variante "revogação zera só taps novos" fica **risco aceito pelo usuário**; S53-B2 aceito sem mudança ("do jeito da última build está tudo certo"). Para a M7.5: entender por que o `mutedWhenTapped` não silenciou a fonte própria sem saída física.
    **Pendências da M5.3 (2026-11-10)** (o teste manual continua valendo).
    - **Experimento revoke-exp (condição da Segurança)**: pronto em `scratchpad/revoke-exp/` da sessão de 2026-11-10 (bundle `vmexp.app`, id `com.volumemanager.vmctl-exp`, sinal inaudível dentro de tap `mutedWhenTapped` com aggregate sem saída física). O usuário desliga o item **vmctl-exp** em Ajustes › Privacidade › Gravação de Áudio do Sistema ~1 min após o início, espera 2 min e religa. Se o scratchpad sumir, pedir a um Dev para recriar (relatório na conversa: tap A contínuo + tap B novo a cada 60 s, log a cada 250 ms). **Se os taps antigos continuarem com sinal enquanto os novos recebem só zeros → Alto, BLOQUEIA** (o sinal dos antigos zera a contagem global e o app novo fica mudo sem prazo).

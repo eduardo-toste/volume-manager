@@ -227,6 +227,8 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 **⏸4 Você**: instalar pelo DMG como um usuário qualquer e usar por um dia.
 
+**Limpeza antes da tag** (decisão do usuário em 2026-11-11): remover do repositório o que só serve ao desenvolvimento até a publicação — `Tests/Snapshots/` (PNGs de conferência visual; os testes de snapshot continuam), `docs/reports/` e `docs/PROGRESS.md` — e ajustar as referências a eles (testes, PLAN, `CLAUDE.md`, agentes). `CLAUDE.md`, `.claude/` e `design/` ficam. Depois da publicação, o desenvolvimento segue a partir do projeto pronto.
+
 **Resultado**: tag `v1.0.0` e primeira Release no GitHub (upload manual).
 
 ## 3. Riscos e como o plano lida com eles

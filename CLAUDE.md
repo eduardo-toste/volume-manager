@@ -42,7 +42,7 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 ## Papéis (detalhes em `.claude/agents/`)
 | Papel | Pode alterar | Não pode |
 |---|---|---|
-| Dev | `Sources/`, `Tests/` (testes do que criou), `Package.swift`, `Resources/`, `scripts/`, `spike/` | mudar SPEC/PLAN, enfraquecer verificações |
+| Dev | `Sources/`, `Tests/` (testes do que criou), `Package.swift`, `Resources/`, `scripts/` | mudar SPEC/PLAN, enfraquecer verificações |
 | QA | `Tests/`, `docs/MANUAL_TESTS.md`, relatórios em `docs/reports/` | `Sources/`, scripts de verificação para relaxar regras |
 | Segurança | `docs/SECURITY_AUDIT.md`, `docs/reports/` | qualquer código de produção |
 
