@@ -302,7 +302,7 @@ volume-manager/
 #### 12.8.1 Testes isolados — nenhum som audível
 Testes automáticos **nunca** podem produzir som audível nem alterar o estado de áudio da máquina do usuário.
 - Processos de teste tocam **silêncio digital** ou sinal com ganho 0 (ex.: utilitário de teste próprio `test-tone` em `Tests/Support`, ou `afplay -v 0`). Proibido tocar sons do sistema/arquivos em volume audível.
-- Sinais de teste não-silenciosos só podem existir **dentro** de um tap com `mutedWhenTapped` cujo aggregate **não tem saída física** (aggregate só com o tap) — o sinal é analisado em memória e nunca chega aos alto-falantes. O processo de teste começa em silêncio e só gera o sinal depois que o tap está ativo.
+- **Só silêncio digital** em processos que tocam áudio (decisão do usuário em 2026-11-12, achado S75-M1). Sinais diferentes de zero só existem em buffers na memória (ex.: testes do kernel de ganho), nunca num processo de áudio: o `mutedWhenTapped` só silencia a fonte enquanto **outros** taps não a leem — qualquer outro tap (inclusive o do próprio Volume Manager aberto, que controla todo app que toca, §4.2) reemite o sinal numa saída física, e taps privados de outros processos são invisíveis. Foi o que tornou audível o experimento revoke-exp (2026-11-11).
 - Proibido nos testes: alterar volume geral, mudo geral ou dispositivo padrão do sistema; criar dispositivos que permaneçam após o teste.
 - Testes que dependem de hardware de áudio ficam marcados (tag `.audioHardware`) e são pulados por padrão em `check.sh`; rodam com `scripts/check.sh --audio`.
 
