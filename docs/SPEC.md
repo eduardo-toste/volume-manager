@@ -362,7 +362,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 #### 12.9.6 Cadeia de suprimentos
 - Dependências: **nenhuma**. `Package.swift` sem `dependencies` e sem `Package.resolved`.
 - **Sem CI** (decisão do usuário, 2026-11-07): o repositório não tem `.github/workflows`; as verificações rodam localmente com `scripts/check.sh` antes de cada commit/merge. Um teste de política impede que um workflow seja adicionado.
-- Repositório: 2FA na conta, proteção da branch `main`, tags de release assinadas.
+- Repositório: 2FA na conta, proteção da branch `main`, tags de release anotadas (`git tag -a`; assinatura da tag opcional, decisão do usuário em 2026-11-12).
 - Ferramentas de desenvolvimento (`vmctl`) **não** são incluídas no `Volume Manager.app` nem no DMG.
 
 #### 12.9.7 Verificações de segurança (executadas pelo QA a cada etapa; bloqueantes)
@@ -388,8 +388,8 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 - **Sem CI**: a qualidade é garantida localmente (`scripts/check.sh` e `scripts/check.sh --app`) antes de cada merge e de cada release.
 
 ### 13.2 Assinatura sem conta da Apple
-- Não usar assinatura ad-hoc em releases: ela muda a identidade do app a cada build e o macOS esquece a permissão de áudio a cada versão.
-- Usar um **certificado de assinatura de código próprio** (autoassinado, criado no Acesso às Chaves, ex.: “Volume Self-Signed”). O nome do certificado é parâmetro do `build-app.sh` (variável `VOLUME_SIGN_IDENTITY`); sem ela, o script cai para ad-hoc (uso em desenvolvimento).
+- **v1 sai com assinatura ad hoc** (decisão do usuário em 2026-11-12: publicar pelo caminho mais simples, sem certificado). Consequência aceita: a identidade muda a cada versão e o macOS esquece a permissão de áudio a cada atualização. Para isso não ser silencioso, o app grava junto da marca `audioPermissionConfirmed` o build em que ela foi confirmada; ao abrir uma versão de build diferente, a marca é descartada e vale o estado “permissão nunca confirmada” (§3.2: aviso + “Permitir…”). O README avisa que cada atualização pede a permissão de novo.
+- **Depois (opcional)**: certificado de assinatura de código próprio (autoassinado, ex.: “Volume Self-Signed”, `docs/SIGNING.md`) para manter a permissão entre versões. O nome do certificado é parâmetro do `build-app.sh` (variável `VOLUME_SIGN_IDENTITY`); sem ela, o script assina ad hoc.
 - Hardened Runtime ligado; entitlements mínimos (nenhum além do necessário para áudio).
 
 ### 13.3 Instalação para quem baixa (README)
