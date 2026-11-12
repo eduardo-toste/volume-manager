@@ -198,3 +198,113 @@ Precisa do usuário:
 - Decidir a correção do §12.8.1 e da regra 14 (S75-M1). Recomendo proibir qualquer sinal ≠ 0.
 - Decidir se o Dev corrige S75-M2 e os Baixos antes da M8. Nenhum bloqueia.
 - O Volume Manager.app de `build/` (PID 84220, aberto em 2026-11-11 23:16) continua rodando. Ele não foi aberto por mim e eu não o fechei.
+
+---
+
+## Reverificação (2026-11-12)
+
+Escopo: correções do Dev no working tree de `etapa/m7.5` (sem commit) e o commit `3096fae` do orquestrador (S75-M1). Não alterei código de produção. Arquivo novo: `Tests/VolumeSystemTests/SecurityM75PIDTests.swift`. As provas rodaram sobre cópias no scratchpad, já apagadas: o bundle (nunca executado) e o repositório (cópia com `tar`; tags, commits e uma chave SSH descartável só na cópia). Nenhum som foi gerado. Nenhum volume ficou montado (`hdiutil info` sem imagens no fim). O repositório real não ganhou tag nem configuração.
+
+### Veredito da reverificação: **LIBERA**
+
+| ID | Status | Resumo |
+|---|---|---|
+| S75-M1 | **Fechado** (2 resíduos de texto, Baixo) | A regra 14 e o 2º item do §12.8.1 agora proíbem sinal ≠ 0 em processo de áudio. |
+| S75-M2 | **Fechado** (resíduo de documentação, Baixo) | `security-check.sh` exige entitlements vazios na fonte e no bundle assinado. |
+| S75-B1 | **Fechado** | `release.sh` recusa arquivos ignorados ou não rastreados nas pastas de build. |
+| S75-B2 | **Fechado** | As duas APIs mortas foram removidas. O controle real de PID continua coberto. |
+| S75-B3 | **Fechado** | `release.sh` exige `git verify-tag` fora do modo de teste. |
+| CI | **Fechado** | O comentário de `check.sh` não cita mais CI. |
+| S75R-B1 | **Aberto · Baixo** | O §12.8.1 (1º item) e o §12.8.2 ainda descrevem sinal passando pelo tap. |
+| S75R-B2 | **Aberto · Baixo** | A SPEC §12.9.2 e o `docs/RELEASE.md` ainda descrevem a lista negra antiga. |
+
+Não encontrei nenhum Crítico nem Alto. Os dois Baixos abertos são de texto e não bloqueiam.
+
+### S75-M1 · Fechado
+
+- O `CLAUDE.md:30` (regra 14) e a `SPEC.md:305` agora dizem "só silêncio digital". Também dizem que sinais ≠ 0 existem só em buffers na memória e que `mutedWhenTapped` não esconde a fonte. Isso cobre as recomendações 1 e 2.
+- **Resíduo S75R-B1 (Baixo)**:
+  - O 1º item do §12.8.1 (`SPEC.md:304`) ainda diz "silêncio digital **ou sinal com ganho 0**" e cita um utilitário `test-tone`, que não existe em `Tests/Support`. Isso contradiz o item seguinte.
+  - O §12.8.2 (`SPEC.md:310-311`) ainda prescreve "sinal conhecido → tap → nosso processamento → buffer em memória" e uma latência medida "entre sinal gerado e sinal recebido". Esse é o caminho pelo HAL que o S75-M1 proibiu (recomendação 3, não aplicada).
+  - Impacto: um agente futuro pode ler o §12.8.2 como autorização. A regra 14, absoluta, prevalece e é clara, por isso o resíduo fica em Baixo.
+  - Recomendação (orquestrador): tirar "ou sinal com ganho 0" e o `test-tone` do 1º item. No §12.8.2, trocar o arranjo por "sinal sintético → `render`/kernel → buffer em memória", como já fazem `GainKernelTests` e `RenderTests`. A latência sai do automático ou vira medição com silêncio digital.
+
+### S75-M2 · Fechado
+
+Evidência: `scripts/security-check.sh:181-186`. A lista negra virou lista branca vazia, e qualquer `<key>` falha. A função vale para `Resources/*.entitlements` (`:197-199`) e para `codesign -d --entitlements - --xml` do bundle (`:212-213`).
+
+Provas (cópia de `build/Volume Manager.app`, re-assinada ad hoc com Hardened Runtime e nunca executada):
+
+| Entitlement injetado no bundle | Antes (auditoria) | Agora |
+|---|---|---|
+| `cs.disable-executable-page-protection` | OK, exit 0 | `FAIL: entitlements present … (signed)`, exit 1 |
+| `device.audio-input` | OK, exit 0 | FAIL, exit 1 |
+| `automation.apple-events` | OK, exit 0 | FAIL, exit 1 |
+| os três juntos | OK, exit 0 | FAIL listando os três, exit 1 |
+| bundle sem assinatura | — | FAIL (Hardened Runtime e `--verify`), exit 1 |
+| bundle real (`build/`) | OK | OK, exit 0. Entitlements assinados: `<dict></dict>` |
+
+Tentativas de escapar do `grep '<key>'` não passam. O próprio AMFI recusa assinar com `<key >`, CDATA ou plist binário ("AMFIUnserializeXML: syntax error" / "Could not create string from entitlements data"). Além disso, o `codesign -d --xml` sempre devolve XML normalizado, então a checagem do bundle não depende do formato da fonte.
+
+Na fonte: na cópia do repositório, os três entitlements em `Resources/VolumeManager.entitlements` fazem `security-check.sh` falhar ("entitlements present in Resources/VolumeManager.entitlements"). `SecurityM75PolicyTests` cobre o mesmo ponto pelo `swift test`.
+
+- **Resíduo S75R-B2 (Baixo, só texto)**: a `SPEC.md:336` (§12.9.2) e o `docs/RELEASE.md:38-40` ainda listam as 6 chaves antigas como "o que é proibido" e "o que o `security-check` verifica". O script, mais estrito, prevalece, e a regra 13 impede relaxá-lo. Ainda assim, a SPEC "manda", e esse texto sugere que outros entitlements seriam aceitáveis. Recomendação: §12.9.2 passa a dizer "entitlements de release: **nenhum** (dicionário vazio)", mantendo a lista como exemplos, e o RELEASE.md §3 passa a dizer "falha se houver qualquer entitlement".
+
+### S75-B1 · Fechado
+
+Evidência: `scripts/release.sh:30-33` usa `git status --porcelain --ignored -- Sources Package.swift Resources scripts`. Provas na cópia do repositório (modo de teste, tag no HEAD):
+
+| Arquivo plantado | `git status --porcelain` (check antigo) | `release.sh` agora |
+|---|---|---|
+| `Sources/VolumeCore/build/X.swift` (ignorado por `build/`) | vazio, ou seja, passaria | recusa, exit 1 |
+| `Resources/.DS_Store` (ignorado) | vazio | recusa, exit 1 |
+| `scripts/x.key` (ignorado) | vazio | recusa, exit 1 |
+| `Sources/VolumeCore/Y.swift` (não rastreado) | `??` | recusa, exit 1 |
+
+O que fica ignorado na raiz (`.DS_Store`, `.swiftpm/`, `build/`, `dist/`) não bloqueia, porque não entra no build. Uma segunda execução seguida não é bloqueada pelos produtos da primeira.
+
+### S75-B3 · Fechado
+
+Evidência: `scripts/release.sh:38-40`. Provas na cópia (modo real, `VOLUME_SIGN_IDENTITY="Fake Identity"`):
+
+- Tag anotada sem assinatura: "tag v1.0.0 is not signed or its signature does not verify", exit 1.
+- Tag leve: mesma recusa, exit 1.
+- **Controle positivo**: tag `-s` com uma chave SSH descartável (configurada só na cópia). Ela passa do `verify-tag` e para no passo seguinte ("Resources/Version says 1.0.0"). A recusa vem da assinatura, não de outra checagem.
+- Tag assinada fora do HEAD: "does not point at HEAD", exit 1.
+- Todas as recusas acontecem antes do build: nada é compilado nem assinado.
+
+Nota (informativa, sem ação): o `git verify-tag` aceita qualquer chave em que a máquina local confia (`allowedSignersFile` ou chaveiro GPG), não só a do mantenedor. Para um release local feito pelo próprio mantenedor, isso basta.
+
+**Modo `VOLUME_RELEASE_UNSIGNED_TEST=1` de ponta a ponta (cópia)**: com tag leve sem assinatura no HEAD e árvore limpa, o build, o DMG, a verificação do app dentro do DMG (`security-check --app` OK), o zip e o `SHA256SUMS` (OK) terminam com exit 0. `dist/` recebe `Volume-Manager-1.0.0-UNSIGNED-TEST.dmg`, o `.zip` e o `SHA256SUMS`. Nenhuma imagem montada antes nem depois.
+
+**Caminho de falha**: na cópia, com os entitlements proibidos commitados em `Resources/`, o `release.sh` em modo de teste falha no `security-check` do app **montado** ("security-check failed on the app inside the DMG", exit 1). O `trap cleanup` desmonta a imagem: `hdiutil info` fica sem imagens e `/Volumes` só tem os volumes do sistema.
+
+### S75-B2 · Fechado
+
+- `pidStillMatches` e `responsibleAppPath` saíram de `WorkspaceAppInfoProvider.swift`. `grep -rn` em `Sources`, `Tests`, `scripts` e na SPEC/PLAN não acha mais nenhuma referência. `responsiblePID(forPID:)` continua em uso (`Composition.swift:33`).
+- Os 5 testes removidos exercitavam só as funções mortas, mas um deles também conferia um primitivo de que o controle real depende: um PID que terminou deixa de resolver em `executablePath(forPID:)`.
+- O controle real de reuso de PID antes de criar o tap é `CoreAudioTapEngine.confirmedProcesses` (`CoreAudioTapEngine.swift:31-39`): PID → objeto, `GroupedProcessIdentity.confirm` (`ProcessCatalog.swift:123-127`) e a releitura do PID do objeto. Ele continua coberto:
+  - Rejeição propaga para "nenhum processo confirmado": `M21Tests.swift:99-105`.
+  - Pedido vazio vira `processGone`: `M21Tests.swift:85-96`.
+  - No domínio, PID reutilizado por outro app não herda o estado: `QAM1Tests.swift:883,896`.
+  - PID que volta ganha um tap novo: `SecurityM41Tests.swift:125`.
+- A destruição do tap é por identidade de objeto, não por PID, e isso não mudou.
+- Lacuna que encontrei e fechei com teste novo (`Tests/VolumeSystemTests/SecurityM75PIDTests.swift`, 3 testes e 7 casos, todos verdes):
+  - `exitedProcessStopsResolvingItsPath`: restaura o primitivo perdido.
+  - `realIdentityCheckerRejectsGoneOrHostilePIDs`: o `GroupedProcessIdentity` **real** com o `ProcessCatalog` real rejeita 0, −1, `Int.min`, `Int.max` e um PID inexistente.
+  - `nonAudioProcessIsNeverConfirmed`: um `/bin/sleep` vivo não é cliente de áudio e não é confirmado.
+
+  Antes desse arquivo, o `GroupedProcessIdentity` só era testado por stubs.
+
+### Comentário de CI · Fechado
+
+`scripts/check.sh:5-6` agora diz só "Slower, so opt-in.", coerente com o §12.9.6 ("Sem CI").
+
+### Verificações
+
+```
+scripts/check.sh          # exit 0 — lint, build, 672 testes (8+31+71+380+182), security-check OK
+scripts/check.sh --app    # exit 0 — idem + build-app + security-check --app ("bundle checks" ok)
+swift test --filter SecurityM75PIDTests   # 3 testes, 7 casos, verdes
+codesign -d --entitlements - --xml "build/Volume Manager.app"   # <dict></dict>
+```

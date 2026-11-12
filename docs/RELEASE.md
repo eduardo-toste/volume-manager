@@ -6,8 +6,13 @@ Pré-requisitos: certificado criado (`docs/SIGNING.md`), `VOLUME_SIGN_IDENTITY` 
 ## 1. Preparar a versão
 1. Em `Resources/Version`: `VERSION=<x.y.z>` e `BUILD=<inteiro maior que o anterior>`.
 2. Commit (`Release x.y.z`). Árvore limpa.
-3. Tag no commit atual: `git tag -s v<x.y.z> -m "Volume Manager <x.y.z>"` (assinada, SPEC §12.9.6;
-   `git tag -a` se você ainda não configurou assinatura de tags).
+3. Tag no commit atual: `git tag -s v<x.y.z> -m "Volume Manager <x.y.z>"` (a tag **precisa** ser
+   assinada, SPEC §12.9.6; o `release.sh` recusa tag não assinada via `git verify-tag`).
+   Se ainda não há assinatura de tags configurada, com uma chave SSH que você já tem:
+   `git config gpg.format ssh`, `git config user.signingkey ~/.ssh/<chave>.pub` e
+   `git config gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers` (arquivo com uma linha
+   `<seu-email> <conteúdo da chave .pub>`). Com chave GPG já existente:
+   `git config user.signingkey <ID-da-chave>`. Confira com `git verify-tag v<x.y.z>`.
 
 ## 2. Gerar os artefatos
 ```
@@ -30,10 +35,9 @@ codesign -d --entitlements - "build/Volume Manager.app"   # vazio: nenhum entitl
 (cd dist && shasum -a 256 -c SHA256SUMS)
 hdiutil verify dist/Volume-Manager-<x.y.z>.dmg
 ```
-- **Nenhum entitlement proibido** (SPEC §12.9.2): `security-check.sh --app` já falha se aparecer
-  qualquer um destes: `disable-library-validation`, `allow-dyld-environment-variables`,
-  `allow-unsigned-executable-memory`, `allow-jit`, `get-task-allow`, `cs.debugger`. Confirme também
-  a olho que a saída de `codesign -d --entitlements -` está vazia.
+- **Nenhum entitlement** (SPEC §12.9.2): `security-check.sh --app` já falha se o app assinado tiver
+  qualquer chave de entitlement. Confirme também a olho que a saída de
+  `codesign -d --entitlements -` está vazia.
 - Abra o DMG: janela com fundo "Arraste o Volume Manager para Aplicativos", ícone do app à
   esquerda, atalho Aplicativos à direita. Instale numa pasta de teste e abra.
 - A versão em Ajustes › Sobre = `<x.y.z>`.

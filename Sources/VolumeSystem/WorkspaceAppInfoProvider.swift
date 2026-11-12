@@ -34,15 +34,6 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
     return AppPath.canonicalize(text)
   }
 
-  /// True if `pid` is still running the executable at `expectedPath` (guards against PID reuse,
-  /// SPEC 12.9.4).
-  public func pidStillMatches(_ pid: Int32, executablePath expectedPath: String) -> Bool {
-    guard let expected = AppPath.canonicalize(expectedPath),
-      let current = executablePath(forPID: pid)
-    else { return false }
-    return current == expected
-  }
-
   /// The "responsible" process of `pid` (for example the browser that owns a helper), or `nil`
   /// when the system call fails or names the process itself.
   ///
@@ -55,14 +46,6 @@ public final class WorkspaceAppInfoProvider: AppInfoProvider, Sendable {
     let responsible = responsibility_get_pid_responsible_for_pid(pid)
     guard responsible > 0, responsible != pid else { return nil }
     return responsible
-  }
-
-  /// Path of the `.app` that owns the responsible process of `pid`, or `nil`.
-  public func responsibleAppPath(forPID pid: Int32) -> String? {
-    guard let responsible = responsiblePID(forPID: pid),
-      let path = executablePath(forPID: responsible)
-    else { return nil }
-    return AppPath.outermostAppPath(in: path)
   }
 
   // MARK: Apps

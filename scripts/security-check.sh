@@ -178,19 +178,11 @@ fi
 [ "$FAILURES" -eq "$DEP_START" ] && pass "dependencies (zero)"
 
 # ---------------------------------------------------------------- 1,6. source-level plist/entitlements
-FORBIDDEN_ENTITLEMENTS=(
-  com.apple.security.cs.disable-library-validation
-  com.apple.security.cs.allow-dyld-environment-variables
-  com.apple.security.cs.allow-unsigned-executable-memory
-  com.apple.security.cs.allow-jit
-  com.apple.security.get-task-allow
-  com.apple.security.cs.debugger
-)
-check_entitlements_text() { # $1 = text, $2 = origin
-  local key
-  for key in "${FORBIDDEN_ENTITLEMENTS[@]}"; do
-    if grep -q -- "$key" <<<"$1"; then fail "forbidden entitlement $key in $2"; fi
-  done
+# Allowlist is empty (SPEC 12.9.2): the app needs no entitlement, so any key is a failure.
+check_entitlements_text() { # $1 = entitlements plist text, $2 = origin
+  local keys
+  keys="$(grep -oE '<key>[^<]*</key>' <<<"$1" | sed -E 's/<\/?key>//g' || true)"
+  [ -z "$keys" ] || fail "entitlements present in $2 (none are allowed): $(tr '\n' ' ' <<<"$keys")"
 }
 check_usage_descriptions() { # $1 = plist, $2 = origin
   local keys

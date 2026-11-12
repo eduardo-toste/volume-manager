@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds, signs (locally) and packages a release into dist/ (SPEC 12.9.5, 13.1). No network, no upload.
 # Usage: VOLUME_SIGN_IDENTITY="<certificate name>" scripts/release.sh <version>
-# Refuses to run when: the working tree is not clean, tag v<version> does not exist or does not
-# point at HEAD, VOLUME_SIGN_IDENTITY is missing, or <version> differs from Resources/Version.
+# Refuses to run when: the working tree is not clean, tag v<version> does not exist, is not
+# signed (git verify-tag) or does not point at HEAD, VOLUME_SIGN_IDENTITY is missing, or <version> differs from Resources/Version.
 #
 # Test mode (VOLUME_RELEASE_UNSIGNED_TEST=1, only to test this script): ad-hoc signature, files
 # named "...-UNSIGNED-TEST...", no Finder layout step, no upload instructions. Never publish those.
@@ -27,10 +27,17 @@ else
   [ "$VOLUME_SIGN_IDENTITY" != "-" ] || die "ad-hoc signing is not allowed for releases (SPEC 13.2)"
 fi
 
+# Includes ignored files, but only in the folders that go into the build (a stray ignored
+# Sources/**/build/X.swift would be compiled into the release).
+[ -z "$(git status --porcelain --ignored -- Sources Package.swift Resources scripts)" ] \
+  || die "uncommitted or ignored files in the build folders; commit or remove them first"
 [ -z "$(git status --porcelain)" ] || die "uncommitted changes in the working tree; commit first"
 HEAD_COMMIT="$(git rev-parse HEAD)"
 TAG_COMMIT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}")" || die "tag $TAG does not exist"
 [ "$TAG_COMMIT" = "$HEAD_COMMIT" ] || die "tag $TAG does not point at HEAD"
+if [ "$TEST_MODE" != "1" ]; then
+  git verify-tag "$TAG" >/dev/null 2>&1 || die "tag $TAG is not signed or its signature does not verify (SPEC 12.9.6; docs/RELEASE.md)"
+fi
 FILE_VERSION="$(sed -n 's/^VERSION=//p' Resources/Version)"
 [ "$FILE_VERSION" = "$VERSION" ] || die "Resources/Version says $FILE_VERSION; set it to $VERSION and commit/tag again"
 

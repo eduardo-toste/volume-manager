@@ -53,21 +53,12 @@ struct AppInfoProviderTests {
     let path = try #require(
       provider.executablePath(forPID: ProcessInfo.processInfo.processIdentifier))
     #expect(path.hasPrefix("/"))
-    #expect(
-      provider.pidStillMatches(ProcessInfo.processInfo.processIdentifier, executablePath: path))
   }
 
   @Test func pathOfInvalidPIDs() {
     #expect(provider.executablePath(forPID: Int32.max) == nil)
     #expect(provider.executablePath(forPID: 0) == nil)
     #expect(provider.executablePath(forPID: -5) == nil)
-  }
-
-  @Test func revalidationFailsForDifferentExecutableOrGonePID() {
-    let pid = ProcessInfo.processInfo.processIdentifier
-    #expect(!provider.pidStillMatches(pid, executablePath: "/usr/bin/true"))
-    #expect(!provider.pidStillMatches(pid, executablePath: "relative/path"))
-    #expect(!provider.pidStillMatches(Int32.max, executablePath: "/usr/bin/true"))
   }
 
   @Test func responsiblePIDNeverCrashes() {
@@ -92,14 +83,6 @@ struct AppInfoProviderTests {
     let pid = try #require(running?.processIdentifier)
     let path = try #require(provider.executablePath(forPID: pid))
     #expect(AppPath.outermostAppPath(in: path)?.hasSuffix("Safari.app") == true)
-  }
-
-  @Test func responsibleAppOfRunningProcessesIsAnAppPathOrNil() {
-    for app in NSWorkspace.shared.runningApplications.prefix(30) {
-      if let path = provider.responsibleAppPath(forPID: app.processIdentifier) {
-        #expect(path.hasSuffix(".app"))
-      }
-    }
   }
 
   @Test func appNameAndBundleIDOfASystemApp() throws {

@@ -88,8 +88,6 @@ struct QAPIDTests {
   func hostilePIDsGiveNil(pid: Int32) {
     #expect(provider.executablePath(forPID: pid) == nil)
     #expect(provider.responsiblePID(forPID: pid) == nil)
-    #expect(provider.responsibleAppPath(forPID: pid) == nil)
-    #expect(!provider.pidStillMatches(pid, executablePath: "/bin/sleep"))
   }
 
   @Test func resultNeverHasControlsAndIsBounded() {
@@ -100,50 +98,6 @@ struct QAPIDTests {
         #expect(!path.unicodeScalars.contains { $0.value < 0x20 || $0.value == 0x7F })
       }
     }
-  }
-
-  @Test func revalidationMatchesNonCanonicalSpellingOfSameExecutable() throws {
-    let pid = ProcessInfo.processInfo.processIdentifier
-    let path = try #require(provider.executablePath(forPID: pid))
-    #expect(provider.pidStillMatches(pid, executablePath: "/." + path))
-    #expect(provider.pidStillMatches(pid, executablePath: "/tmp/.." + path))
-    #expect(!provider.pidStillMatches(pid, executablePath: path + "\u{0}"))
-    #expect(!provider.pidStillMatches(pid, executablePath: ""))
-  }
-
-  /// A process that dies: the PID must stop resolving and stop matching (TOCTOU window).
-  @Test func exitedProcessNoLongerResolvesOrMatches() throws {
-    let child = Process()
-    child.executableURL = URL(fileURLWithPath: "/bin/sleep")
-    child.arguments = ["30"]
-    try child.run()
-    let pid = child.processIdentifier
-    defer {
-      if child.isRunning {
-        child.terminate()
-        child.waitUntilExit()
-      }
-    }
-    let path = try #require(provider.executablePath(forPID: pid))
-    #expect(provider.pidStillMatches(pid, executablePath: path))
-    child.terminate()
-    child.waitUntilExit()
-    #expect(provider.executablePath(forPID: pid) == nil)
-    #expect(!provider.pidStillMatches(pid, executablePath: path))
-  }
-
-  /// Another executable running under the SAME PID value is what reuse looks like; the match
-  /// must be by path, so a different program with this PID is rejected.
-  @Test func differentExecutableForSamePIDIsRejected() throws {
-    let child = Process()
-    child.executableURL = URL(fileURLWithPath: "/bin/sleep")
-    child.arguments = ["30"]
-    try child.run()
-    defer {
-      child.terminate()
-      child.waitUntilExit()
-    }
-    #expect(!provider.pidStillMatches(child.processIdentifier, executablePath: "/usr/bin/true"))
   }
 }
 

@@ -301,19 +301,19 @@ volume-manager/
 
 #### 12.8.1 Testes isolados — nenhum som audível
 Testes automáticos **nunca** podem produzir som audível nem alterar o estado de áudio da máquina do usuário.
-- Processos de teste tocam **silêncio digital** ou sinal com ganho 0 (ex.: utilitário de teste próprio `test-tone` em `Tests/Support`, ou `afplay -v 0`). Proibido tocar sons do sistema/arquivos em volume audível.
+- Processos de teste tocam **silêncio digital** (`afplay -v 0` sobre um arquivo todo zero, `Tests/VolumeAudioTests/Support/SilentPlayer.swift`). Proibido tocar sons do sistema/arquivos em volume audível.
 - **Só silêncio digital** em processos que tocam áudio (decisão do usuário em 2026-11-12, achado S75-M1). Sinais diferentes de zero só existem em buffers na memória (ex.: testes do kernel de ganho), nunca num processo de áudio: o `mutedWhenTapped` só silencia a fonte enquanto **outros** taps não a leem — qualquer outro tap (inclusive o do próprio Volume Manager aberto, que controla todo app que toca, §4.2) reemite o sinal numa saída física, e taps privados de outros processos são invisíveis. Foi o que tornou audível o experimento revoke-exp (2026-11-11).
 - Proibido nos testes: alterar volume geral, mudo geral ou dispositivo padrão do sistema; criar dispositivos que permaneçam após o teste.
 - Testes que dependem de hardware de áudio ficam marcados (tag `.audioHardware`) e são pulados por padrão em `check.sh`; rodam com `scripts/check.sh --audio`.
 
 #### 12.8.2 Testes de qualidade de áudio (§4.7)
-Com o arranjo isolado acima (sinal conhecido → tap → nosso processamento → buffer em memória):
+Sem som (§12.8.1): sinal conhecido **num buffer em memória** → o mesmo código de processamento do IOProc → buffer em memória. Nenhum sinal diferente de zero passa por um processo de áudio ou por um tap:
 - **Teste nulo**: em ganho 1.0, saída − entrada = 0 exatamente (bit a bit) para seno, ruído branco e silêncio.
 - **Ganho exato**: em ganho g, cada amostra = entrada × g (tolerância de 1 ULP de Float32 após a rampa).
 - **Formato**: taxa, canais e ordem de canais da saída iguais aos da entrada (testar 44.1/48/96 kHz e mono/estéreo quando disponíveis).
 - **Continuidade**: 10 minutos de sinal sem buffer perdido, sem descontinuidade de fase e sem *overload* reportado.
 - **Rampa**: mudança de ganho sem degraus (derivada limitada) — sem estalo.
-- **Latência**: medida pelo atraso entre sinal gerado e sinal recebido, ≤ 20 ms.
+- **Latência**: ≤ 20 ms, conferida pelo tamanho do buffer do IOProc e pelas latências que o próprio dispositivo/aggregate informa (sem gerar sinal).
 - Essas análises de sinal existem **somente** no código de teste; o app nunca analisa áudio (§12.9.3).
 
 ### 12.9 Segurança e privacidade
@@ -333,7 +333,7 @@ O app recebe uma permissão poderosa (acesso ao áudio do sistema). Segurança �
 
 #### 12.9.2 Endurecimento do binário (release)
 - Hardened Runtime **ligado**.
-- Entitlements de release: **nenhuma exceção** de runtime. Proibidos: `com.apple.security.cs.disable-library-validation`, `com.apple.security.cs.allow-dyld-environment-variables`, `com.apple.security.cs.allow-unsigned-executable-memory`, `com.apple.security.cs.allow-jit`, `com.apple.security.get-task-allow`, `com.apple.security.cs.debugger`.
+- Entitlements de release: **nenhum** (lista branca vazia, achado S75-M2): o app assinado e `Resources/VolumeManager.entitlements` não têm nenhuma chave, o que exclui toda exceção de runtime (ex.: `cs.disable-library-validation`, `cs.allow-dyld-environment-variables`, `cs.allow-unsigned-executable-memory`, `cs.disable-executable-page-protection`, `cs.allow-jit`, `get-task-allow`, `cs.debugger`) e todo acesso extra (microfone, Apple Events etc.). `security-check.sh` falha com qualquer chave.
 - Nenhum framework/dylib carregado de fora do bundle (exceto do sistema); nenhum carregamento dinâmico de código (`dlopen` de caminho variável, plugins, scripts).
 - **Única API privada permitida**: `responsibility_get_pid_responsible_for_pid` (consulta somente-leitura sobre PIDs), declarada `weak_import` no alvo C `CSystemShims` (um único header, sem lógica). Proibido: `@_silgen_name`, `dlsym`, qualquer outra API privada. `CSystemShims` é o **único** código C permitido no projeto.
 - Sem `NSAppleScript`/`Process` executando comandos externos a partir de dados variáveis. Abrir Ajustes do Sistema apenas por URLs fixas no código.

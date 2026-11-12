@@ -3,7 +3,7 @@
 # Usage: scripts/check.sh [--audio] [--app]
 #   --audio  also run tests tagged .audioHardware (SPEC 12.8.1); skipped by default.
 #   --app    also build the release bundle (scripts/build-app.sh) and run the binary security
-#            checks on it (security-check.sh --app). Slower, so opt-in; CI runs these steps.
+#            checks on it (security-check.sh --app). Slower, so opt-in.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
