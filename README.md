@@ -131,9 +131,10 @@ Se não bater, apague o arquivo e não abra.
 
 ### Atualizar
 
-Baixe o DMG novo (e confira o SHA-256) e substitua o app em Aplicativos. As permissões são mantidas
-porque todos os releases são assinados com o mesmo certificado ([docs/SIGNING.md](docs/SIGNING.md)).
-O app não procura atualizações sozinho.
+Baixe o DMG novo (e confira o SHA-256) e substitua o app em Aplicativos. Os releases são assinados
+ad hoc (sem certificado), então o macOS trata cada versão como um app novo: **cada versão nova pede
+a permissão de áudio de novo**. O app mostra o aviso com o botão "Permitir…"; é só aceitar. O app
+não procura atualizações sozinho.
 
 ## Uso
 
@@ -192,9 +193,9 @@ scripts/check.sh            # portão de qualidade: formatação, build sem avis
 scripts/build-app.sh        # gera build/Volume Manager.app
 ```
 
-Sem `VOLUME_SIGN_IDENTITY`, o `build-app.sh` assina ad hoc, o que serve só para desenvolvimento:
-o macOS esquece a permissão de áudio a cada rebuild. Releases: [docs/RELEASE.md](docs/RELEASE.md)
-e [docs/SIGNING.md](docs/SIGNING.md).
+Sem `VOLUME_SIGN_IDENTITY`, o `build-app.sh` e o `release.sh` assinam ad hoc: o macOS esquece a
+permissão de áudio a cada build. Releases: [docs/RELEASE.md](docs/RELEASE.md); certificado
+opcional: [docs/SIGNING.md](docs/SIGNING.md).
 
 ## Documentação
 

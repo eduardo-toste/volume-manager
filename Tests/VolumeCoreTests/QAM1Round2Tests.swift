@@ -66,7 +66,7 @@ struct QAPanicOrderingTests {
   private func makeStore(_ controller: OrderedSpyController) -> (MixerStore, FakeClock) {
     let clock = FakeClock()
     let preferences = InMemoryPreferencesStore()
-    let settings = SettingsModel(store: preferences, clock: clock)
+    let settings = SettingsModel(store: preferences, clock: clock, build: "1")
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: controller, appInfo: FakeAppInfoProvider(),
       settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,
@@ -200,7 +200,7 @@ struct QARound2StoreTests {
     info.setApp("/Applications/Spotify.app", name: "Spotify", bundleID: "com.spotify.client")
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: SpyAppAudioController(), appInfo: info,
-      settings: SettingsModel(store: preferences, clock: clock),
+      settings: SettingsModel(store: preferences, clock: clock, build: "1"),
       safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,
       permission: grantedPermission(), ownPID: 4242)
     store.handle(

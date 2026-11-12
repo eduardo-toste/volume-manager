@@ -35,7 +35,8 @@ final class Composition {
       catalog: catalog, identity: GroupedProcessIdentity(catalog: catalog, info: provider))
     let preferences = UserDefaultsPreferencesStore()
     let clock = ContinuousClock()
-    let settings = SettingsModel(store: preferences, clock: clock)
+    let settings = SettingsModel(
+      store: preferences, clock: clock, build: Self.bundleText("CFBundleVersion"))
     let safety = SafetyPolicy(store: preferences, clock: clock)
     safety.beginSession()
     let permission = PermissionMonitor(

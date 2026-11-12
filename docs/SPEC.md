@@ -34,7 +34,7 @@
 | Testes | **Swift Testing** (`swift test`). |
 | Identificação | Nome exibido **Volume Manager** · bundle ID **`com.volumemanager.app`** · produto `VolumeManager`. |
 | Info.plist | `LSUIElement = YES`, `LSMinimumSystemVersion = 15.0`, `NSAudioCaptureUsageDescription` com texto em pt-BR. |
-| Assinatura | Hardened Runtime ligado; App Sandbox **desligado** na v1 (ver §10). **Sem Apple Developer Program**: assinatura com certificado próprio estável (§13.2). |
+| Assinatura | Hardened Runtime ligado; App Sandbox **desligado** na v1 (ver §10). **Sem Apple Developer Program**: assinatura **ad hoc** na v1; certificado próprio opcional depois (§13.2). |
 
 ## 3. Telas
 
@@ -396,7 +396,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 - Passo a passo com imagens: abrir o DMG → arrastar para Aplicativos → primeira abertura bloqueada → Ajustes do Sistema › Privacidade e Segurança › **Abrir Mesmo Assim** (só na primeira vez).
 - Alternativa no Terminal: `xattr -dr com.apple.quarantine "/Applications/Volume Manager.app"`.
 - Requisitos: macOS 15+, permissão de áudio do sistema no primeiro uso.
-- Para atualizar: baixar o novo DMG e substituir o app (permissões são mantidas graças ao §13.2).
+- Para atualizar: baixar o novo DMG e substituir o app; cada versão pede a permissão de áudio de novo (ad hoc, §13.2): o app mostra o aviso com “Permitir…”.
 
 ### 13.4 Preparação para atualizações automáticas (futuro)
 - Versionamento semântico: `CFBundleShortVersionString` = `MAJOR.MINOR.PATCH`, `CFBundleVersion` = número inteiro crescente; ambos definidos num só lugar (`Resources/Version.xcconfig` ou equivalente lido pelo `build-app.sh`).

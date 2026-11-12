@@ -13,8 +13,8 @@ você enxerga. Não envie amostras de áudio nem dados pessoais.
 
 ## O que o projeto considera falha de segurança
 Qualquer coisa que permita gravar, copiar ou enviar áudio; fazer conexões de rede; herdar a
-permissão de áudio do app por código externo; deixar o app assinado com identidade que não seja do
-mantenedor; ou adulterar o download. Modelo de ameaças completo: `docs/SPEC.md` §12.9.
+permissão de áudio do app por código externo; distribuir um app que não seja o do
+mantenedor (confira o SHA-256 do download); ou adulterar o download. Modelo de ameaças completo: `docs/SPEC.md` §12.9.
 
 ## Versões suportadas
 Apenas a versão mais recente publicada em

@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # Builds, signs (locally) and packages a release into dist/ (SPEC 12.9.5, 13.1). No network, no upload.
-# Usage: VOLUME_SIGN_IDENTITY="<certificate name>" scripts/release.sh <version>
-# Refuses to run when: the working tree is not clean, tag v<version> does not exist, is not
-# signed (git verify-tag) or does not point at HEAD, VOLUME_SIGN_IDENTITY is missing, or <version> differs from Resources/Version.
-#
-# Test mode (VOLUME_RELEASE_UNSIGNED_TEST=1, only to test this script): ad-hoc signature, files
-# named "...-UNSIGNED-TEST...", no Finder layout step, no upload instructions. Never publish those.
+# Usage: [VOLUME_SIGN_IDENTITY="<certificate name>"] scripts/release.sh <version>
+# Without VOLUME_SIGN_IDENTITY (or with "-") the app is signed ad hoc (SPEC 13.2).
+# Refuses to run when: the working tree is not clean, tag v<version> does not exist, is not an
+# annotated tag (git tag -a) or does not point at HEAD, or <version> differs from Resources/Version.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -17,14 +15,9 @@ VERSION="$1"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "invalid version '$VERSION' (expected MAJOR.MINOR.PATCH)"
 TAG="v$VERSION"
 
-TEST_MODE="${VOLUME_RELEASE_UNSIGNED_TEST:-0}"
-if [ "$TEST_MODE" = "1" ]; then
-  SUFFIX="-UNSIGNED-TEST"
-  export VOLUME_SIGN_IDENTITY="-"
-else
-  SUFFIX=""
-  [ -n "${VOLUME_SIGN_IDENTITY:-}" ] || die "VOLUME_SIGN_IDENTITY is not set (see docs/SIGNING.md)"
-  [ "$VOLUME_SIGN_IDENTITY" != "-" ] || die "ad-hoc signing is not allowed for releases (SPEC 13.2)"
+export VOLUME_SIGN_IDENTITY="${VOLUME_SIGN_IDENTITY:--}"
+if [ "$VOLUME_SIGN_IDENTITY" = "-" ]; then
+  echo "release: no VOLUME_SIGN_IDENTITY: signing AD HOC (users must grant the audio permission again after each update)" >&2
 fi
 
 # Includes ignored files, but only in the folders that go into the build (a stray ignored
@@ -35,13 +28,11 @@ fi
 HEAD_COMMIT="$(git rev-parse HEAD)"
 TAG_COMMIT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}")" || die "tag $TAG does not exist"
 [ "$TAG_COMMIT" = "$HEAD_COMMIT" ] || die "tag $TAG does not point at HEAD"
-if [ "$TEST_MODE" != "1" ]; then
-  git verify-tag "$TAG" >/dev/null 2>&1 || die "tag $TAG is not signed or its signature does not verify (SPEC 12.9.6; docs/RELEASE.md)"
-fi
+[ "$(git cat-file -t "refs/tags/$TAG")" = "tag" ] || die "tag $TAG is not annotated; create it with git tag -a (docs/RELEASE.md)"
 FILE_VERSION="$(sed -n 's/^VERSION=//p' Resources/Version)"
 [ "$FILE_VERSION" = "$VERSION" ] || die "Resources/Version says $FILE_VERSION; set it to $VERSION and commit/tag again"
 
-NAME="Volume-Manager-$VERSION$SUFFIX"
+NAME="Volume-Manager-$VERSION"
 VOLNAME="Volume Manager"
 DIST="dist"
 APP_NAME="Volume Manager.app"
@@ -76,12 +67,11 @@ swift scripts/make-dmg-background.swift "$STAGE/.background/background.png"
 echo "==> creating $DMG"
 RW_DMG="$WORK/rw.dmg"
 hdiutil create -quiet -volname "$VOLNAME" -srcfolder "$STAGE" -fs HFS+ -format UDRW -ov "$RW_DMG"
-if [ "$TEST_MODE" != "1" ]; then
-  # Window layout (background, icon positions) is stored by Finder in .DS_Store. macOS may ask
-  # once to let Terminal control Finder; allow it (docs/RELEASE.md).
-  hdiutil attach -quiet -readwrite -noverify -noautoopen -mountpoint "/Volumes/$VOLNAME" "$RW_DMG" >/dev/null
-  MOUNT_POINTS+=("/Volumes/$VOLNAME")
-  osascript <<OSA || die "Finder layout failed (allow Terminal to control Finder, then run again)"
+# Window layout (background, icon positions) is stored by Finder in .DS_Store. macOS may ask
+# once to let Terminal control Finder; allow it (docs/RELEASE.md).
+hdiutil attach -quiet -readwrite -noverify -noautoopen -mountpoint "/Volumes/$VOLNAME" "$RW_DMG" >/dev/null
+MOUNT_POINTS+=("/Volumes/$VOLNAME")
+osascript <<OSA || die "Finder layout failed (allow Terminal to control Finder, then run again)"
 tell application "Finder"
   tell disk "$VOLNAME"
     open
@@ -102,10 +92,9 @@ tell application "Finder"
   end tell
 end tell
 OSA
-  sync
-  hdiutil detach -quiet "/Volumes/$VOLNAME"
-  MOUNT_POINTS=()
-fi
+sync
+hdiutil detach -quiet "/Volumes/$VOLNAME"
+MOUNT_POINTS=()
 hdiutil convert -quiet "$RW_DMG" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG"
 
 echo "==> verifying the app inside the DMG (the artifact users receive)"
@@ -131,12 +120,8 @@ ditto -c -k --keepParent "$APP" "$ZIP"
 echo
 echo "release: OK ($TAG, commit ${HEAD_COMMIT:0:12})"
 cat "$DIST/SHA256SUMS"
-if [ "$TEST_MODE" = "1" ]; then
-  echo "release: UNSIGNED TEST build: do NOT publish these files."
-else
-  echo
-  echo "Upload manually to https://github.com/eduardo-toste/volume-manager/releases (tag $TAG):"
-  echo "  $DMG"
-  echo "  $ZIP"
-  echo "  $DIST/SHA256SUMS   (also paste its contents in the release notes)"
-fi
+echo
+echo "Upload manually to https://github.com/eduardo-toste/volume-manager/releases (tag $TAG):"
+echo "  $DMG"
+echo "  $ZIP"
+echo "  $DIST/SHA256SUMS   (also paste its contents in the release notes)"

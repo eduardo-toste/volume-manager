@@ -31,9 +31,13 @@ struct MixerHarness {
       initial["safety.cleanExit"] = true
       cleanStart = true
     }
+    // The mark was confirmed by this same build (see SettingsModel).
+    if initial["audioPermissionConfirmed"] != nil, initial["audioPermissionBuild"] == nil {
+      initial["audioPermissionBuild"] = "1"
+    }
     permission = PermissionMonitor(service: access, status: status)
     preferences = InMemoryPreferencesStore(initial)
-    settings = SettingsModel(store: preferences, clock: clock)
+    settings = SettingsModel(store: preferences, clock: clock, build: "1")
     safety = SafetyPolicy(store: preferences, clock: clock)
     if beginSafety || cleanStart { safety.beginSession() }
     // Ends the harness session at once, which also drops the stable-session timer.

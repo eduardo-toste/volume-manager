@@ -117,7 +117,7 @@ struct QATextSanitizerTests {
       "rememberedApps": ["com.spotify.client": ["volume": 0.5, "outputUID": huge]]
     ])
     let start = ContinuousClock.now
-    let settings = SettingsModel(store: store, clock: FakeClock())
+    let settings = SettingsModel(store: store, clock: FakeClock(), build: "1")
     #expect(ContinuousClock.now - start < .seconds(1))
     #expect(settings.remembered(for: "com.spotify.client")?.outputUID == nil)
     #expect(settings.remembered(for: "com.spotify.client")?.volume == 0.5)
@@ -351,7 +351,7 @@ struct QASettingsModelTests {
   let clock = FakeClock()
 
   @Test func defaultsMatchSpec33() {
-    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock, build: "1")
     #expect(settings.rememberVolumes == true)
     #expect(settings.volumeStep == .five)
     #expect(VolumeStep.allCases.map(\.rawValue) == [1, 5, 10])
@@ -362,7 +362,7 @@ struct QASettingsModelTests {
       "rememberVolumes": [true], "volumeStepPercent": "10",
       "onboardingCompleted": 1, "rememberedApps": ["not", "a", "dict"],
     ]
-    let settings = SettingsModel(store: InMemoryPreferencesStore(wrong), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(wrong), clock: clock, build: "1")
     #expect(settings.rememberVolumes)
     #expect(settings.volumeStep == .five)
     #expect(!settings.onboardingCompleted)
@@ -373,7 +373,7 @@ struct QASettingsModelTests {
     let values: [Any] = [7, 0, -1, 100, 5.5, Double.nan, Double.infinity, true, "5"]
     for value in values {
       let settings = SettingsModel(
-        store: InMemoryPreferencesStore(["volumeStepPercent": value]), clock: clock)
+        store: InMemoryPreferencesStore(["volumeStepPercent": value]), clock: clock, build: "1")
       #expect(settings.volumeStep == .five, "\(value)")
     }
   }
@@ -393,7 +393,7 @@ struct QASettingsModelTests {
       "com.a.notdict": 12,
     ]
     let settings = SettingsModel(
-      store: InMemoryPreferencesStore(["rememberedApps": records]), clock: clock)
+      store: InMemoryPreferencesStore(["rememberedApps": records]), clock: clock, build: "1")
     for key in [
       "com.a.neg", "com.a.big", "com.a.nan", "com.a.inf", "com.a.str", "com.a.bool", "com.a.empty",
     ] {
@@ -413,12 +413,12 @@ struct QASettingsModelTests {
     var records: [String: Any] = [:]
     for index in 0..<5000 { records["com.test.app\(index)"] = ["volume": 0.5] }
     let settings = SettingsModel(
-      store: InMemoryPreferencesStore(["rememberedApps": records]), clock: clock)
+      store: InMemoryPreferencesStore(["rememberedApps": records]), clock: clock, build: "1")
     #expect(settings.rememberedApps.count == 1000)
   }
 
   @Test func rememberingStopsAtTheLimitButExistingAppsStillUpdate() {
-    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock, build: "1")
     for index in 0..<1000 {
       settings.remember(AppAudioState(volume: 0.5), for: "com.test.app\(index)")
     }
@@ -434,7 +434,7 @@ struct QASettingsModelTests {
   }
 
   @Test func rememberRejectsInvalidBundleIDs() {
-    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(), clock: clock, build: "1")
     settings.remember(AppAudioState(volume: 0.5), for: "bad id\n")
     settings.remember(AppAudioState(volume: 0.5), for: String(repeating: "a", count: 5000))
     #expect(settings.rememberedApps.isEmpty)
@@ -442,7 +442,7 @@ struct QASettingsModelTests {
 
   @Test func manyQuickChangesProduceASingleWrite() async {
     let store = InMemoryPreferencesStore()
-    let settings = SettingsModel(store: store, clock: clock)
+    let settings = SettingsModel(store: store, clock: clock, build: "1")
     for index in 0..<20 {
       settings.remember(AppAudioState(volume: Double(index) / 25), for: "com.test.app")
       #expect(await eventually { clock.sleeperCount == 1 })
@@ -461,7 +461,7 @@ struct QASettingsModelTests {
 
   @Test func flushWritesAtOnceAndCancelsThePendingSave() async {
     let store = InMemoryPreferencesStore()
-    let settings = SettingsModel(store: store, clock: clock)
+    let settings = SettingsModel(store: store, clock: clock, build: "1")
     settings.rememberVolumes = false
     #expect(await eventually { clock.sleeperCount == 1 })
     settings.flush()
@@ -475,7 +475,7 @@ struct QASettingsModelTests {
 
   @Test func settingTheSameValueDoesNotScheduleASave() async {
     let store = InMemoryPreferencesStore()
-    let settings = SettingsModel(store: store, clock: clock)
+    let settings = SettingsModel(store: store, clock: clock, build: "1")
     settings.rememberVolumes = true
     settings.forget("com.unknown.app")
     settings.forgetAll()
@@ -486,12 +486,12 @@ struct QASettingsModelTests {
 
   @Test func savedPreferencesRoundTripThroughAFreshModel() {
     let store = InMemoryPreferencesStore()
-    let first = SettingsModel(store: store, clock: clock)
+    let first = SettingsModel(store: store, clock: clock, build: "1")
     first.volumeStep = .ten
     first.remember(
       AppAudioState(volume: 0.3, muted: true, preferredOutputUID: "dev1"), for: "com.a.b")
     first.flush()
-    let second = SettingsModel(store: store, clock: clock)
+    let second = SettingsModel(store: store, clock: clock, build: "1")
     #expect(second.volumeStep == .ten)
     #expect(
       second.remembered(for: "com.a.b")
@@ -772,7 +772,7 @@ struct QAMixerStoreTests {
     await h.settle()
     #expect(h.controller.restoreAllCount == 1)
     #expect(h.controller.reconcileCalls.last?.isEmpty ?? true)
-    let afterRestart = SettingsModel(store: h.preferences, clock: FakeClock())
+    let afterRestart = SettingsModel(store: h.preferences, clock: FakeClock(), build: "1")
     #expect(afterRestart.remembered(for: "com.spotify.client") == nil)
   }
 
@@ -806,7 +806,7 @@ struct QAMixerStoreTests {
     let controller = HangingController()
     let clock = FakeClock()
     let preferences = InMemoryPreferencesStore()
-    let settings = SettingsModel(store: preferences, clock: clock)
+    let settings = SettingsModel(store: preferences, clock: clock, build: "1")
     let store = MixerStore(
       audioSystem: FakeAudioSystem(), controller: controller, appInfo: FakeAppInfoProvider(),
       settings: settings, safety: SafetyPolicy(store: preferences, clock: clock), clock: clock,

@@ -67,7 +67,7 @@ struct Fixture {
   init(apps: [String], denied: Bool = false, safeMode: Bool = false) async {
     let preferences = MemoryPreferences()
     let clock = ContinuousClock()
-    let settings = SettingsModel(store: preferences, clock: clock)
+    let settings = SettingsModel(store: preferences, clock: clock, build: "1")
     let safety = SafetyPolicy(store: preferences, clock: clock)
     // Confirmed on this Mac before: the notice shows only for the "denied" scene (SPEC 3.2).
     settings.audioPermissionConfirmed = !denied

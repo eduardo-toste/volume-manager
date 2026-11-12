@@ -9,7 +9,7 @@ struct SettingsModelTests {
   let clock = FakeClock()
 
   private func model(_ store: InMemoryPreferencesStore) -> SettingsModel {
-    SettingsModel(store: store, clock: clock)
+    SettingsModel(store: store, clock: clock, build: "1")
   }
 
   @Test func defaultsMatchTheSpec() {
@@ -247,5 +247,47 @@ struct SettingsModelTests {
     #expect(VolumeStep.five.fraction == 0.05)
     #expect(VolumeStep.ten.fraction == 0.1)
     #expect(VolumeStep.allCases.count == 3)
+  }
+}
+
+@MainActor
+@Suite("Permission mark and build", .timeLimit(.minutes(1)))
+struct PermissionBuildTests {
+  let clock = FakeClock()
+
+  private func confirmed(
+    build stored: Any?, running: String = "7"
+  ) -> Bool {
+    var values: [String: Any] = ["audioPermissionConfirmed": true]
+    values["audioPermissionBuild"] = stored
+    return SettingsModel(
+      store: InMemoryPreferencesStore(values), clock: clock, build: running
+    ).audioPermissionConfirmed
+  }
+
+  @Test func sameBuildKeepsTheMark() {
+    #expect(confirmed(build: "7"))
+  }
+
+  @Test func differentBuildDropsTheMark() {
+    #expect(!confirmed(build: "6"))
+  }
+
+  @Test func missingOrCorruptedBuildDropsTheMark() {
+    #expect(!confirmed(build: nil))
+    #expect(!confirmed(build: 7))
+    #expect(
+      !confirmed(
+        build: String(repeating: "7", count: 5000), running: String(repeating: "7", count: 5000)))
+  }
+
+  @Test func confirmingStoresTheCurrentBuild() {
+    let store = InMemoryPreferencesStore()
+    let settings = SettingsModel(store: store, clock: clock, build: "9")
+    settings.audioPermissionConfirmed = true
+    settings.flush()
+    #expect(store.object(forKey: "audioPermissionBuild") as? String == "9")
+    #expect(SettingsModel(store: store, clock: clock, build: "9").audioPermissionConfirmed)
+    #expect(!SettingsModel(store: store, clock: clock, build: "10").audioPermissionConfirmed)
   }
 }

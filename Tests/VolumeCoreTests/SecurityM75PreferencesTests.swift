@@ -33,7 +33,7 @@ struct SecurityM75PreferencesTests {
       <key>rememberVolumes</key><real>0.0</real>
       <key>volumeStepPercent</key><true/>
       """)
-    let settings = SettingsModel(store: InMemoryPreferencesStore(values), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(values), clock: clock, build: "1")
     #expect(settings.audioPermissionConfirmed == false)
     #expect(settings.onboardingCompleted == false)
     #expect(settings.rememberVolumes == true)
@@ -51,7 +51,8 @@ struct SecurityM75PreferencesTests {
       <array><dict><key>volume</key><real>0</real><key>muted</key><true/></dict></array></dict>
       """,
     ] {
-      let settings = SettingsModel(store: InMemoryPreferencesStore(try domain(body)), clock: clock)
+      let settings = SettingsModel(
+        store: InMemoryPreferencesStore(try domain(body)), clock: clock, build: "1")
       #expect(settings.remembered(for: "com.spotify.client") == nil, "\(body)")
       #expect(settings.rememberedApps.isEmpty, "\(body)")
     }
@@ -69,7 +70,7 @@ struct SecurityM75PreferencesTests {
       Output</string></dict>
       </dict>
       """)
-    let settings = SettingsModel(store: InMemoryPreferencesStore(values), clock: clock)
+    let settings = SettingsModel(store: InMemoryPreferencesStore(values), clock: clock, build: "1")
     // `-int 0` is a valid volume (0%), but `-int 1` is not a valid "muted": not muted.
     #expect(settings.remembered(for: "com.a.intmute")?.muted == false)
     #expect(settings.remembered(for: "com.a.hugereal")?.volume == 1)

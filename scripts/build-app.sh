@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Builds build/Volume Manager.app (release), signs with Hardened Runtime and verifies the signature.
 # Signing identity: $VOLUME_SIGN_IDENTITY, otherwise ad-hoc ("-", development only; SPEC 13.2).
-# Release builds (scripts/release.sh) always pass a real identity; ad-hoc is for development only
-# because its designated requirement is the cdhash, which changes on every build (SPEC 13.2).
+# Ad hoc is also what the v1 release uses (SPEC 13.2): its designated requirement is the cdhash,
+# which changes on every build, so the audio permission is asked again after each update.
 # vmctl is a development tool and is NEVER copied into the bundle (SPEC 12.9.6).
 set -euo pipefail
 

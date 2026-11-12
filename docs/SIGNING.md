@@ -1,5 +1,9 @@
 # Assinatura do Volume Manager (certificado próprio)
 
+> **Opcional.** A v1 sai com assinatura ad hoc, sem certificado (SPEC §13.2): cada versão pede a
+> permissão de áudio de novo. Este guia continua válido para quando você quiser um certificado e
+> manter a permissão entre versões.
+
 O app não usa conta de desenvolvedor da Apple. Em vez disso, o mantenedor cria **um certificado
 autoassinado de assinatura de código** no próprio Mac e assina os releases localmente (SPEC §13.2,
 §12.9.5). Isto é feito **por você, à mão**; os scripts e agentes nunca criam certificado nem mexem
@@ -10,6 +14,7 @@ O macOS guarda a permissão de áudio ligada à **identidade de assinatura** do 
 requirement*). Com assinatura ad hoc, a identidade muda a cada build e a permissão é esquecida a
 cada versão. Com o mesmo certificado em todos os builds, a identidade é a mesma e a permissão é
 mantida ao atualizar.
+Obs.: a marca do app é ligada ao build (`CFBundleVersion`), então o aviso “Permitir…” ainda aparece uma vez por versão e se resolve no clique, sem novo pedido do sistema.
 
 ## 1. Criar o certificado
 1. Abra **Acesso às Chaves** (Keychain Access).
@@ -57,4 +62,4 @@ certificado: ele é a identidade do app.
   tem outra identidade; o macOS trata como outro app e a permissão de áudio deve ser concedida de
   novo por todos os usuários (e as marcas de permissão salvas ficam velhas). Evite trocar; se for
   inevitável, avise nas notas do release.
-- Nunca use `VOLUME_SIGN_IDENTITY=-` (ad hoc) em release: `scripts/release.sh` recusa.
+- Sem `VOLUME_SIGN_IDENTITY` (ou com `-`), o release sai ad hoc e o `release.sh` avisa.

@@ -27,7 +27,7 @@ struct WelcomeAndLoginItemTests {
     welcome.start()
     #expect(harness.settings.onboardingCompleted)
     // A second launch reads the stored flag: no welcome.
-    let second = SettingsModel(store: harness.preferences, clock: harness.clock)
+    let second = SettingsModel(store: harness.preferences, clock: harness.clock, build: "1")
     #expect(second.onboardingCompleted)
   }
 

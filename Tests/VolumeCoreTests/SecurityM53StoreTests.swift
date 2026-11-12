@@ -38,7 +38,7 @@ struct SecurityM53StoreTests {
     let permission = PermissionMonitor(service: service, status: .notDetermined)
     let preferences = InMemoryPreferencesStore([:])
     let clock = FakeClock()
-    let settings = SettingsModel(store: preferences, clock: clock)
+    let settings = SettingsModel(store: preferences, clock: clock, build: "1")
     let info = FakeAppInfoProvider()
     info.setApp(
       "/Applications/Spotify.app", name: "Spotify", bundleID: "com.spotify.client")

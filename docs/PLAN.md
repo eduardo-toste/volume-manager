@@ -195,7 +195,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 ### M7 — Distribuição
 **Dev**
-- `build-app.sh` com certificado próprio (`VOLUME_SIGN_IDENTITY`) + instruções para criar o certificado no Acesso às Chaves (`docs/SIGNING.md`).
+- `build-app.sh` com certificado próprio opcional (`VOLUME_SIGN_IDENTITY`; a v1 sai ad hoc por decisão do usuário, M7.6) + instruções para criar o certificado no Acesso às Chaves (`docs/SIGNING.md`).
 - `scripts/release.sh <versão>`: recusa rodar com mudanças não commitadas ou sem tag; build release, assina **localmente**, gera `Volume-Manager-<versão>.dmg` (via `hdiutil`, com atalho para Aplicativos e **fundo com instrução visual**), `.zip` e `SHA256SUMS`.
 - Ícone do app (a partir do design).
 - `README.md`: o que é, prints, requisitos, instalação com “Abrir Mesmo Assim”/`xattr`, **como conferir o SHA-256**, “baixe só daqui”, como atualizar, como compilar, privacidade (“sem rede, nada é gravado”).
@@ -204,7 +204,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 
 **QA**
 - DMG monta, contém app assinado e atalho; app abre a partir do DMG em pasta temporária; versão exibida no Sobre bate com a do release; `SHA256SUMS` confere.
-- Verifica que permissões são mantidas entre duas builds assinadas com o mesmo certificado (designated requirement estável via `codesign -d -r-`).
+- Ad hoc (v1): ao instalar uma versão nova sobre a antiga, o app mostra o aviso com “Permitir…” (marca ligada ao build, M7.6). Só com certificado (opcional): designated requirement estável via `codesign -d -r-`.
 - `security-check.sh` rodado contra o `.app` **de dentro do DMG** (o artefato que o usuário recebe).
 
 ---

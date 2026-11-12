@@ -11,6 +11,7 @@ public final class SettingsModel {
     static let volumeStep = "volumeStepPercent"
     static let onboardingCompleted = "onboardingCompleted"
     static let permissionConfirmed = "audioPermissionConfirmed"
+    static let permissionBuild = "audioPermissionBuild"
     static let rememberedApps = "rememberedApps"
   }
 
@@ -27,8 +28,9 @@ public final class SettingsModel {
   }
   /// True once the audio permission was confirmed as granted on this Mac. It lets the app
   /// verify the permission at launch without showing the system prompt (the user already
-  /// decided). Cleared only when a check the user asked for ("Permitir…") finds it denied
-  /// (SPEC 5).
+  /// decided). Cleared when a check the user asked for ("Permitir…") finds it denied
+  /// (SPEC 5), and at launch when the app build differs from the one that confirmed it: an
+  /// ad hoc signed update is seen as a new app by macOS (SPEC 13.2).
   public var audioPermissionConfirmed = false {
     didSet { changed(oldValue != audioPermissionConfirmed) }
   }
@@ -37,14 +39,18 @@ public final class SettingsModel {
 
   @ObservationIgnored private let store: any PreferencesStore
   @ObservationIgnored private let clock: AppClock
+  /// Build (`CFBundleVersion`) of this run; stored with the permission mark.
+  @ObservationIgnored private let build: String
   @ObservationIgnored private var saveTask: Task<Void, Never>?
   @ObservationIgnored private var observers: [@MainActor () -> Void] = []
   @ObservationIgnored private var isLoading = true
 
   /// Loads and validates the stored preferences. Invalid values become the defaults.
-  public init(store: any PreferencesStore, clock: AppClock) {
+  /// `build` is the running app's `CFBundleVersion`.
+  public init(store: any PreferencesStore, clock: AppClock, build: String) {
     self.store = store
     self.clock = clock
+    self.build = build
     load()
     isLoading = false
   }
@@ -110,8 +116,10 @@ public final class SettingsModel {
     rememberVolumes = PreferenceValidation.bool(store.object(forKey: Key.rememberVolumes)) ?? true
     onboardingCompleted =
       PreferenceValidation.bool(store.object(forKey: Key.onboardingCompleted)) ?? false
+    // The mark only counts for the build that confirmed it (missing or invalid build: no mark).
     audioPermissionConfirmed =
-      PreferenceValidation.bool(store.object(forKey: Key.permissionConfirmed)) ?? false
+      (PreferenceValidation.bool(store.object(forKey: Key.permissionConfirmed)) ?? false)
+      && PreferenceValidation.string(store.object(forKey: Key.permissionBuild)) == build
     volumeStep =
       PreferenceValidation.integer(store.object(forKey: Key.volumeStep))
       .flatMap(VolumeStep.init(rawValue:)) ?? .five
@@ -136,6 +144,7 @@ public final class SettingsModel {
     store.set(volumeStep.rawValue, forKey: Key.volumeStep)
     store.set(onboardingCompleted, forKey: Key.onboardingCompleted)
     store.set(audioPermissionConfirmed, forKey: Key.permissionConfirmed)
+    store.set(audioPermissionConfirmed ? build : nil, forKey: Key.permissionBuild)
     store.set(rememberedApps.mapValues(\.propertyList), forKey: Key.rememberedApps)
   }
 }
