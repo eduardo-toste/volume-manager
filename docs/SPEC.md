@@ -382,7 +382,7 @@ Antes do primeiro release (etapa própria no plano), um **agente de segurança**
 ## 13. Distribuição (MVP)
 
 ### 13.1 Canal
-- **GitHub Releases**: cada versão publica `Volume-<versão>.dmg` e o `.zip` do app, junto com o arquivo `SHA256SUMS` (hash de cada artefato), também colado nas notas da Release.
+- **GitHub Releases**: cada versão publica `Volume-Manager-<versão>.dmg` e o `.zip` do app, junto com o arquivo `SHA256SUMS` (hash de cada artefato), também colado nas notas da Release.
 - DMG com **instrução visual**: fundo da janela com seta “arraste para Aplicativos” e lembrete “Na primeira vez: Ajustes do Sistema › Privacidade e Segurança › Abrir Mesmo Assim”.
 - Publicação **manual** no MVP: `scripts/release.sh <versão>` gera, assina e calcula os hashes **localmente**; o upload na Release é feito à mão. O GitHub oficial é o **único** canal de download divulgado.
 - **Sem CI**: a qualidade é garantida localmente (`scripts/check.sh` e `scripts/check.sh --app`) antes de cada merge e de cada release.

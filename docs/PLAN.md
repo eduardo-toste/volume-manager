@@ -196,7 +196,7 @@ Objetivo: provar **antes de tudo** que os riscos técnicos 1 e 2 (taps e agrupam
 ### M7 — Distribuição
 **Dev**
 - `build-app.sh` com certificado próprio (`VOLUME_SIGN_IDENTITY`) + instruções para criar o certificado no Acesso às Chaves (`docs/SIGNING.md`).
-- `scripts/release.sh <versão>`: recusa rodar com mudanças não commitadas ou sem tag; build release, assina **localmente**, gera `Volume-<versão>.dmg` (via `hdiutil`, com atalho para Aplicativos e **fundo com instrução visual**), `.zip` e `SHA256SUMS`.
+- `scripts/release.sh <versão>`: recusa rodar com mudanças não commitadas ou sem tag; build release, assina **localmente**, gera `Volume-Manager-<versão>.dmg` (via `hdiutil`, com atalho para Aplicativos e **fundo com instrução visual**), `.zip` e `SHA256SUMS`.
 - Ícone do app (a partir do design).
 - `README.md`: o que é, prints, requisitos, instalação com “Abrir Mesmo Assim”/`xattr`, **como conferir o SHA-256**, “baixe só daqui”, como atualizar, como compilar, privacidade (“sem rede, nada é gravado”).
 - `SECURITY.md`: como reportar vulnerabilidades.
