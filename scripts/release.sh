@@ -3,7 +3,8 @@
 # Usage: [VOLUME_SIGN_IDENTITY="<certificate name>"] scripts/release.sh <version>
 # Without VOLUME_SIGN_IDENTITY (or with "-") the app is signed ad hoc (SPEC 13.2).
 # Refuses to run when: the working tree is not clean, tag v<version> does not exist, is not an
-# annotated tag (git tag -a) or does not point at HEAD, or <version> differs from Resources/Version.
+# annotated tag (git tag -a) or does not point at HEAD, <version> differs from Resources/Version, or
+# BUILD in Resources/Version is not greater than the BUILD of every other v* tag.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -31,6 +32,17 @@ TAG_COMMIT="$(git rev-parse -q --verify "refs/tags/$TAG^{commit}")" || die "tag 
 [ "$(git cat-file -t "refs/tags/$TAG")" = "tag" ] || die "tag $TAG is not annotated; create it with git tag -a (docs/RELEASE.md)"
 FILE_VERSION="$(sed -n 's/^VERSION=//p' Resources/Version)"
 [ "$FILE_VERSION" = "$VERSION" ] || die "Resources/Version says $FILE_VERSION; set it to $VERSION and commit/tag again"
+# BUILD must grow: the app keeps the audio-permission mark only for the same CFBundleVersion, so
+# an update with a reused BUILD would keep a stale mark after the ad hoc identity changed.
+FILE_BUILD="$(sed -n 's/^BUILD=//p' Resources/Version)"
+[[ "$FILE_BUILD" =~ ^[0-9]+$ ]] || die "invalid BUILD '$FILE_BUILD' in Resources/Version"
+for other in $(git tag --list 'v*'); do
+  [ "$other" = "$TAG" ] && continue
+  other_build="$(git show "$other:Resources/Version" 2>/dev/null | sed -n 's/^BUILD=//p')"
+  [[ "$other_build" =~ ^[0-9]+$ ]] || continue
+  [ "$FILE_BUILD" -gt "$other_build" ] \
+    || die "BUILD=$FILE_BUILD is not greater than BUILD=$other_build of $other; raise it in Resources/Version"
+done
 
 NAME="Volume-Manager-$VERSION"
 VOLNAME="Volume Manager"
@@ -113,7 +125,8 @@ hdiutil detach -quiet "$VERIFY_MOUNT"
 MOUNT_POINTS=()
 
 echo "==> zip and checksums"
-ditto -c -k --keepParent "$APP" "$ZIP"
+# No AppleDouble ._* files: plain `unzip` would put them inside the bundle and break its seal.
+ditto -c -k --norsrc --noextattr --keepParent "$APP" "$ZIP"
 (cd "$DIST" && shasum -a 256 "$NAME.dmg" "$NAME.zip" > SHA256SUMS)
 (cd "$DIST" && shasum -a 256 -c SHA256SUMS)
 

@@ -88,25 +88,7 @@ final class Composition {
       onResume: { [controller] in
         Task { await controller.systemResumed() }
       })
-    terminationSignals = [SIGTERM, SIGINT].map { number in
-      signal(number, SIG_IGN)
-      // Handled off the main queue: a second signal still kills an app that hangs there.
-      let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
-      let signalled = OSAllocatedUnfairLock(initialState: false)
-      source.setEventHandler { [quit] in
-        if signalled.withLock({ was in
-          defer { was = true }
-          return was
-        }) {
-          signal(number, SIG_DFL)
-          raise(number)
-        } else {
-          Task { @MainActor in quit() }
-        }
-      }
-      source.resume()
-      return source
-    }
+    terminationSignals = [SIGTERM, SIGINT].map { Composition.terminationSource($0, quit: quit) }
     tasks = [
       Task { [store] in await store.run() },
       Task { [store, controller] in
@@ -140,6 +122,30 @@ final class Composition {
   }
 
   // MARK: Actions
+
+  /// Nonisolated so the handler does not inherit `@MainActor`: it runs on a global queue, and an
+  /// inherited isolation check there traps (the app crashed on SIGTERM instead of quitting).
+  private nonisolated static func terminationSource(
+    _ number: Int32, quit: @escaping @MainActor () -> Void
+  ) -> any DispatchSourceSignal {
+    signal(number, SIG_IGN)
+    // Handled off the main queue: a second signal still kills an app that hangs there.
+    let source = DispatchSource.makeSignalSource(signal: number, queue: .global())
+    let signalled = OSAllocatedUnfairLock(initialState: false)
+    source.setEventHandler {
+      if signalled.withLock({ was in
+        defer { was = true }
+        return was
+      }) {
+        signal(number, SIG_DFL)
+        raise(number)
+      } else {
+        Task { @MainActor in quit() }
+      }
+    }
+    source.resume()
+    return source
+  }
 
   /// Version or build from the app's own Info.plist (set by `scripts/build-app.sh`).
   private static func bundleText(_ key: String) -> String {
