@@ -7,7 +7,7 @@ Prioridades, nesta ordem: **segurança → nunca quebrar o áudio do usuário �
 - `docs/SPEC.md` — o que o app faz e as regras técnicas (§12) e de segurança (§12.9). **A SPEC manda.**
 - `docs/PLAN.md` — etapas, papéis e critérios de cada etapa.
 - `design/VolumeManager.figcraft` — referência visual (não é para recriar pixel a pixel; usar controles nativos).
-- `docs/MANUAL_TESTS.md` — roteiros manuais do usuário; `docs/SECURITY_AUDIT.md` — auditoria e riscos aceitos. O histórico das etapas está no `git log` (relatórios antigos e o diário de progresso saíram do repositório na v1.0.0; continuam no histórico do git).
+- `docs/MANUAL_TESTS.md` — roteiros manuais do usuário (**arquivo local, fora do git**: tem dados da máquina de teste); `docs/SECURITY_AUDIT.md` — auditoria e riscos aceitos. O histórico das etapas está no `git log` (relatórios antigos e o diário de progresso saíram do repositório na v1.0.0; continuam no histórico do git).
 
 ## Ambiente
 - macOS 27, **Xcode 27.2 instalado e selecionado** (Swift 6.4.2; macros do SwiftUI disponíveis). Testes com **Swift Testing**. Sem CI: tudo é verificado localmente.

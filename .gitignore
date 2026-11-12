@@ -12,6 +12,9 @@ default.profraw
 # Snapshots locais de conferência visual (VM_WRITE_SNAPSHOTS=1)
 Tests/Snapshots/
 
+# Roteiro de testes manuais: local, com dados da máquina de teste (fora do repositório)
+docs/MANUAL_TESTS.md
+
 # macOS
 .DS_Store
 

@@ -296,7 +296,7 @@ volume-manager/
 - Cobertura mínima: **≥ 85% de linhas em `VolumeCore`**.
 - Casos obrigatórios: agrupamento de processos (Safari/WebKit, Chrome Helper, Electron), regra “tap enquanto reproduz, ganho 1 em 100%”, fallback e restauração de rota, lembrar/esquecer volume, debounce de persistência, contador “N reproduzindo”, curva de volume (0, 1, monotônica), atraso de 5 s para remover apps.
 - Integração (`VolumeAudioTests`): criar/destruir tap e aggregate device 100× sem vazamento; listar dispositivos; ler/escrever volume geral num dispositivo nulo/virtual quando disponível.
-- **Roteiro manual** (`docs/MANUAL_TESTS.md`, escrito pelo agente de testes) cobrindo os critérios do §14 que exigem hardware.
+- **Roteiro manual** (`docs/MANUAL_TESTS.md`, local e fora do repositório, escrito pelo agente de testes) cobrindo os critérios do §14 que exigem hardware.
 - Casos obrigatórios do §4.6: vigia destrói tap parado, “Restaurar áudio original” limpa tudo, modo seguro após 2 encerramentos anormais.
 
 #### 12.8.1 Testes isolados — nenhum som audível
